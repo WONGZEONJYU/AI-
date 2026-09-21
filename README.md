@@ -20,6 +20,11 @@
 | 进阶篇 | 28-38 | LangGraph、CrewAI、Dify、多 Agent 协作、RAG |
 | 综合篇 | 39-48 | 垂直应用 Agent、部署架构、安全防护、成本控制、面试 |
 
+###阅读方式
+
+- 📄 [源码查看](https://github.com/1415699306/AI-/blob/main/index.html)
+- 🌐 [网页预览](https://raw.githack.com/1415699306/AI-/main/index.html)
+
 ## 章节列表
 
 ### 基础篇

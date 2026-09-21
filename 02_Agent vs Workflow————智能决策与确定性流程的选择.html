@@ -1,0 +1,2853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent vs Workflow——智能决策与确定性流程的选择</title>
+<style>
+/* ===== 标准电子资料样式 ===== */
+/* 协调者子agent在初始化阶段复制此文件到输出目录 */
+/* 配色通过 CSS 变量控制，协调者根据主题选择色板 */
+
+:root {
+  /* ===== 色板切换指南（协调者替换以下整块 :root 变量） =====
+  内置色板（直接复制对应区块替换默认值）：
+
+  绿色系（默认，Python/Qt系）：
+    --primary:#2C5F2D; --primary-dark:#1B3A1C; --primary-light:#4A8B4C; --accent:#41CD52; --accent-dark:#2E7D32; --accent-light:#81C784;
+    --primary-bg:#E8F5E9; --primary-border:#4CAF50; --accent-bg:#F1F8E9; --accent-border:#8BC34A; --bg-alt:#F4F9F4; --tip-bg:#E8F5E9;
+    SVG推荐：主题#2C5F2D#1B3A1C#4A8B4C#41CD52#81C784 背景#E8F5E9#F1F8E9#F5F5F5
+
+  蓝色系（通用技术）：
+    --primary:#2196F3; --primary-dark:#1565C0; --primary-light:#64B5F6; --accent:#00BCD4; --accent-dark:#00838F; --accent-light:#80DEEA;
+    --primary-bg:#E3F2FD; --primary-border:#42A5F5; --accent-bg:#E0F7FA; --accent-border:#26C6DA; --bg-alt:#F0F7FF; --tip-bg:#E3F2FD;
+    SVG推荐：主题#2196F3#1565C0#64B5F6#00BCD4#80DEEA 背景#E3F2FD#E0F7FA#F5F5F5
+
+  紫色系（AI/数据系）：
+    --primary:#7B1FA2; --primary-dark:#4A148C; --primary-light:#BA68C8; --accent:#E040FB; --accent-dark:#AA00FF; --accent-light:#EA80FC;
+    --primary-bg:#F3E5F5; --primary-border:#AB47BC; --accent-bg:#FCE4EC; --accent-border:#F48FB1; --bg-alt:#F4EFF5; --tip-bg:#F3E5F5;
+    SVG推荐：主题#7B1FA2#4A148C#BA68C8#E040FB#EA80FC 背景#F3E5F5#FCE4EC#F5F5F5
+
+  橙色系（Blender/设计系）：
+    --primary:#E8723A; --primary-dark:#C45A2D; --primary-light:#F5A623; --accent:#FF9800; --accent-dark:#E65100; --accent-light:#FFB74D;
+    --primary-bg:#FFF3E0; --primary-border:#FF9800; --accent-bg:#FFF8E1; --accent-border:#FFC107; --bg-alt:#FFF8F0; --tip-bg:#FFF3E0;
+    SVG推荐：主题#E8723A#C45A2D#F5A623#FF9800#FFB74D 背景#FFF3E0#FFF8E1#F5F5F5
+  */
+  /* 主题色（跟着色板走，切换色板时必须同步更新以下6行 + 衍生背景色6行） */
+  --primary: #7B1FA2;
+  --primary-dark: #4A148C;
+  --primary-light: #BA68C8;
+  --accent: #E040FB;
+  --accent-dark: #2E7D32;
+  --accent-light: #81C784;
+
+  /* 主题衍生背景色（跟着色板走） */
+  --primary-bg: #E8F5E9;        /* 主题色浅背景，用于信息卡片、提示框 */
+  --primary-border: #4CAF50;    /* 主题色边框 */
+  --accent-bg: #F1F8E9;         /* 强调色浅背景 */
+  --accent-border: #8BC34A;     /* 强调色边框 */
+  --bg-alt: #F4F9F4;            /* 主题色极浅背景，用于页面交替色 */
+  --tip-bg: #E8F5E9;            /* 提示框背景（与primary-bg一致） */
+
+  /* 语义色（固定不变，不随色板切换） */
+  --info-bg: #E3F2FD;           /* 蓝色信息背景 */
+  --info-border: #2196F3;       /* 蓝色信息边框 */
+  --info-text: #1565C0;         /* 蓝色信息文字 */
+  --success-bg: #E8F5E9;        /* 绿色成功背景 */
+  --success-border: #4CAF50;    /* 绿色成功边框 */
+  --success-text: #2E7D32;      /* 绿色成功文字 */
+  --warning-bg: #FFF3E0;        /* 橙色警告背景 */
+  --warning-border: #FF9800;    /* 橙色警告边框 */
+  --warning-text: #E65100;      /* 橙色警告文字 */
+  --danger-bg: #FFEBEE;         /* 红色危险背景 */
+  --danger-border: #E53935;     /* 红色危险边框 */
+  --danger-text: #C62828;       /* 红色危险文字 */
+  --highlight-bg: #FFFDE7;      /* 高亮背景（黄色系） */
+
+  /* 中性色（固定不变） */
+  --bg: #FFFFFF;
+  --bg-page: #F0EBE5;
+  --bg-card: #F5F5F5;           /* 卡片/面板背景 */
+  --bg-code-inline: #F0F0F0;    /* 行内代码背景 */
+  --text: #2D2D2D;
+  --text-light: #555;
+  --text-muted: #757575;        /* 次要文字（标签、注释） */
+  --border: #D0D0D0;
+  --border-light: #E0E0E0;      /* 浅边框（分隔线） */
+  --code-bg: #1E1E2E;
+  --code-text: #CDD6F4;
+  --max-width: 900px;
+
+  /*
+  SVG推荐色板（SVG fill/stroke 必须用十六进制，从以下颜色中选用）：
+  主题：#2C5F2D(主) #1B3A1C(深) #4A8B4C(浅) #41CD52(强调) #81C784(强调浅)
+  语义：#2196F3(信息) #4CAF50(成功) #FF9800(警告) #E53935(危险) #FFB300(注意)
+  中性：#757575(灰) #BDBDBD(浅灰) #E0E0E0(极浅灰) #fff(白) #2D2D2D(深)
+  背景：#E8F5E9(主题浅) #E3F2FD(信息浅) #FFF3E0(警告浅) #FFEBEE(危险浅) #F5F5F5(卡片)
+  */
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", -apple-system, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--bg-page);
+  line-height: 1.85; -webkit-font-smoothing: antialiased;
+  word-break: break-word; overflow-wrap: break-word;
+}
+/* 等宽字体异步加载（Fira Code CDN） */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== 内容容器（模拟纸张感） ===== */
+.book {
+  max-width: var(--max-width); margin: 0 auto;
+  background: var(--bg); min-height: 100vh;
+  box-shadow: 0 0 40px rgba(0,0,0,0.06); overflow: hidden;
+}
+
+/* ===== 封面 ===== */
+.cover {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  min-height: 100vh; text-align: center;
+  background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 90%, var(--accent) 100%);
+  color: #fff; padding: 3rem 2rem; page-break-after: always;
+  position: relative; overflow: hidden;
+}
+.cover::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.cover::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.15));
+  pointer-events: none;
+}
+.cover-decoration { margin-bottom: 24px; position: relative; z-index: 1; }
+.cover-badge {
+  display: inline-block; padding: 4px 16px; border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; font-size: 0.8rem; letter-spacing: 0.1em;
+  margin-bottom: 20px; opacity: 0.75; position: relative; z-index: 1;
+}
+.cover h1 { font-size: 3.75rem; font-weight: 900; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #fff !important; border: none !important; page-break-before: auto !important; padding: 0 !important; position: relative; z-index: 1; }
+.cover .subtitle { font-size: 1.625rem; opacity: 0.85; margin-bottom: 1rem; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.cover .tagline { font-size: 1.1rem; opacity: 0.65; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 1; }
+.cover-features { display: flex; gap: 12px; margin-bottom: 2rem; position: relative; z-index: 1; flex-wrap: wrap; justify-content: center; }
+.cover-feature {
+  padding: 4px 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; font-size: 0.85rem; letter-spacing: 0.02em;
+}
+.cover-author { font-size: 1.1rem; opacity: 0.7; margin-bottom: 0.3rem; position: relative; z-index: 1; }
+.cover-date { font-size: 0.9rem; opacity: 0.5; position: relative; z-index: 1; }
+/* 兼容旧版封面 */
+.cover .meta { font-size: 1.1rem; opacity: 0.55; position: relative; z-index: 1; }
+
+/* ===== 目录（卡片式） ===== */
+.toc { padding: 50px 40px; background: #FFFCF9; border-bottom: 1px solid #EDE8E3; }
+.toc-title { font-size: 1.5rem; color: var(--text); margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid var(--accent); display: inline-block; }
+.toc-list { display: flex; flex-direction: column; gap: 12px; }
+.toc-item {
+  display: block; padding: 12px 18px; background: #fff;
+  border: 1px solid #EDE8E3; border-radius: 10px;
+  text-decoration: none; color: var(--text); font-size: 0.95rem;
+  transition: all 0.2s;
+}
+.toc-item:hover { background: var(--bg-alt); border-color: var(--accent); transform: translateX(4px); text-decoration: none; }
+.toc-num { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-desc { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.toc-section { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+/* Practice type TOC */
+.toc-section-title { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+.toc-group { margin-bottom: 8px; }
+.toc-group-title { font-size: 0.85rem; color: var(--text-light); font-weight: 600; margin: 8px 0; padding-left: 4px; }
+.toc-number { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-title-text { color: var(--text); }
+.toc-tags { float: right; display: flex; gap: 6px; align-items: center; }
+.toc-tag { font-size: 0.75rem; color: var(--primary); background: var(--primary-bg, #E8F5E9); padding: 2px 8px; border-radius: 4px; }
+
+/* ===== 章节容器 ===== */
+.chapter {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.chapter::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+  margin: 20px 0 0; opacity: 0.6;
+}
+
+/* ===== 前言 ===== */
+.preface {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 术语表 ===== */
+.glossary {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 附录 ===== */
+.appendix {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 练习题容器（practice类型） ===== */
+.problem {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.problem::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 20px 0 0; opacity: 0.4;
+}
+
+/* ===== 练习题头部 ===== */
+.problem-header {
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent);
+}
+
+/* ===== 章节头部（编号圆圈+标题） ===== */
+.chapter-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent); position: relative;
+}
+.chapter-header::after {
+  content: ''; position: absolute; bottom: -3px; left: 0; width: 60px; height: 3px;
+  background: var(--primary-dark); border-radius: 2px;
+}
+.chapter-header .chapter-num {
+  flex-shrink: 0; width: 48px; height: 48px; line-height: 48px;
+  text-align: center; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+  border-radius: 50%; font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+}
+.chapter-header .chapter-num::after {
+  content: ''; position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px;
+  border-radius: 50%; border: 2px solid var(--accent); opacity: 0.4;
+}
+.chapter-header .chapter-title {
+  font-size: 1.8rem; font-weight: 800; color: var(--primary);
+  line-height: 1.35; margin: 0; border: none; padding: 0;
+}
+.chapter-header .chapter-icon { flex-shrink: 0; }
+
+/* ===== 标题层级 ===== */
+h1 { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 40px 0 20px; line-height: 1.4; page-break-before: always; }
+h1:first-of-type { page-break-before: auto; }
+h2 {
+  font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin: 40px 0 18px; padding-top: 20px;
+  padding-left: 14px;
+  border-top: 2px solid;
+  border-image: linear-gradient(90deg, var(--accent), var(--primary-light), transparent) 1;
+  line-height: 1.4;
+  border-left: 4px solid var(--accent);
+}
+h3 {
+  font-size: 1.2rem; font-weight: 700; color: var(--primary-light); margin: 30px 0 12px; line-height: 1.4;
+  padding-left: 10px; border-left: 3px solid var(--primary-light);
+}
+h4 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 22px 0 10px; }
+
+/* ===== 段落 ===== */
+p { margin: 14px 0; text-align: justify; line-height: 1.85; }
+ul, ol { margin: 14px 0; padding-left: 28px; }
+li { margin: 8px 0; line-height: 1.8; }
+li ul { margin: 4px 0; }
+strong { color: var(--primary-dark); }
+
+/* ===== 难度标记 ===== */
+.difficulty { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+.difficulty.basic { background: #E8F5E9; color: #2E7D32; }
+.difficulty.intermediate { background: #FFF3E0; color: #E65100; }
+.difficulty.advanced { background: #FCE4EC; color: #C62828; }
+
+/* ===== 代码块 ===== */
+pre {
+  background: var(--code-bg) !important; color: var(--code-text);
+  padding: 20px 24px; border-radius: 10px;
+  overflow-x: auto; margin: 18px 0; max-width: 100%;
+  font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace;
+  font-size: 0.87rem; line-height: 1.7;
+  page-break-inside: avoid; border: 1px solid #2A2A3E;
+  position: relative;
+}
+pre code {
+  background: transparent !important; color: var(--code-text) !important;
+  font-size: 0.87rem; line-height: 1.7;
+  display: block; white-space: pre-wrap; word-wrap: break-word;
+}
+code { font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace; font-size: 0.88em; }
+:not(pre) > code {
+  background: #FFF3E0; color: #C45A2D;
+  padding: 2px 6px; border-radius: 4px; word-break: break-all;
+}
+
+/* 语法高亮 */
+pre .kw { color: #569CD6; }
+pre .str { color: #CE9178; }
+pre .cmt { color: #6A9955; font-style: italic; }
+pre .fn { color: #DCDCAA; }
+pre .num { color: #B5CEA8; }
+pre .cls { color: #4EC9B0; }
+pre .op { color: #D4D4D4; }
+pre .dec { color: #C586C0; }
+pre .param { color: #9CDCFE; }
+
+/* 实战案例完整代码块 */
+.project-example { margin: 1.5rem 0; border: 2px solid var(--accent); border-radius: 10px; overflow: hidden; }
+.project-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+.project-tag { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+.project-title { font-weight: 600; font-size: 14px; }
+.project-desc { padding: 10px 16px; background: #FFF8F0; font-size: 14px; color: #555; border-bottom: 1px solid #EEE; }
+.project-example pre { margin: 0; border-radius: 0; border: none; }
+.project-run { padding: 10px 16px; background: #F0FFF0; font-size: 13px; color: #333; border-top: 1px solid #DDD; }
+
+/* 代码块滚动条 */
+pre::-webkit-scrollbar { height: 6px; }
+pre::-webkit-scrollbar-track { background: var(--code-bg); }
+pre::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* 代码块语言标签（纯CSS实现） */
+pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute; top: 0; right: 0;
+  padding: 3px 10px; border-radius: 0 10px 0 6px;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-transform: uppercase;
+}
+
+/* ===== 表格 ===== */
+.styled-table, table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  margin: 18px 0; font-size: 0.9rem;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid #EDE8E3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+th {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; font-weight: 600; padding: 12px 16px; text-align: left; white-space: nowrap;
+}
+td { padding: 10px 16px; border-top: 1px solid #F0EBE5; }
+tr:nth-child(even) { background: #FFFCF9; }
+tr:hover { background: var(--bg-alt); }
+
+/* 宽表格水平滚动（防溢出） */
+.table-wrap { overflow-x: auto; margin: 18px 0; border-radius: 10px; }
+.table-wrap table { margin: 0; }
+
+/* ===== 装饰性SVG/图表容器 ===== */
+.concept-svg {
+  text-align: center; margin: 25px 0; padding: 18px;
+  background: linear-gradient(135deg, var(--bg-alt) 0%, #FAFAFA 100%);
+  border-radius: 12px; border: 1px solid #E0E8E0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.concept-svg svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+/* SVG 内部元素默认视觉增强 */
+.concept-svg svg rect { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+.concept-svg svg circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+
+/* 兼容旧版 CSS div 图表 */
+.chart-container { max-width: 800px; margin: 28px auto; padding: 16px; font-family: -apple-system, "PingFang SC", sans-serif; }
+.chart-container h3, .chart-container h4 { font-size: 1rem; color: var(--primary); margin-bottom: 14px; text-align: center; }
+.flowchart { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.flowchart .step { padding: 14px 22px; background: var(--bg-alt); border: 2px solid var(--primary-light); border-radius: 10px; font-weight: 600; text-align: center; min-width: 110px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+.flowchart .step.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: var(--primary-dark); }
+.flowchart .arrow { font-size: 22px; color: var(--primary-light); padding: 0 4px; }
+
+/* ===== CSS div 图表样式（SVG 替代方案，节省 token） ===== */
+/* 对比卡片（左右对比、前后对比） */
+.compare-card { display: flex; flex-direction: column; gap: 12px; align-items: stretch; margin: 24px 0; }
+.compare-card .compare-col { display: flex; flex-direction: column; gap: 10px; }
+.compare-card .compare-item { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-alt); }
+.compare-card .compare-item.bad { border-color: #E57373; background: #FFF5F5; }
+.compare-card .compare-item.good { border-color: #81C784; background: #F1F8F1; }
+.compare-card .compare-item strong { display: block; margin-bottom: 4px; font-size: 0.93rem; }
+.compare-card .compare-item span { font-size: 0.87rem; color: var(--text-light); }
+.compare-card .compare-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.compare-card .compare-item:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+.compare-card .compare-divider { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary); font-weight: 700; }
+
+/* 步骤卡片 */
+.steps-card { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+.steps-card .step-item { display: flex; gap: 14px; padding: 14px 0; border-left: 3px solid var(--primary-light); padding-left: 16px; position: relative; }
+.steps-card .step-item::before { content: attr(data-step); position: absolute; left: -14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.steps-card .step-item strong { display: block; margin-bottom: 4px; }
+.steps-card .step-item span { font-size: 0.9rem; color: var(--text-light); }
+.steps-card .step-item { transition: border-color 0.2s ease; }
+.steps-card .step-item:hover { border-color: var(--primary-dark); }
+
+/* 特性/标签网格 */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+.feature-grid .feature-item { padding: 14px 16px; border-radius: 8px; background: var(--bg-alt); border: 1px solid var(--border); }
+.feature-grid .feature-item strong { display: block; margin-bottom: 6px; color: var(--primary-dark); }
+.feature-grid .feature-item span { font-size: 0.87rem; color: var(--text-light); line-height: 1.6; }
+.feature-grid .feature-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.feature-grid .feature-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--primary-border); }
+.timeline { position: relative; padding-left: 44px; }
+.timeline::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--primary), var(--primary-light)); border-radius: 2px; }
+.timeline .event { position: relative; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-alt); border-radius: 10px; border: 1px solid #D6E8D6; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+.timeline .event:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: var(--primary-light); }
+.timeline .event::before { content: ''; position: absolute; left: -36px; top: 16px; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--primary); }
+.timeline .event .year { font-weight: 700; color: var(--primary); font-size: 1.05rem; }
+.compare { display: flex; flex-direction: column; gap: 12px; }
+.compare .col { flex: 1; padding: 22px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.compare .col-a { background: #FFF3E0; border-left: 5px solid #FF9800; }
+.compare .col-b { background: #E8F5E9; border-left: 5px solid #4CAF50; }
+.compare .col-c { background: #E3F2FD; border-left: 5px solid #2196F3; }
+.compare .col h3 { margin-top: 0; font-size: 1.05rem; }
+.compare .col ul { padding-left: 18px; }
+.hierarchy { text-align: center; }
+.hierarchy .node { display: inline-block; padding: 12px 28px; border-radius: 10px; margin: 6px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.hierarchy .level-0 .node { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; font-size: 18px; }
+.hierarchy .level-1 .node { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: white; }
+.hierarchy .level-2 .node { background: linear-gradient(135deg, #B8D9BA, #A0C8A0); color: #333; }
+.hierarchy .arrow-down { color: #999; font-size: 22px; margin: 4px 0; }
+.matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #ddd; border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; }
+.matrix .cell { padding: 28px; text-align: center; font-weight: 600; }
+.matrix .q1 { background: #E3F2FD; }
+.matrix .q2 { background: #FFF3E0; }
+.matrix .q3 { background: #F3E5F5; }
+.matrix .q4 { background: #E8F5E9; }
+.cycle { text-align: center; }
+.cycle .ring { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 14px; max-width: 520px; }
+.cycle .node { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; padding: 10px; border: 3px solid; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+/* ===== 引用框 ===== */
+blockquote.chapter-quote {
+  background: linear-gradient(135deg, #FFF8F3, #FFFCF9);
+  border-left: 4px solid var(--accent); padding: 18px 22px; margin: 20px 0;
+  border-radius: 0 10px 10px 0; font-style: normal;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+blockquote.chapter-quote::before {
+  content: '"'; font-size: 2.5rem; color: var(--accent); opacity: 0.3;
+  position: absolute; top: -5px; left: 10px; font-family: Georgia, serif;
+}
+blockquote.chapter-quote { position: relative; }
+blockquote p { margin: 6px 0; }
+
+/* ===== 提示框 ===== */
+.box {
+  padding: 1.1rem 1.3rem; border-radius: 10px; margin: 1.2rem 0 1.5rem;
+  border-left: 5px solid; page-break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.box p:last-child { margin-bottom: 0; }
+.box-title { font-weight: 700; margin-bottom: 0.3rem; font-size: 0.95rem; }
+/* 提示框标题 emoji 增强显示 */
+.box-title::before { margin-right: 4px; }
+.box.tip { background: var(--tip-bg); border-color: var(--accent); }
+.box.tip .box-title { color: var(--primary); }
+.box.warn { background: var(--warn-bg); border-color: #FFA000; }
+.box.warn .box-title { color: #E65100; }
+.box.danger { background: var(--danger-bg); border-color: #D32F2F; }
+.box.danger .box-title { color: #C62828; }
+.box.info { background: #E3F2FD; border-color: #1976D2; }
+.box.info .box-title { color: #0D47A1; }
+
+/* 实战案例框 */
+.box.case { background: #FFF8E1; border-color: #FF8F00; }
+.box.case .box-title::before { content: '💡 '; }
+.box.case .box-title { color: #E65100; }
+
+/* 常见错误框 */
+.box.pitfall { background: #FBE9E7; border-color: #BF360C; }
+.box.pitfall .box-title::before { content: '⚠️ '; }
+.box.pitfall .box-title { color: #BF360C; }
+
+/* 知识卡片 */
+.box.key { background: #E8EAF6; border-color: #303F9F; }
+.box.key .box-title::before { content: '🔑 '; }
+.box.key .box-title { color: #1A237E; }
+
+/* 对比分析框 */
+.box.compare-box { background: #F3E5F5; border-color: #7B1FA2; }
+.box.compare-box .box-title::before { content: '⚖️ '; }
+.box.compare-box .box-title { color: #4A148C; }
+
+/* 最佳实践框 */
+.box.practice { background: #E0F2F1; border-color: #00695C; }
+.box.practice .box-title::before { content: '✅ '; }
+.box.practice .box-title { color: #004D40; }
+
+/* 公式/关键数据框 */
+.box.formula { background: #ECEFF1; border-color: #546E7A; }
+.box.formula .box-title::before { content: '📊 '; }
+.box.formula .box-title { color: #37474F; }
+
+/* ===== 统计卡片网格 ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 24px 0; }
+.stat-grid .stat-item { padding: 18px 16px; border-radius: 10px; background: var(--bg-alt); border: 1px solid var(--border); text-align: center; transition: transform 0.2s ease, border-color 0.2s ease; }
+.stat-grid .stat-item:hover { transform: translateY(-2px); border-color: var(--primary); }
+.stat-grid .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-grid .stat-label { font-size: 0.85rem; color: var(--text-light); margin-top: 6px; }
+.stat-grid .stat-item.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border-color: var(--primary-dark); }
+.stat-grid .stat-item.highlight .stat-value { color: #fff; }
+.stat-grid .stat-item.highlight .stat-label { color: rgba(255,255,255,0.8); }
+
+/* ===== 进度条/能力条 ===== */
+.progress-list { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+.progress-list .progress-item { }
+.progress-list .progress-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; font-weight: 600; }
+.progress-list .progress-label span:last-child { color: var(--primary); }
+.progress-list .progress-bar { height: 10px; background: #E8E8E8; border-radius: 5px; overflow: hidden; }
+.progress-list .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--primary-light), var(--primary)); transition: width 0.3s; }
+.progress-list .progress-fill.warn { background: linear-gradient(90deg, #FFB74D, #FF9800); }
+.progress-list .progress-fill.danger { background: linear-gradient(90deg, #E57373, #D32F2F); }
+
+/* ===== 四象限图 ===== */
+.quadrant { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--border); border-radius: 12px; overflow: hidden; max-width: 640px; margin: 24px auto; }
+.quadrant .q-cell { padding: 22px 18px; }
+.quadrant .q-cell.q1 { background: #E3F2FD; }
+.quadrant .q-cell.q2 { background: #FFF3E0; }
+.quadrant .q-cell.q3 { background: #F3E5F5; }
+.quadrant .q-cell.q4 { background: #E8F5E9; }
+.quadrant .q-cell strong { display: block; font-size: 0.95rem; margin-bottom: 6px; color: var(--primary-dark); }
+.quadrant .q-cell ul { padding-left: 16px; margin: 0; }
+.quadrant .q-cell li { font-size: 0.85rem; margin: 3px 0; }
+.quadrant .axis-label { text-align: center; font-size: 0.8rem; color: var(--text-light); padding: 6px 0; font-weight: 600; }
+.quadrant .axis-x { grid-column: 1 / -1; border-top: 2px solid var(--primary-light); }
+.quadrant .axis-y-left { writing-mode: vertical-lr; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+.quadrant .axis-y-right { writing-mode: vertical-rl; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+
+/* ===== 标签云 ===== */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; justify-content: center; }
+.tag-cloud .tag { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: var(--bg-alt); border: 1px solid var(--border); color: var(--primary-dark); }
+.tag-cloud .tag.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tag-cloud .tag.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== 分隔线 ===== */
+hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 40px 0; }
+/* 装饰性分隔符（章节间主题切换时使用） */
+hr.divider-accent {
+  height: 3px; margin: 48px 0;
+  background: linear-gradient(90deg, transparent 5%, var(--primary-light) 20%, var(--accent) 50%, var(--primary-light) 80%, transparent 95%);
+  position: relative;
+}
+hr.divider-accent::after {
+  content: '◆'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--bg); color: var(--accent); padding: 0 8px; font-size: 0.7rem;
+}
+
+/* ===== 面包屑导航 ===== */
+.breadcrumb { padding: 12px 0; font-size: 14px; color: #888; border-bottom: 1px solid #F0EBE5; margin-bottom: 24px; }
+.breadcrumb a { color: var(--primary); text-decoration: none; }
+
+/* ===== 底部章节导航 ===== */
+.chapter-nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; margin-top: 48px; border-top: 2px solid #F0EBE5; }
+.chapter-nav a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ===== 开头引子 ===== */
+.hook { padding: 20px 0; margin-bottom: 10px; }
+
+/* ===== 页脚 ===== */
+.footer { text-align: center; padding: 2rem; margin-top: 3rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-light); }
+
+/* ===== 回到顶部 ===== */
+.back-top {
+  position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px;
+  background: var(--primary); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: none; z-index: 100; line-height: 44px; text-align: center;
+  text-decoration: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .sidebar-toc { transform: translateX(-100%); }
+  .sidebar-toc.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.1); }
+  button.sidebar-toggle { display: block; }
+  .book { margin-left: 0 !important; }
+}
+
+@media (max-width: 768px) {
+  .book { box-shadow: none; }
+  .chapter, .toc { padding: 30px 20px; }
+  .cover { padding: 50px 20px 40px; }
+  .cover h1 { font-size: 2.5rem; }
+  .chapter-header { flex-direction: column; text-align: center; }
+  .chapter-header .chapter-title { font-size: 1.4rem; }
+  h2 { font-size: 1.3rem; }
+  pre { padding: 14px 16px; font-size: 0.8rem; }
+  .compare { flex-direction: column; }
+  .chart-container { max-width: 100%; }
+  table, .styled-table { font-size: 0.85rem; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (max-width: 480px) {
+  .cover h1 { font-size: 2rem; }
+  .chapter, .toc { padding: 20px 15px; }
+  pre { padding: 12px; border-radius: 6px; }
+}
+
+/* ===== 打印 ===== */
+@media print {
+  body { background: #fff; color: #000; font-size: 12pt; line-height: 1.6; }
+  .book { box-shadow: none; max-width: 100%; }
+  .cover {
+    background: none; color: #000; border: 2px solid #000;
+    page-break-after: auto;
+    /* 2026-08-17 封面整页修复：内联 min-height:100vh 在打印中映射纸高(297mm)>内容区(267mm)会溢出成空白页，
+       改为固定内容区高度(留 9mm 余量防舍入溢出)，flex 垂直居中保留 */
+    min-height: 258mm !important; height: 258mm !important; max-height: 258mm !important;
+    box-sizing: border-box !important; margin: 0 !important; padding: 0 !important;
+  }
+  .cover h1 { color: #000 !important; text-shadow: none; font-size: 30pt; }
+  .cover .subtitle, .cover .tagline { color: #333; opacity: 1; }
+  h1, h2, h3, h4 { color: #000; page-break-after: avoid; }
+  h1 { page-break-before: always; font-size: 18pt; }
+  h1:first-of-type { page-break-before: auto; }
+  h2 { font-size: 14pt; border-left-width: 3px; border-left-color: #666; border-top-color: #ddd; }
+  h3 { font-size: 12pt; border-left-color: #999; }
+  .chapter { page-break-inside: auto; padding: 20px 0; border-bottom: 1px solid #ccc; }
+  pre {
+    border: 1px solid #ccc; background: #f5f5f5 !important;
+    color: #333 !important; font-size: 9pt; line-height: 1.5;
+    page-break-inside: avoid; white-space: pre-wrap;
+  }
+  pre .kw, pre .str, pre .cmt, pre .fn, pre .num, pre .cls, pre .op, pre .dec, pre .param {
+    color: #333 !important;
+  }
+  a { color: #000; text-decoration: underline; }
+  .box { border-left-width: 2px; background: #f9f9f9 !important; }
+  .box .box-title { color: #333 !important; }
+  table, .styled-table { box-shadow: none; }
+  th { background: #eee !important; color: #000 !important; }
+  tr:nth-child(even) { background: #fafafa; }
+  .concept-svg { background: none; border: 1px solid #ddd; }
+  .no-print, .back-top, .back-to-top, .chapter-nav, .breadcrumb, .sidebar-toc, .sidebar-toggle, .reading-progress { display: none !important; }
+  body.sidebar-active { padding-left: 0 !important; }
+  .book { margin-left: 0 !important; }
+  .toc { background: none; border: none; page-break-after: auto; page-break-before: always; break-before: page; }
+  /* 2026-08-17 空白页修复：分页统一由 break-before 承担，隐藏 .page-break 空div和锚点，
+     避免"内容恰好填满一页 + 尾随 break div 溢出"产生的空白页 */
+  .page-break { display: none !important; }
+  .section-anchor { display: none !important; }
+  .preface, .chapter, .problem, .copyright-page { page-break-before: always; break-before: page; }
+  .copyright-page { min-height: 200mm !important; height: auto !important; padding: 80px 20px; }
+  @page { margin: 14mm 10mm; size: A4; }
+}
+
+/* ===== 代码块增强（后处理脚本自动生成） ===== */
+/* Writer 无需手动写这些结构，enhance-code.py 会自动将 <pre> 包裹为 code-block */
+
+.code-block {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.code-block .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.code-block .code-lang {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .code-filename {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  margin-left: 8px;
+}
+.code-block .copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .copy-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
+}
+.code-block .copy-btn.copied {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  background: rgba(76,175,80,0.1);
+}
+.code-block pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+/* 行号支持：code-block-numbered 的 pre 使用 CSS counter 显示行号 */
+.code-block.code-block-numbered pre {
+  counter-reset: code-line;
+}
+.code-block.code-block-numbered .code-line {
+  counter-increment: code-line;
+  display: block;
+  min-height: 1.5em;
+}
+.code-block.code-block-numbered .code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 1em;
+  text-align: right;
+  color: rgba(255,255,255,0.18);
+  font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+/* 空行的行号仍然显示 */
+.code-block.code-block-numbered .code-line:empty::before {
+  content: counter(code-line);
+}
+/* 隐藏 data-language 伪元素（code-block 已有自己的语言标签） */
+.code-block pre[data-language]::before {
+  display: none;
+}
+.code-block .code-output {
+  padding: 14px 20px;
+  background: #0d1117;
+  border-top: 1px solid #2A2A3E;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #8b949e;
+}
+.code-block .code-output .output-label {
+  font-size: 0.7rem;
+  color: #4CAF50;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.code-block .code-output .output-label::before {
+  content: "▶ ";
+  font-size: 0.6rem;
+}
+.code-block .code-output .output-text {
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 打印时隐藏复制按钮 */
+@media print {
+  .code-block .code-header { background: #f5f5f5; border-bottom-color: #ccc; }
+  .code-block .code-lang { color: #666; }
+  .code-block .copy-btn { display: none; }
+  .code-block .code-output { background: #f9f9f9; border-top-color: #ccc; color: #333; }
+  .code-block .code-output .output-label { color: #666; }
+  .code-block .code-output .output-text { color: #333; }
+}
+
+/* ===== 分步执行器（后处理脚本自动生成） ===== */
+/* enhance-code.py 对可执行的 Python 代码自动生成分步执行数据，前端渲染 */
+
+.step-executor {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: #0D1117;
+  outline: none;
+}
+.step-executor:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25), 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* 顶部信息栏 */
+.step-executor .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-header .exec-lang {
+  font-size: 0.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.step-executor .exec-header .exec-meta {
+  font-size: 0.75rem; color: rgba(255,255,255,0.3);
+}
+.step-executor .exec-header .exec-copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 2px 10px; border-radius: 4px;
+  font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+  margin-left: auto;
+}
+.step-executor .exec-header .exec-copy-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-header .exec-copy-btn.copied {
+  color: #10b981; border-color: #10b981;
+}
+
+/* 顶部导航栏 */
+.step-executor .exec-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1a1f2b;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-nav .step-dots {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #333; transition: all 0.3s; cursor: pointer;
+}
+.step-executor .exec-nav .step-dot.active {
+  background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,0.4);
+}
+.step-executor .exec-nav .step-dot.done {
+  background: var(--success);
+}
+.step-executor .exec-nav .step-info {
+  font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-left: 12px;
+}
+.step-executor .exec-nav .nav-btns {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .nav-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 14px; border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+}
+.step-executor .exec-nav .nav-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-nav .nav-btn.primary {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.step-executor .exec-nav .nav-btn.primary:hover { background: var(--primary-dark); }
+
+/* 主体区域：左代码 + 右面板 */
+.step-executor .exec-body {
+  display: flex; min-height: 200px;
+}
+
+/* 左侧代码 */
+.step-executor .exec-code {
+  flex: 7; overflow-x: auto; overflow-y: auto;
+  max-height: 600px;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem; line-height: 1.8;
+  padding: 12px 0;
+}
+.step-executor .exec-code .eline {
+  display: flex; padding: 0 16px;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+  white-space: pre;
+}
+.step-executor .exec-code .eline .lnum {
+  min-width: 28px; text-align: right;
+  color: #484f58; margin-right: 14px; user-select: none; flex-shrink: 0;
+}
+.step-executor .exec-code .eline .ltxt { color: #c9d1d9; flex: 1; }
+/* Syntax highlighting */
+.step-executor .exec-code .eline .ltxt .hl-keyword { color: #ff7b72; font-weight: 600; }
+.step-executor .exec-code .eline .ltxt .hl-string { color: #a5d6ff; }
+.step-executor .exec-code .eline .ltxt .hl-comment { color: #484f58; font-style: italic; }
+.step-executor .exec-code .eline .ltxt .hl-number { color: #79c0ff; }
+.step-executor .exec-code .eline .ltxt .hl-type { color: #ffa657; }
+.step-executor .exec-code .eline .ltxt .hl-decorator { color: #d2a8ff; }
+/* Code-block syntax highlighting */
+.code-block pre code .hl-keyword { color: #ff7b72; font-weight: 600; }
+.code-block pre code .hl-string { color: #a5d6ff; }
+.code-block pre code .hl-comment { color: #484f58; font-style: italic; }
+.code-block pre code .hl-number { color: #79c0ff; }
+.code-block pre code .hl-type { color: #ffa657; }
+.code-block pre code .hl-decorator { color: #d2a8ff; }
+.step-executor .exec-code .eline.step-active {
+  background: rgba(245,158,11,0.12); border-left-color: var(--accent);
+}
+.step-executor .exec-code .eline.step-active .lnum { color: var(--accent); }
+.step-executor .exec-code .eline.step-done {
+  background: rgba(16,185,129,0.06); border-left-color: rgba(16,185,129,0.3);
+}
+.step-executor .exec-code .eline.step-done .lnum { color: rgba(16,185,129,0.5); }
+
+/* 右侧面板 */
+.step-executor .exec-panel {
+  flex: 3; border-left: 1px solid #2A2A3E;
+  display: flex; flex-direction: column;
+  background: #1a1f2b;
+}
+.step-executor .step-explain {
+  padding: 16px; border-bottom: 1px solid #2A2A3E; flex-shrink: 0;
+}
+.step-executor .step-explain .stitle {
+  font-size: 0.85rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.step-executor .step-explain .stitle .sbadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 0.65rem; font-weight: 700;
+}
+.step-executor .step-explain .sdesc {
+  font-size: 0.8rem; color: #c9d1d9; line-height: 1.6;
+}
+
+/* 变量面板 */
+.step-executor .var-panel {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+}
+.step-executor .var-panel .vp-title {
+  font-size: 0.65rem; color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px; font-weight: 600;
+}
+.step-executor .var-panel .vitem {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 8px; border-radius: 4px; margin-bottom: 2px;
+  transition: all 0.3s;
+}
+.step-executor .var-panel .vitem.changed {
+  background: rgba(245,158,11,0.08);
+  animation: vflash 0.6s ease;
+}
+.step-executor .var-panel .vtoggle {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.step-executor .var-panel .vtoggle:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+}
+.step-executor .var-panel .vfold {
+  display: none;
+}
+@keyframes vflash {
+  0% { background: rgba(245,158,11,0.25); }
+  100% { background: rgba(245,158,11,0.08); }
+}
+.step-executor .var-panel .vname {
+  color: #7DD3FC; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; font-weight: 600; flex-shrink: 0; min-width: 60px;
+}
+.step-executor .var-panel .vval {
+  color: #6EE7B7; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; word-break: break-all; line-height: 1.5;
+}
+.step-executor .var-panel .vtype {
+  font-size: 0.6rem; color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px; border-radius: 3px;
+}
+
+/* 输出面板 */
+.step-executor .exec-output {
+  padding: 10px 16px; border-top: 1px solid #2A2A3E;
+  background: rgba(0,0,0,0.2); max-height: 100px; overflow-y: auto;
+}
+.step-executor .exec-output .eo-label {
+  font-size: 0.65rem; color: var(--success);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 4px; font-weight: 600;
+}
+.step-executor .exec-output .eo-text {
+  font-family: "Fira Code", monospace; font-size: 0.72rem;
+  color: #c9d1d9; white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .step-executor .exec-body { flex-direction: column; }
+  .step-executor .exec-panel { width: 100%; border-left: none; border-top: 1px solid #2A2A3E; }
+  .step-executor .exec-nav .step-dots { display: none; }
+}
+
+/* ===== Fullscreen mode ===== */
+.step-executor.exec-fullscreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+.step-executor.exec-fullscreen .exec-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1a1a2e;
+}
+.step-executor.exec-fullscreen .exec-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 56px);
+}
+.step-executor.exec-fullscreen .exec-code {
+  max-height: none;
+}
+.step-executor.exec-fullscreen .exec-panel {
+  max-height: none;
+  overflow-y: auto;
+}
+.step-executor .exec-header .exec-fullscreen-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+.step-executor .exec-header .exec-fullscreen-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+
+/* 打印 */
+@media print {
+  .step-executor .exec-nav { display: none; }
+  .step-executor .exec-panel { display: none; }
+  .step-executor .exec-body { min-height: auto; }
+  .step-executor .exec-code .eline.step-active,
+  .step-executor .exec-code .eline.step-done { background: none; border-left-color: transparent; }
+  .step-executor .exec-code .eline .lnum { color: #999; }
+}
+
+/* ===== Walkthrough 模式（干跑讲解，不执行代码） ===== */
+.step-executor.walkthrough .exec-panel {
+  flex: 3; /* 代码区:讲解面板 = 7:3 */
+}
+.step-executor.walkthrough .step-explain {
+  flex: 1; /* 讲解面板占满剩余空间 */
+  border-bottom: none;
+  overflow-y: auto;
+}
+.step-executor.walkthrough .step-explain .sdesc {
+  line-height: 1.75; /* walkthrough 描述更长，行高加大 */
+}
+.step-executor.walkthrough .exec-meta::after {
+  content: ' · 讲解模式';
+}
+
+@media (max-width: 768px) {
+  .step-executor.walkthrough .exec-panel {
+    width: 100%;
+  }
+}
+
+@media print {
+  .step-executor.walkthrough .exec-panel {
+    display: block;
+    border-top: 1px solid #ccc;
+  }
+  .step-executor.walkthrough .step-explain .sdesc {
+    color: #333;
+  }
+}
+
+/* ===== 实用工具类（writer 高频 inline style 的 CSS 类替代） ===== */
+/* 使用这些类替代重复的 inline style，保持 HTML 整洁 */
+
+/* 文字尺寸与颜色 */
+.text-sm { font-size: 0.8rem; }
+.text-xs { font-size: 0.72rem; }
+.text-muted { color: var(--text-light); }
+.text-center { text-align: center; }
+.text-primary { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-white { color: #fff; }
+
+/* SVG 通用（替代重复的 max-width:100%;width:100%;height:auto） */
+.svg-responsive { max-width: 100%; width: 100%; height: auto; }
+
+/* 间距 */
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 16px; }
+
+/* Flex 布局 */
+.flex-col { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.flex-1 { flex: 1; }
+
+/* 卡片/标签 */
+.tag-sm { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; font-weight: 600; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+.card-sm { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border: 1px solid var(--border); }
+.card-accent { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border-left: 4px solid var(--accent); }
+
+/* 宽度 */
+.w-full { width: 100%; }
+.w-half { width: 50%; }
+
+/* 长代码折叠 */
+details.code-collapse { margin: 18px 0; }
+details.code-collapse > summary {
+  padding: 8px 16px; background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 0.9rem; color: var(--primary);
+  font-weight: 600; list-style: none;
+}
+details.code-collapse > summary::before { content: "▶ "; font-size: 0.75rem; }
+details.code-collapse[open] > summary::before { content: "▼ "; }
+details.code-collapse > pre { margin-top: 0; border-radius: 0 0 10px 10px; }
+
+/* ===== 著作权声明页（末页） ===== */
+.copyright-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 60px 40px; background: #fff; }
+.copyright-content { max-width: 520px; text-align: center; color: #555; font-size: 0.9rem; line-height: 2; }
+.copyright-title { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; margin-bottom: 4px; }
+.copyright-author { font-size: 1rem; color: #666; margin-bottom: 4px; }
+.copyright-version { font-size: 0.82rem; color: #999; margin-bottom: 8px; }
+.copyright-notice { font-size: 0.85rem; color: #777; margin: 2px 0; }
+.copyright-divider { height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); margin: 18px 0; }
+.copyright-statement, .copyright-disclaimer { text-align: left; font-size: 0.82rem; color: #666; padding: 0 10px; }
+.copyright-statement p, .copyright-disclaimer p { margin: 3px 0; }
+.copyright-footer { font-size: 0.85rem; color: #666; margin-top: 10px; }
+.copyright-footer strong { color: var(--primary); }
+.copyright-footer-sub { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+
+/* ===== 侧边目录 ===== */
+/* Sidebar active state - used by merge.js adjustLayout */
+body.sidebar-active { padding-left: 260px; }
+
+.sidebar-toc {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 20px 0;
+  font-size: 0.82rem;
+  transition: transform 0.3s ease;
+}
+.sidebar-toc .sidebar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+.sidebar-toc a {
+  display: block;
+  padding: 8px 16px;
+  color: #666;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+.sidebar-toc a:hover {
+  color: var(--primary);
+  background: var(--bg-alt);
+}
+.sidebar-toc a.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: var(--primary-bg);
+  font-weight: 600;
+}
+.sidebar-toc a .ch-num {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* Sidebar collapsible groups (for books with >20 chapters) */
+.sidebar-group { border-bottom: 1px solid #f0f0f0; }
+.sidebar-group-label {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-group-label::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+}
+.sidebar-group.expanded .sidebar-group-label::before {
+  transform: rotate(90deg);
+}
+.sidebar-group-items {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.sidebar-group.expanded .sidebar-group-items {
+  max-height: 1000px;
+}
+.sidebar-group-items a {
+  padding-left: 24px;
+  font-size: 0.78rem;
+}
+
+/* 侧边目录切换按钮（移动端） */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  left: 12px;
+  bottom: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  line-height: 40px;
+  text-align: center;
+  padding: 0;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 100;
+  transition: width 0.1s linear;
+  width: 0;
+}
+
+/* 回到顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  line-height: 40px;
+  text-align: center;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.back-to-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.back-to-top:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== 知识体系图卡片 hover 效果（纯CSS） ===== */
+.knowledge-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.knowledge-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.knowledge-card .card-detail {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+.knowledge-card:hover .card-detail {
+  max-height: 100px;
+  opacity: 1;
+  margin-top: 6px;
+}
+
+/* ===== 实拍效果图（capture_visuals，2026-09-10）===== */
+.render-figure { margin: 1.6em auto; text-align: center; }
+.render-figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.render-figure figcaption { margin-top: .5em; font-size: .88em; color: #6b7683; }
+
+/* ===== SVG 流程图类配色（writer SVG 以 class 引用，缺失会回退默认黑色填充，2026-09-10）===== */
+.flowchart-steps .process { fill: #e8f0fe; stroke: #4285f4; stroke-width: 1.5; }
+.flowchart-steps .start-end { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
+.flowchart-steps .decision { fill: #fef7e0; stroke: #f9ab00; stroke-width: 1.5; }
+.flowchart-steps text { fill: #202124; }
+.flowchart-steps path, .flowchart-steps line, .flowchart-steps polyline { stroke: #5f6368; fill: none; }
+.flowchart-steps polygon { fill: #5f6368; stroke: none; }
+
+</style>
+</head>
+<body style="background:#F0EBE5;">
+<div class="book">
+<div class="chapter"><!-- ===== 面包屑 ===== -->
+
+<!-- ===== 题目头部 ===== -->
+
+<div class="problem-header">
+
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+
+<div style="flex-shrink:0;width:48px;height:48px;line-height:48px;text-align:center;background:linear-gradient(135deg,#7B1FA2,#4A148C);color:#fff;border-radius:50%;font-size:1.1rem;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,0.18),inset 0 1px 0 rgba(255,255,255,0.2);">02</div>
+
+<h1 class="problem-title" style="font-size:1.8rem;font-weight:800;color:#7B1FA2;line-height:1.35;margin:0;border:none;padding:0;">02. Agent vs Workflow——智能决策与确定性流程的选择</h1>
+
+</div>
+
+<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+
+<span class="difficulty intermediate">⭐⭐ 进阶</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">Token消耗</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">可预测性</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">场景选型</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">决策树</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">混合架构</span>
+
+</div>
+
+</div>
+
+<!-- ===== 开头引子 ===== -->
+
+<!-- ===== Section 1: 题目描述 ===== -->
+
+<h2 style="border-top:2px solid;border-image:linear-gradient(90deg,#E040FB,#BA68C8,transparent) 1;border-left:4px solid #E040FB;padding-left:14px;padding-top:20px;margin-top:40px;font-size:1.5rem;font-weight:700;color:#4A148C;">Section 1：题目描述</h2>
+
+<h3>1.1 题目背景</h3>
+
+<p>假设你是一家科技公司的技术负责人（Tech Lead），公司正在推进AI转型，多个业务团队都提出了各自的AI项目方案。每个团队都用"AI Agent"这个词来描述自己的系统，但你知道——它们中有些根本不需要Agent，用简单的Workflow就够了；有些则确实需要Agent的灵活决策能力，但团队自己都没意识到。</p>
+
+<p>以下是你需要评估的五个场景：</p>
+
+<ul>
+
+<li><strong>客服团队</strong>想构建一个"智能客服Agent"，自动处理用户退款、技术支持、产品咨询等多种类型的问题。日均咨询量约5万次，高峰期可达10万次。</li>
+
+<li><strong>内容团队</strong>想用AI自动生成每周的行业报告，从数据收集、趋势分析到报告排版全自动化。每周产出一份20页的报告。</li>
+
+<li><strong>法务团队</strong>需要审查合同中是否存在风险条款，希望AI能逐条标注风险等级。每月约200份合同需要审查。</li>
+
+<li><strong>运维团队</strong>想在系统告警时，让AI自动诊断问题根因并推荐修复操作。7×24小时运行，告警频率不固定。</li>
+
+<li><strong>销售团队</strong>想根据客户画像自动撰写个性化邮件，并在客户回复后根据回复内容决定下一步跟进策略。涉及CRM系统对接和历史数据查询。</li>
+
+</ul>
+
+<p>每个团队都在催你审批预算和架构方案。你需要一个<strong>系统化的评估框架</strong>来逐一判断每个场景应该用什么技术方案——是纯Workflow、是Router Workflow、是HITL Agent、还是全自主Agent？以及为什么。</p>
+
+<h3>1.2 题目要求</h3>
+
+<p>请完成以下三个任务：</p>
+
+<ol>
+
+<li><strong>方案评估（35分）</strong>：针对上述5个场景，逐一判断应该使用Agent还是Workflow（或混合方案），并给出至少2条技术理由。需考虑成本、可靠性、可维护性三个维度。</li>
+
+<li><strong>决策框架设计（35分）</strong>：设计一个通用的决策树或评分体系，能对任意新场景进行Agent/Workflow选型评估。框架需覆盖至少4个评估维度，并能输出明确的选型建议而非含糊的"看情况"。</li>
+
+<li><strong>成本分析（30分）</strong>：选择其中1个场景，详细估算使用Agent方案 vs Workflow方案的Token消耗差异、延迟差异和可维护性差异。需要给出量级数据而非定性描述。</li>
+
+</ol>
+
+<div class="box info">
+
+<p class="box-title">📋 输入输出示例</p>
+
+<p><strong>输入</strong>：5个业务场景描述（含调用量、频率、约束条件）</p>
+
+<p><strong>期望输出</strong>：</p>
+
+<ul>
+
+<li>每个场景的选型建议（Agent/Workflow/混合）+ 2条以上技术理由</li>
+
+<li>一个决策树或评分卡（覆盖至少4个评估维度，每个维度有明确的判断标准）</li>
+
+<li>1个场景的成本对比分析（Token数量级 + 延迟量级 + 可维护性评估）</li>
+
+</ul>
+
+<p><strong>评分标准</strong>：选型合理性（35%）+ 决策框架通用性（35%）+ 成本分析准确性（30%）。</p>
+
+</div>
+
+<h3>1.3 为什么这道题很重要？</h3>
+
+<p>在AI工程面试中，"何时该用Agent"几乎是一道必考题。它考察的不是你对某个框架的熟练度，而是你对<strong>系统架构的判断力</strong>——能不能在技术选型阶段就做出正确的决策，避免到生产环境才发现"选错了"。一个无法清晰回答这个问题的工程师，在实际项目中要么过度工程化（把简单问题复杂化，浪费资源），要么错失Agent的真正价值（在需要灵活性的地方用硬编码逻辑，系统无法胜任）。</p>
+
+<p>更重要的是，这道题直接关联着<strong>成本控制</strong>这一生产级系统的核心关切。Agent的自主循环可能导致Token消耗失控——一次任务可能消耗20倍于固定Workflow的Token。如果你不能在选型阶段就做出准确判断，等到系统上线后才发现成本爆炸，那修正的代价将是巨大的——不仅需要重构架构，还可能影响线上服务的稳定性。</p>
+
+<p>最后，这道题还是后续章节的基础。（ReAct模式详解）需要你理解什么时候Agent的推理循环是必要的；（单Agent vs 多Agent）需要你理解工具数量和任务复杂度如何影响架构选择；（Agent循环终止条件）需要你理解为什么必须设置预算上限；（何时NOT该用Agent）则是本题的反面——从"反模式"角度深化理解。可以说，本章的决策框架是贯穿全书G1组（基础概念）的核心线索，也是后续所有架构决策的起点。</p>
+
+<div class="box key">
+
+<p class="box-title">本章你将学到</p>
+
+<ul>
+
+<li>Agent与Workflow的本质分野——控制权归属是核心判断标准</li>
+
+<li>Vellum三级决策模型：输出决策、任务决策、流程决策的精细化谱系</li>
+
+<li>Anthropic六大Workflow设计模式及适用场景详解</li>
+
+<li>Agent的隐藏成本深度分析：Token消耗、延迟、可调试性、维护复杂度</li>
+
+<li>一套可复用的Agent/Workflow四维度决策树选型框架</li>
+
+<li>混合架构理念：用Workflow治理Agent，用Agent注入智能</li>
+
+<li>七大常见选型误区及规避策略</li>
+
+<li>Agent框架生产就绪性对比与选型参考</li>
+
+</ul>
+
+</div>
+
+<!-- ===== Section 2: 详细思路分析 ===== -->
+
+<h2 style="border-top:2px solid;border-image:linear-gradient(90deg,#E040FB,#BA68C8,transparent) 1;border-left:4px solid #E040FB;padding-left:14px;padding-top:20px;margin-top:40px;font-size:1.5rem;font-weight:700;color:#4A148C;">Section 2：详细思路分析</h2>
+
+<h3>2.1 本质分野：谁掌握控制权？</h3>
+
+<p>要做出正确的选型决策，首先要真正理解Agent和Workflow的本质区别。很多人会说"Agent更灵活，Workflow更固定"，这个表述虽然方向正确，但远远不够精确——它停留在表象层面，没有触及底层的架构逻辑。我们需要从<strong>控制流</strong>（Control Flow）的视角来定义这种差异。</p>
+
+<p>Anthropic给出了业界广泛引用的区分标准：在<strong>Workflow</strong>中，LLM和工具通过<strong>预定义的代码路径</strong>进行编排，步骤是明确的，控制流由开发者决定。开发者写好了"第一步做什么、第二步做什么、满足什么条件走哪个分支"——LLM在每一步只负责内容生成（如翻译、分类、总结），但不决定"下一步做什么"。而在<strong>Agent</strong>中，LLM<strong>动态决定自己的流程和工具使用</strong>，模型掌握了完成任务的方式和路径的控制权。开发者只给了一个目标和一组可用工具，至于先做什么、后做什么、什么时候结束——都由LLM在运行时自己决定。</p>
+
+<p>换句话说，区分Agent和Workflow的关键不是"用了什么技术"——两者都使用LLM、都可能调用外部工具——而是"<strong>谁在做决策</strong>"。如果执行路径是开发者在代码里写死的，哪怕每一步都用了LLM处理，它仍然是Workflow。只有当LLM获得了"接下来做什么"的决策权时，系统才真正成为Agent。</p>
+
+<p>举一个具体的例子来加深理解。假设你要构建一个"邮件分类回复"系统。方案A先调用LLM对邮件进行分类（退款/技术/咨询），然后根据分类结果路由到不同的Prompt模板生成回复，最后调用发送API——这是Workflow，因为"分类→路由→回复→发送"这条路径是开发者在代码中预定义的。方案B给LLM一个目标"处理收件箱"，LLM自己决定先看哪封邮件、判断需不需要回复、选择用什么语气回复、什么时候该转人工、什么时候该标记重要——每一步都是LLM在运行时动态决定的，这是Agent。</p>
+
+<p>两者的差异在<strong>异常处理</strong>上体现得最为明显。当方案A遇到一封无法分类的邮件时（比如一封既是退款又是技术问题的复合邮件），Workflow需要开发者预先考虑这种情况并编写fallback逻辑——如果没考虑到，系统就会报错或走默认路径。而方案B的Agent在面对同样的复合邮件时，会自己判断"这个问题涉及两个类别，我先查一下退款政策，再转给技术团队"——它能处理开发者<strong>未曾预见</strong>的情况。这就是Agent灵活性的真正价值所在——但代价是更高的Token消耗和更低的可预测性。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 400" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="200" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C">Workflow（工作流）</text>
+
+<text x="600" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#7B1FA2">Agent（智能体）</text>
+
+<line x1="400" y1="10" x2="400" y2="390" stroke="#BDBDBD" stroke-width="2" stroke-dasharray="8,4"></line>
+
+<rect x="80" y="55" width="100" height="40" rx="8" fill="#F3E5F5" stroke="#BA68C8" stroke-width="2"></rect>
+
+<text x="130" y="80" text-anchor="middle" font-size="12" fill="#4A148C">输入数据</text>
+
+<line x1="180" y1="75" x2="210" y2="75" stroke="#BA68C8" stroke-width="2" marker-end="url(#arrP)"></line>
+
+<rect x="210" y="55" width="100" height="40" rx="8" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="260" y="80" text-anchor="middle" font-size="12" fill="#1565C0">LLM处理</text>
+
+<line x1="310" y1="75" x2="340" y2="75" stroke="#BA68C8" stroke-width="2" marker-end="url(#arrP)"></line>
+
+<rect x="340" y="55" width="100" height="40" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="390" y="80" text-anchor="middle" font-size="12" fill="#2E7D32">格式化输出</text>
+
+<text x="200" y="125" text-anchor="middle" font-size="11" fill="#757575">路径由开发者预定义</text>
+
+<text x="200" y="142" text-anchor="middle" font-size="11" fill="#757575">每一步执行什么是确定的</text>
+
+<circle cx="200" cy="180" r="18" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></circle>
+
+<text x="200" y="186" text-anchor="middle" font-size="14">🔒</text>
+
+<text x="200" y="215" text-anchor="middle" font-size="11" fill="#E65100" font-weight="600">高可预测性</text>
+
+<rect x="60" y="235" width="280" height="120" rx="10" fill="#FAFAFA" stroke="#E0E0E0" stroke-width="1"></rect>
+
+<text x="200" y="258" text-anchor="middle" font-size="12" font-weight="700" fill="#4A148C">特征</text>
+
+<text x="80" y="278" font-size="11" fill="#555">✓ Token消耗可预测</text>
+
+<text x="80" y="296" font-size="11" fill="#555">✓ 延迟稳定可控</text>
+
+<text x="80" y="314" font-size="11" fill="#555">✓ 易调试、可复现</text>
+
+<text x="80" y="332" font-size="11" fill="#555">✗ 无法处理未预见情况</text>
+
+<text x="80" y="350" font-size="11" fill="#555">✗ 灵活性为零</text>
+
+<rect x="480" y="55" width="100" height="40" rx="8" fill="#F3E5F5" stroke="#BA68C8" stroke-width="2"></rect>
+
+<text x="530" y="80" text-anchor="middle" font-size="12" fill="#4A148C">目标输入</text>
+
+<circle cx="600" cy="130" r="60" fill="none" stroke="#7B1FA2" stroke-width="2" stroke-dasharray="5,3"></circle>
+
+<rect x="540" y="100" width="55" height="30" rx="6" fill="#E3F2FD" stroke="#2196F3" stroke-width="1.5"></rect>
+
+<text x="567" y="120" text-anchor="middle" font-size="10" fill="#1565C0">思考</text>
+
+<rect x="605" y="100" width="55" height="30" rx="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="1.5"></rect>
+
+<text x="632" y="120" text-anchor="middle" font-size="10" fill="#E65100">行动</text>
+
+<rect x="540" y="140" width="55" height="30" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5"></rect>
+
+<text x="567" y="160" text-anchor="middle" font-size="10" fill="#2E7D32">观察</text>
+
+<rect x="605" y="140" width="55" height="30" rx="6" fill="#FCE4EC" stroke="#E53935" stroke-width="1.5"></rect>
+
+<text x="632" y="160" text-anchor="middle" font-size="10" fill="#C62828">决策</text>
+
+<path d="M 567 100 Q 600 85 632 100" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#arrA)"></path>
+
+<path d="M 632 130 Q 645 135 632 140" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#arrA)"></path>
+
+<path d="M 567 170 Q 530 160 567 140" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#arrA)"></path>
+
+<path d="M 540 120 Q 520 115 540 100" fill="none" stroke="#7B1FA2" stroke-width="1.5" marker-end="url(#arrA)"></path>
+
+<text x="600" y="215" text-anchor="middle" font-size="11" fill="#757575">LLM动态决定下一步做什么</text>
+
+<text x="600" y="232" text-anchor="middle" font-size="11" fill="#757575">路径数量不确定，可能循环</text>
+
+<rect x="460" y="235" width="280" height="120" rx="10" fill="#FAFAFA" stroke="#E0E0E0" stroke-width="1"></rect>
+
+<text x="600" y="258" text-anchor="middle" font-size="12" font-weight="700" fill="#7B1FA2">特征</text>
+
+<text x="480" y="278" font-size="11" fill="#555">✓ 处理未预见的情况</text>
+
+<text x="480" y="296" font-size="11" fill="#555">✓ 灵活组合多种工具</text>
+
+<text x="480" y="314" font-size="11" fill="#555">✓ 适应开放式任务</text>
+
+<text x="480" y="332" font-size="11" fill="#555">✗ Token消耗不可预测</text>
+
+<text x="480" y="350" font-size="11" fill="#555">✗ 调试和复现困难</text>
+
+<defs>
+
+<marker id="arrP" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<polygon points="0,0 8,4 0,8" fill="#BA68C8"></polygon>
+
+</marker>
+
+<marker id="arrA" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<polygon points="0,0 8,4 0,8" fill="#7B1FA2"></polygon>
+
+</marker>
+
+</defs>
+
+</svg>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-1：Agent与Workflow的控制流对比——路径确定性 vs 动态决策</p>
+
+<p>理解这个本质区别之后，一个关键的推论就浮现出来了：<strong>选择Agent还是Workflow，本质上是在选择把控制权交给谁</strong>。交给开发者的代码逻辑（Workflow），你获得的是可预测性、可控性和可调试性——因为每一步都是你设计的，出了问题你可以精确定位。交给LLM的动态推理（Agent），你获得的是灵活性和适应性——系统能处理你未曾预见的场景，但代价是你失去了对执行路径的完全控制。这两者之间的权衡，是所有后续分析的基础。</p>
+
+<h3>2.2 Vellum三级决策模型：精细化的分类标尺</h3>
+
+<p>"Agent vs Workflow"并不是一个二元选择——在纯Workflow和全自主Agent之间，存在一个广阔的中间地带。Vellum在2026年的AI Agent工作流指南中提出了一个更精细的<strong>三级决策模型</strong>，帮助我们在谱系上精确定位任何AI系统。</p>
+
+<p>这个模型将系统的决策能力分为三个层级，每个层级对应LLM参与决策的程度递增：</p>
+
+<p><strong>Level 1 — 输出决策（AI Workflow）</strong>：模型只负责"生成什么内容"，执行流程完全由代码控制。比如一个翻译系统：输入中文→调用LLM翻译→输出英文，LLM只决定译文的具体文字，不决定翻译流程本身。这是最简单的Agentic系统，实际上只是一个"加了LLM的函数调用"。在这个层级上，LLM是一个高级的内容生成器，而不是决策者。</p>
+
+<p><strong>Level 2 — 任务决策（Router Workflow）</strong>：模型不仅决定输出内容，还决定"<strong>使用哪些工具或执行哪些任务</strong>"。比如一个客服系统：模型先判断用户问题是退款类、技术支持类还是产品咨询类，然后路由到不同的专用处理流程。LLM拥有了任务选择权——这是一个质的飞跃，因为现在LLM参与了"做什么"的决策。但这些可选任务和流程仍然是开发者预定义的，LLM只能在既定菜单上点菜，不能自己写菜单。<strong>Vellum指出，当前大多数创新正发生在这一层</strong>——它兼具了Workflow的可控性和Agent的灵活性，是性价比最高的形态。</p>
+
+<p><strong>Level 3 — 流程决策（Autonomous Agent）</strong>：模型拥有完整的流程控制权，可以"<strong>创建新任务和工具</strong>"，甚至自己编写代码来实现目标。这才是真正意义上的自主Agent——它不仅能在菜单上点菜，还能自己走进厨房做菜。Vellum同时指出，这一层"目前尚未达到生产级别的可靠性"，因为完全自主意味着完全不可预测。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 350" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<rect x="30" y="50" width="220" height="260" rx="12" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<rect x="30" y="50" width="220" height="40" rx="12" fill="#2196F3"></rect>
+
+<rect x="30" y="78" width="220" height="12" fill="#2196F3"></rect>
+
+<text x="140" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Level 1: AI Workflow</text>
+
+<text x="140" y="115" text-anchor="middle" font-size="12" fill="#1565C0" font-weight="600">输出决策</text>
+
+<text x="140" y="140" text-anchor="middle" font-size="11" fill="#555">模型决定：生成什么</text>
+
+<text x="140" y="160" text-anchor="middle" font-size="11" fill="#555">代码决定：执行流程</text>
+
+<rect x="55" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="80" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<rect x="115" y="175" width="50" height="24" rx="4" fill="#F5F5F5" stroke="#BDBDBD"></rect>
+
+<text x="140" y="192" text-anchor="middle" font-size="14" fill="#999">✗</text>
+
+<rect x="175" y="175" width="50" height="24" rx="4" fill="#F5F5F5" stroke="#BDBDBD"></rect>
+
+<text x="200" y="192" text-anchor="middle" font-size="14" fill="#999">✗</text>
+
+<text x="80" y="215" text-anchor="middle" font-size="9" fill="#757575">输出</text>
+
+<text x="140" y="215" text-anchor="middle" font-size="9" fill="#757575">任务</text>
+
+<text x="200" y="215" text-anchor="middle" font-size="9" fill="#757575">流程</text>
+
+<text x="140" y="250" text-anchor="middle" font-size="10" fill="#555">例：翻译、摘要</text>
+
+<text x="140" y="268" text-anchor="middle" font-size="10" fill="#555">分类、格式化</text>
+
+<rect x="60" y="285" width="160" height="22" rx="4" fill="#E8F5E9" stroke="#4CAF50"></rect>
+
+<text x="140" y="301" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="600">生产就绪 ✓</text>
+
+<rect x="290" y="50" width="220" height="260" rx="12" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<rect x="290" y="50" width="220" height="40" rx="12" fill="#FF9800"></rect>
+
+<rect x="290" y="78" width="220" height="12" fill="#FF9800"></rect>
+
+<text x="400" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Level 2: Router Workflow</text>
+
+<text x="400" y="115" text-anchor="middle" font-size="12" fill="#E65100" font-weight="600">任务决策</text>
+
+<text x="400" y="140" text-anchor="middle" font-size="11" fill="#555">模型决定：用什么工具</text>
+
+<text x="400" y="160" text-anchor="middle" font-size="11" fill="#555">代码决定：工具的边界</text>
+
+<rect x="315" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="340" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<rect x="375" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="400" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<rect x="435" y="175" width="50" height="24" rx="4" fill="#F5F5F5" stroke="#BDBDBD"></rect>
+
+<text x="460" y="192" text-anchor="middle" font-size="14" fill="#999">✗</text>
+
+<text x="340" y="215" text-anchor="middle" font-size="9" fill="#757575">输出</text>
+
+<text x="400" y="215" text-anchor="middle" font-size="9" fill="#757575">任务</text>
+
+<text x="460" y="215" text-anchor="middle" font-size="9" fill="#757575">流程</text>
+
+<text x="400" y="250" text-anchor="middle" font-size="10" fill="#555">例：智能客服路由</text>
+
+<text x="400" y="268" text-anchor="middle" font-size="10" fill="#555">RAG检索增强</text>
+
+<rect x="320" y="285" width="160" height="22" rx="4" fill="#E8F5E9" stroke="#4CAF50"></rect>
+
+<text x="400" y="301" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="600">当前创新热点 🔥</text>
+
+<rect x="550" y="50" width="220" height="260" rx="12" fill="#FCE4EC" stroke="#E53935" stroke-width="2"></rect>
+
+<rect x="550" y="50" width="220" height="40" rx="12" fill="#E53935"></rect>
+
+<rect x="550" y="78" width="220" height="12" fill="#E53935"></rect>
+
+<text x="660" y="76" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Level 3: Autonomous Agent</text>
+
+<text x="660" y="115" text-anchor="middle" font-size="12" fill="#C62828" font-weight="600">流程决策</text>
+
+<text x="660" y="140" text-anchor="middle" font-size="11" fill="#555">模型决定：一切</text>
+
+<text x="660" y="160" text-anchor="middle" font-size="11" fill="#555">包括创建新任务和工具</text>
+
+<rect x="575" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="600" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<rect x="635" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="660" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<rect x="695" y="175" width="50" height="24" rx="4" fill="#4CAF50"></rect>
+
+<text x="720" y="192" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">✓</text>
+
+<text x="600" y="215" text-anchor="middle" font-size="9" fill="#757575">输出</text>
+
+<text x="660" y="215" text-anchor="middle" font-size="9" fill="#757575">任务</text>
+
+<text x="720" y="215" text-anchor="middle" font-size="9" fill="#757575">流程</text>
+
+<text x="660" y="250" text-anchor="middle" font-size="10" fill="#555">例：自主编程Agent</text>
+
+<text x="660" y="268" text-anchor="middle" font-size="10" fill="#555">开放式探索任务</text>
+
+<rect x="580" y="285" width="160" height="22" rx="4" fill="#FFEBEE" stroke="#E53935"></rect>
+
+<text x="660" y="301" text-anchor="middle" font-size="10" fill="#C62828" font-weight="600">尚未生产就绪 ⚠</text>
+
+<path d="M 250 180 L 290 180" fill="none" stroke="#757575" stroke-width="2" marker-end="url(#arrS)"></path>
+
+<path d="M 510 180 L 550 180" fill="none" stroke="#757575" stroke-width="2" marker-end="url(#arrS)"></path>
+
+<defs>
+
+<marker id="arrS" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<polygon points="0,0 8,4 0,8" fill="#757575"></polygon>
+
+</marker>
+
+</defs>
+
+<text x="400" y="335" text-anchor="middle" font-size="11" fill="#757575" font-style="italic">自主性递增 →</text>
+
+</svg>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-2：Vellum三级决策模型——从输出决策到流程决策的自主性谱系</p>
+
+<p>这个三级模型给我们带来的核心启示是：<strong>你不需要在"纯Workflow"和"全自主Agent"之间做非此即彼的选择</strong>。大多数实际生产系统落在Level 2——Router Workflow。在这个层级上，你既享受了LLM的判断力来选择最佳处理路径，又通过预定义的任务集合保持了系统的可控性和可预测性。这是一个投入产出比最高的"甜点区"（Sweet Spot）。</p>
+
+<p>从Level 2到Level 3的跨越是一道巨大的鸿沟。Level 2的Router Workflow即使做出了错误的路由决策，影响范围是有限的——它只是在几个预定义路径中选了一个次优的。但Level 3的Autonomous Agent如果"走偏了"，可能会进入完全不可预测的执行路径，消耗大量Token甚至执行危险操作。这就是为什么Vellum说Level 3"尚未达到生产级别的可靠性"——不是因为模型不够聪明，而是因为<strong>完全自主等于完全不可控</strong>。</p>
+
+<h3>2.3 六大Workflow设计模式：不上Agent也能解决复杂问题</h3>
+
+<p>很多开发者一遇到需要LLM的任务，就下意识地想用Agent。但Anthropic在总结了大量生产级系统后，提炼出了<strong>六大Workflow设计模式</strong>——它们不需要Agent的自主决策能力，就能解决相当多看似复杂的问题。理解这些模式，是避免"过度工程化"的关键武器。</p>
+
+<div class="feature-grid">
+
+<div class="feature-item">
+
+<strong>① Prompt Chaining（提示链）</strong>
+
+<span>将任务分解为顺序步骤，前一步的输出作为后一步的输入。例如翻译：先翻译→再审查→再润色，三步串联，每步用专门的Prompt。用延迟换准确率。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>② Routing（路由分发）</strong>
+
+<span>先对输入分类，然后路由到专用处理路径。例如客服系统：退款问题→退款专家Prompt，技术问题→技术专家Prompt。分离关注点，每个Prompt只做一件事。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>③ Parallelization（并行化）</strong>
+
+<span>多个LLM同时处理同一输入，聚合输出。两种变体：Sectioning（分块并行处理不同方面）和Voting（多票表决提升准确率）。适合内容审核、代码审查。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>④ Orchestrator-Workers（编排-执行）</strong>
+
+<span>一个中央LLM动态分解任务并分派给多个Worker处理。比Prompt Chaining灵活（任务分解是动态的），但仍有开发者管控的边界。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>⑤ Evaluator-Optimizer（评估-优化）</strong>
+
+<span>一个LLM生成内容，另一个LLM评估并提供反馈，循环改进直到达标。适合需要迭代优化的场景，如文案打磨、代码修复。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>⑥ Context-Augmentation（上下文增强）</strong>
+
+<span>通过RAG等方式为LLM注入领域知识，然后用固定流程处理。这是RAG系统的基础模式——检索→注入→生成。</span>
+
+</div>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;">图2-3：六大Workflow设计模式概览（来源：Anthropic + HuggingFace + MongoDB综合）</p>
+
+<p>注意这六种模式的共同特征：<strong>它们都使用了LLM，但控制流始终在开发者手中</strong>。这是它们与Agent的根本区别。以Prompt Chaining为例，翻译→审查→润色这个流程是代码写死的——LLM只负责每一步的内容生成，但不决定"要不要审查""审查几轮""审查后做什么"。这保证了执行路径的可预测性，同时每一步都可以独立测试、监控和优化。</p>
+
+<p>对比一下：如果用Agent来做同样的翻译任务，Agent可能会在第一步翻译完成后，自己决定"翻译质量已经够好了，不需要审查了"而跳过审查步骤——这可能恰恰是错误的判断。或者"发现原文有文化隐喻，需要先查一下文化背景资料"而插入一个额外的查词步骤——这增加了延迟和成本，却不一定带来实质性的质量提升。这种灵活性在某些场景下是优势，但在翻译这种<strong>流程明确、步骤固定、质量标准统一</strong>的场景下，反而增加了不确定性和成本。</p>
+
+<p>深入看Routing模式，它有一个重要的成本优化变体：<strong>大小模型路由</strong>。Patronus AI在路由模式的实践中发现，通过将简单问题路由到小模型（如deepseek-v4.1-flash），复杂问题才路由到大模型（如deepseek-v4.1-flash.1或deepseek-v4.1-flash），可以在保证质量的前提下将API成本降低60-80%。这种策略在Workflow模式下是直截了当的——因为路由逻辑由代码控制，你可以精确地设置路由条件和fallback策略。但在Agent模式下，模型自己决定用哪个工具和调用几次，成本控制就困难得多。</p>
+
+<p>再看Parallelization模式的两种变体。Sectioning适合<strong>多维度分析</strong>任务——比如审查一份合同，可以并行让一个LLM实例审查法律合规性、另一个审查财务条款、第三个审查技术条款，最后汇聚成一份综合报告。这比让单个LLM一次性审查所有方面更准确——因为每个实例可以专注于一个维度，Prompt更精准。Voting则适合<strong>准确性至上</strong>的场景——同一问题让LLM回答5次，取多数答案。这本质上是一种"用冗余换准确率"的策略，对于高风险决策（如医疗诊断辅助）特别有价值。</p>
+
+<p>这些模式的丰富性告诉我们一个重要的结论：<strong>在考虑Agent之前，先检查一下六大Workflow模式能不能解决你的问题</strong>。大概率能。</p>
+
+<h3>2.4 Agent的隐藏成本：20倍Token不是开玩笑</h3>
+
+<p>理解了Workflow模式的丰富性之后，我们来正面面对Agent的"代价"。很多开发者对Agent成本只有一个模糊的"比较贵"的印象，但缺乏量化的认识——这种认知空白是选型错误的头号原因。Towards Data Science在一篇深度分析中给出了一个关键数据点：<strong>Agent经常消耗20倍以上的Token</strong>。</p>
+
+<p>为什么差距这么大？让我们拆解一次Agent调用的Token开销。Agent每执行一轮ReAct循环（思考→行动→观察→决策），都需要向LLM发送完整的上下文——这不是增量式的调用，而是<strong>全量重发</strong>。因为LLM是无状态的，它不记得上一次调用时的对话，所以你必须每次都把完整的系统Prompt、所有工具定义、之前的所有Thought-Action-Observation历史一起发过去。</p>
+
+<p>具体来说，每轮循环的Token包含以下组成部分：系统Prompt（描述Agent角色和安全规则，通常2000-5000 tokens）、工具定义（每个工具的JSON Schema描述，约200-500 tokens/工具，10个工具就是2000-5000 tokens）、累积的对话历史（每轮增加500-1500 tokens的Thought和Observation）、以及推理输出Token（每轮的思考过程本身，约300-800 tokens）。</p>
+
+<p>简单算一笔账：一个3轮的Agent任务，输入侧累积的Token大约为：第一轮(3000+3000)=6000，第二轮(3000+3000+800+600)=7400，第三轮(3000+3000+800+600+800+600)=8800，合计约22200 tokens输入。加上输出侧约2400 tokens的推理和工具调用指令。总计约24600 tokens。而同样的任务如果用Workflow（单次LLM调用 + 固定代码路径），大约只需要2000-3000 tokens。<strong>差距约8-10倍</strong>。如果任务更复杂需要7轮循环，每轮上下文继续增长，总Token可能达到80000+，与Workflow的差距将扩大到20-30倍。</p>
+
+<div class="stat-grid">
+
+<div class="stat-item">
+
+<div class="stat-value">~2K</div>
+
+<div class="stat-label">Workflow单次调用Token</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">~12K</div>
+
+<div class="stat-label">Agent 3轮循环Token</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">~40K</div>
+
+<div class="stat-label">Agent 7轮循环Token</div>
+
+</div>
+
+<div class="stat-item highlight">
+
+<div class="stat-value">6-20×</div>
+
+<div class="stat-label">Agent vs Workflow 成本差距</div>
+
+</div>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-4：Agent与Workflow的Token消耗量级对比（估算值）</p>
+
+<p>但Token成本只是冰山的一角。Agent还有几个常被忽视的<strong>隐藏成本</strong>，它们往往在项目进入生产阶段后才暴露——此时修正的代价已经很高了。</p>
+
+<p><strong>延迟成本</strong>：Workflow的执行时间约等于各步骤LLM调用的串行总和，通常2-8秒。而Agent的每轮循环都需要等待LLM完整的推理输出——而LLM的推理是流式的，一个复杂推理可能需要5-15秒。加上工具执行的等待时间，3轮循环可能需要15-45秒，7轮循环可能超过1分钟。对于实时性要求高的场景（如客服聊天、在线交互），这种延迟是不可接受的——用户不会等30秒来获取一个回复。</p>
+
+<p><strong>调试成本</strong>：当Workflow出错时，你可以精确地定位到哪一步出了问题——因为执行路径是确定的，你可以重放整个流程，检查每一步的输入和输出。但当Agent出错时，追踪一个包含多个推理循环的链路是一场噩梦——你需要检查每一轮的Thought、Action、Observation，分析Agent为什么在某个节点做出了错误的判断。更糟糕的是，Agent的执行路径可能<strong>无法复现</strong>——同一个输入在两次运行中可能走完全不同的路径，因为LLM的输出带有随机性（temperature参数）。这意味着你在测试环境中复现的问题，在生产环境中可能以完全不同的方式出现。从stack trace到prompt chain的3AM排障，不是一种愉快的体验。</p>
+
+<p><strong>维护成本</strong>：一个"不停思考"的循环系统需要持续的监控和维护。你可能需要构建"监督Agent的Agent"来检测异常行为——比如Agent陷入了死循环、反复调用同一个工具、或者产生了幻觉性调用（调用不存在的工具或传递错误的参数）。这些监控系统本身也是复杂系统，需要开发和维护。Composio的2025 AI Agent报告发现了一个扎心的现实：大量Agent试点在进入生产环境时失败，原因不是"LLM能力不够"，而是<strong>"LLM接收的数据是垃圾"</strong>——Agent与业务工具之间的数据质量问题在开发阶段被隐藏（因为测试数据是干净的），到生产环境才暴露（真实数据充满了噪声和异常）。</p>
+
+<p><strong>安全成本</strong>：Agent的自主性意味着它可能做出你没想到的行为——调用不该调用的工具、发送不该发送的消息、访问不该访问的数据。每多一个自由度，攻击面就大一分。这就是为什么OWASP在2025年专门发布了Agentic Applications的Top 10安全风险清单——我们会在第53-56题深入讨论这个问题。</p>
+
+<div class="box warn">
+
+<p class="box-title">⚠️ 成本失控的真实案例</p>
+
+<p>一个真实的案例：某团队构建了一个"自动化数据分析Agent"，给它挂载了SQL查询、数据可视化、报告生成等工具，然后让它处理"分析本月销售数据"的任务。Agent在第一轮查询后发现数据有异常，决定深入排查，反复查询了27次数据库，生成了15张图表，期间还做了多次"我觉得需要再看一个维度"的推理，最终消耗了超过<strong>18万tokens</strong>，才产出了一份其实只需要一个简单SQL查询就能完成的报告。如果用Workflow（固定3步：查数据→生成图表→写结论），总成本不到3000 tokens。<strong>差距：60倍。</strong></p>
+
+</div>
+
+<p>这个案例并非孤例。它揭示了一个结构性问题：Agent的自主性是一把双刃剑——它让Agent能够处理复杂任务，但也让Agent有可能"过度思考"。LLM没有"成本意识"——它不会因为"已经花了很多Token"而决定停止。它只会基于当前上下文判断"还有没有事情要做"——而在复杂的数据分析任务中，总是有更多的维度可以探索。这就是为什么<strong>设置Token预算上限和最大循环次数</strong>是使用Agent时的必备安全阀——不是可选的，而是必须的。</p>
+
+<h3>2.5 决策树选型框架：四维度评估法</h3>
+
+<p>现在我们已经充分理解了Agent和Workflow各自的特征和成本差异，也学习了Vellum的三级模型和六大Workflow模式。是时候把这些知识整合成一个<strong>可操作的决策框架</strong>了——这是本章的核心产出。</p>
+
+<p>我设计了一个基于四个维度的评估体系，任何AI系统需求都可以通过依次回答四个问题来获得选型建议。这个框架的设计原则是：<strong>从最简单的方案开始，只有当简单方案被证明不够时，才向更复杂的方案升级</strong>。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 500" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<rect x="300" y="15" width="200" height="45" rx="10" fill="#7B1FA2"></rect>
+
+<text x="400" y="43" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">维度1: 任务路径确定性</text>
+
+<line x1="400" y1="60" x2="200" y2="95" stroke="#4A148C" stroke-width="2"></line>
+
+<line x1="400" y1="60" x2="600" y2="95" stroke="#4A148C" stroke-width="2"></line>
+
+<rect x="110" y="95" width="180" height="40" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="200" y="120" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="600">路径固定且已知</text>
+
+<rect x="510" y="95" width="180" height="40" rx="8" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="600" y="120" text-anchor="middle" font-size="12" fill="#E65100" font-weight="600">路径不确定/需动态决策</text>
+
+<line x1="200" y1="135" x2="200" y2="155" stroke="#4CAF50" stroke-width="2"></line>
+
+<rect x="100" y="155" width="200" height="35" rx="8" fill="#4CAF50"></rect>
+
+<text x="200" y="178" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">→ 用 Workflow</text>
+
+<text x="600" y="150" text-anchor="middle" font-size="11" fill="#757575">↓ 继续评估</text>
+
+<rect x="500" y="170" width="200" height="45" rx="10" fill="#7B1FA2"></rect>
+
+<text x="600" y="198" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">维度2: 成本敏感度</text>
+
+<line x1="600" y1="215" x2="450" y2="245" stroke="#4A148C" stroke-width="2"></line>
+
+<line x1="600" y1="215" x2="750" y2="245" stroke="#4A148C" stroke-width="2"></line>
+
+<rect x="360" y="245" width="180" height="40" rx="8" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="450" y="270" text-anchor="middle" font-size="12" fill="#C62828" font-weight="600">成本敏感/预算固定</text>
+
+<rect x="660" y="245" width="140" height="40" rx="8" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="730" y="270" text-anchor="middle" font-size="12" fill="#1565C0" font-weight="600">成本弹性大</text>
+
+<line x1="450" y1="285" x2="450" y2="305" stroke="#7B1FA2" stroke-width="2"></line>
+
+<rect x="340" y="305" width="220" height="35" rx="8" fill="#7B1FA2"></rect>
+
+<text x="450" y="328" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">→ 混合方案(Router)</text>
+
+<text x="730" y="300" text-anchor="middle" font-size="11" fill="#757575">↓ 继续</text>
+
+<rect x="620" y="315" width="200" height="40" rx="8" fill="#7B1FA2"></rect>
+
+<text x="720" y="341" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">维度3: 容错空间</text>
+
+<line x1="720" y1="355" x2="620" y2="380" stroke="#4A148C" stroke-width="2"></line>
+
+<line x1="720" y1="355" x2="780" y2="380" stroke="#4A148C" stroke-width="2"></line>
+
+<rect x="530" y="380" width="160" height="35" rx="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="610" y="403" text-anchor="middle" font-size="11" fill="#E65100">需人工审核关键决策</text>
+
+<rect x="720" y="380" width="120" height="35" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="780" y="403" text-anchor="middle" font-size="11" fill="#2E7D32">容忍自主尝试</text>
+
+<rect x="500" y="430" width="200" height="35" rx="8" fill="#2196F3"></rect>
+
+<text x="600" y="453" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">→ HITL Agent</text>
+
+<rect x="710" y="430" width="170" height="35" rx="8" fill="#E53935"></rect>
+
+<text x="795" y="453" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">→ Full Agent</text>
+
+<text x="400" y="488" text-anchor="middle" font-size="10" fill="#757575" font-style="italic">维度4(工具数量&lt;5用Workflow路由;5-15用Agent;&gt;15考虑多Agent)在选定方案后微调</text>
+
+<defs>
+
+<marker id="arrD" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<polygon points="0,0 8,4 0,8" fill="#4A148C"></polygon>
+
+</marker>
+
+</defs>
+
+</svg>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-5：Agent/Workflow选型决策树——四维度评估法</p>
+
+<p>这个决策树的逻辑非常直观——它像一道道筛子，逐步过滤掉不需要高复杂度的场景：</p>
+
+<div class="steps-card">
+
+<div class="step-item" data-step="1">
+
+<strong>维度1：任务路径确定性——第一道筛子</strong>
+
+<span>如果你能在写代码之前画出完整的执行流程图——每一步做什么、在什么条件下走哪个分支——那直接用Workflow。只有当执行路径依赖于运行时才能获取的信息（如"先查一下数据库看看数据长什么样再决定怎么处理"）时，才需要考虑Agent。这个维度能在一秒钟内帮你排除掉60-70%的场景。</span>
+
+</div>
+
+<div class="step-item" data-step="2">
+
+<strong>维度2：成本敏感度——第二道筛子</strong>
+
+<span>如果路径不确定但预算紧张（如面向C端的高频API调用），考虑Router Workflow——让LLM做路由决策但限制可选路径数量。只有当成本弹性较大（如内部工具、低频任务、高价值场景）时，才向上考虑完整Agent。这一步帮你避免"Token爆炸"。</span>
+
+</div>
+
+<div class="step-item" data-step="3">
+
+<strong>维度3：容错空间——安全底线</strong>
+
+<span>Agent可能犯错——这是不争的事实。如果错误代价高（如执行交易、发送邮件、修改生产数据），需要HITL（人在环中）——Agent做推荐，人类做决策。如果错误可接受或可回滚（如信息查询、内容草稿），才允许Agent自主执行。这一步决定了你需要投入多少安全机制。</span>
+
+</div>
+
+<div class="step-item" data-step="4">
+
+<strong>维度4：工具数量——微调维度</strong>
+
+<span>在选定大方向后，用工具数量微调：少于5个工具，Workflow路由足够；5-15个工具，单Agent合适；超过15个工具，考虑多Agent分工（这部分会在"单Agent vs 多Agent"详细讨论）。</span>
+
+</div>
+
+</div>
+
+<p>让我们用这个决策树来快速评估Section 1中的五个场景：</p>
+
+<p><strong>客服系统</strong>：路径不确定（用户问题千变万化）→ 成本高度敏感（日均5万次调用）→ 容错空间中等（错误回复影响用户体验但不致命）→ 决策树指向<strong>Router Workflow</strong>。LLM分类后路由到3-5个专用处理流程（退款/技术/咨询/转人工），每个流程用专门的Prompt。这是Level 2的典型应用，也是当前业界客服系统的主流架构。</p>
+
+<p><strong>周报生成</strong>：路径确定（收集数据→分析趋势→写报告→排版，每周一次）→ 决策树直接指向<strong>Workflow（Prompt Chaining）</strong>。流程固定，每步用LLM处理但不涉及动态决策。频率低（每周1次），即使每步用大模型成本也可控。</p>
+
+<p><strong>合同审查</strong>：路径确定（逐条提取→对照规则→标注风险）→ 决策树指向<strong>Workflow（Parallelization）</strong>。可以并行审查不同维度的条款——法律合规、财务条款、技术条款——然后汇聚成综合报告。频率低（每月200份），容错空间小但Workflow的可审计性恰好满足合规需求。</p>
+
+<p><strong>运维告警处理</strong>：路径不确定（需要根据告警内容决定排查方向，可能需要查日志、查监控、查配置）→ 成本不敏感（低频但高价值，每次告警都可能导致生产事故）→ 容错空间小（错误操作可能导致更大故障）→ 决策树指向<strong>HITL Agent</strong>。Agent诊断并推荐修复方案，人工确认后执行。这样既利用了Agent的灵活诊断能力，又通过人工审核保障了安全。</p>
+
+<p><strong>销售跟进</strong>：路径不确定（客户回复千变万化，需要根据回复内容决定下一步策略）→ 成本中等 → 容错空间中等（邮件内容错误可能影响客户关系但不致命）→ 决策树指向<strong>Agent + HITL</strong>。Agent读取客户画像和历史交互、决定跟进策略、生成邮件草稿，人工审批后发送。</p>
+
+<div class="box key">
+
+<p class="box-title">🔑 决策树的核心原则</p>
+
+<p>Anthropic的原则贯穿始终：<strong>从最简单的方案开始，只在证明不够时才增加复杂性</strong>。决策树的每一层都在问"你真的需要更多灵活性吗？"——如果答案是否，就停在最简单的那个层级。这不是技术能力的体现，而是工程成熟的标志。一位资深架构师曾说过："判断什么时候不用Agent，比判断什么时候用Agent更难——但前者更重要。"</p>
+
+</div>
+
+<h3>2.6 混合架构与框架选型</h3>
+
+<p>在生产环境中，Agent vs Workflow很少是一个非此即彼的选择。越来越多的生产系统采用<strong>混合架构</strong>——将两者的优势结合起来。Orkes在2025年提出的"双修策略"精炼地概括了这一思路：<strong>"用Workflow来约束和控制AI Agent，用AI Agent来为Workflow注入适应性和智能。"</strong></p>
+
+<p>这种理念在实践中通常体现为以下模式：核心业务流程用Workflow保证可靠性和可审计性，在<strong>关键决策节点</strong>嵌入Agent提供灵活判断。Workflow提供了骨架（结构化的执行框架），Agent提供了大脑（智能的决策能力）。这种组合比纯Workflow更灵活，比纯Agent更可靠——是当前生产系统的主流选择。</p>
+
+<p>以一个保险理赔系统为例来具体说明这种混合架构：第一步（Workflow）接收理赔申请，用OCR提取结构化数据——固定流程，无LLM参与。第二步（Workflow）规则引擎初筛——保单是否有效、是否在保障范围内、金额是否在合理区间——全用代码规则，快速且可靠。第三步（Agent）对于规则无法覆盖的灰色地带，交给Agent综合判断——读取理赔描述、对照保单条款、参考历史相似案例、给出理赔建议。Agent的灵活性在这里发挥了价值——它能处理那些规则引擎覆盖不到的边缘情况。第四步（Workflow）根据Agent建议和规则引擎结果，生成理赔决策通知书——固定模板，无LLM参与。第五步（Workflow）发送通知，更新数据库——纯代码。</p>
+
+<p>这种架构的好处是多方面的。首先，Token消耗和延迟是可预测的——Agent只在Step 3介入，其他步骤的执行成本几乎为零。其次，Step 3的Agent可以独立升级和优化——比如更换更强大的模型、增加新的工具——而不影响其他步骤。最后，整个系统是可审计的——每一步的输入输出都有记录，满足金融行业的合规要求。</p>
+
+<div class="timeline">
+
+<div class="event">
+
+<span class="year">2018-2022</span>
+
+<p><strong>纯Workflow时代</strong>：传统自动化（Airflow、Prefect等），固定DAG，无LLM参与决策</p>
+
+</div>
+
+<div class="event">
+
+<span class="year">2023</span>
+
+<p><strong>LLM增强Workflow</strong>：ChatGPT引爆后，在Workflow节点中嵌入LLM调用，但控制流仍由代码决定</p>
+
+</div>
+
+<div class="event">
+
+<span class="year">2024</span>
+
+<p><strong>Agent框架爆发</strong>：AutoGPT、BabyAGI等早期Agent亮相，但可靠性低，多数止步于Demo</p>
+
+</div>
+
+<div class="event">
+
+<span class="year">2025</span>
+
+<p><strong>理性回归 + 混合架构</strong>：业界认识到纯Agent的生产就绪度不足，开始用Workflow框架治理Agent</p>
+
+</div>
+
+<div class="event">
+
+<span class="year">2026</span>
+
+<p><strong>Agent Engineering成学科</strong>：LangChain提出"Agent Engineering"概念，强调系统化方法论</p>
+
+</div>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-6：从纯Workflow到混合架构的演进历程</p>
+
+<p>在选择框架来落地这些架构时，不同框架在生产就绪性上有显著差异。Towards AI在2026年的框架对比报告中给出了一个多维度的评估：</p>
+
+<div class="table-wrap">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>框架</th>
+
+<th>生产就绪度</th>
+
+<th>学习曲线</th>
+
+<th>Human-in-Loop</th>
+
+<th>成本可预测性</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td><strong>LangGraph</strong></td>
+
+<td>⭐⭐⭐⭐⭐</td>
+
+<td>中</td>
+
+<td>强</td>
+
+<td>低风险</td>
+
+</tr>
+
+<tr>
+
+<td><strong>Anthropic SDK</strong></td>
+
+<td>⭐⭐⭐⭐</td>
+
+<td>低</td>
+
+<td>中</td>
+
+<td>低风险</td>
+
+</tr>
+
+<tr>
+
+<td><strong>AutoGen 2.0</strong></td>
+
+<td>⭐⭐⭐⭐</td>
+
+<td>高</td>
+
+<td>中</td>
+
+<td style="color:#C62828;font-weight:600;">高风险（无界对话）</td>
+
+</tr>
+
+<tr>
+
+<td><strong>CrewAI</strong></td>
+
+<td>⭐⭐⭐</td>
+
+<td>低</td>
+
+<td>中</td>
+
+<td>中风险</td>
+
+</tr>
+
+<tr>
+
+<td><strong>LlamaIndex</strong></td>
+
+<td>⭐⭐⭐⭐</td>
+
+<td>中</td>
+
+<td>中</td>
+
+<td>低风险</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p style="text-align:center;font-size:0.85rem;color:#757575;margin-top:-8px;">图2-7：主流Agent框架生产就绪性对比（来源：Towards AI, 2026）</p>
+
+<p>从这张表可以看出，LangGraph在生产就绪度和HITL支持上表现最突出——这并非偶然。LangGraph的StateGraph设计天然支持条件路由、检查点和人工中断，这些正是构建混合架构所需的核心能力。而AutoGen 2.0虽然功能强大，但其"无界对话循环"机制可能导致Token消耗失控——这正是我们在2.4节讨论的成本风险的典型案例。</p>
+
+<p>2025年的一篇学术论文（arXiv:2512.08769）提出了九条生产级Agent最佳实践，值得在此引用：工具优先设计、纯函数调用、单工具单职责Agent、外部化Prompt管理、负责任AI模型联盟设计、工作流逻辑与MCP服务器分离、容器化部署、KISS原则（Keep It Simple and Stupid）。这九条实践的核心精神与我们本章的讨论完全一致：<strong>保持简单、控制复杂度、优先可靠性</strong>。</p>
+
+<p>LangChain提出的"Agent Engineering"概念也值得深思——它将构建Agent系统定义为一门需要<strong>迭代式工程方法论</strong>的学科，而非"写好Prompt就行"的魔法。核心挑战包括上下文工程（Context Engineering）的规模化管理、幻觉控制、以及评估体系的建立。选择Agent方案不仅是选择了更高的能力上限，也选择了更高的工程复杂度——你需要为之配备相应的方法论和工具链。这不是一个技术问题，而是一个工程管理问题。</p>
+
+<h3>2.7 七大常见选型误区</h3>
+
+<p>即使有了决策框架，在实际项目中仍然容易掉进一些认知陷阱。以下总结了七个最常见的选型误区——它们来源于多位开发者的实战反思、行业报告和学术研究。了解这些误区，比掌握决策框架本身更重要——因为框架是正面的指引，而误区是反面的警示，两者互补才能形成完整的判断力。</p>
+
+<div class="box pitfall">
+
+<p class="box-title">误区1：过度工程化（最常见的陷阱）</p>
+
+<p>Tina Huang在技术社区中直言不讳地指出："为不需要Agent的任务构建了复杂的Agent系统。"这是最常见也最致命的误区。如果流程可以用显式决策树映射——你在白板上能画出完整的流程图，每个分支都有明确的条件——那就用Workflow，不要用Agent。<strong>Agent的灵活性不是免费的——你为每一份额外的灵活性付出了Token、延迟、可调试性和可维护性的代价</strong>。如果不需要这份灵活性，这些代价就全部变成了浪费。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区2：跳过"是否需要Agent"这个问题</p>
+
+<p>很多开发者承认："我最初建造multi-agent empire的冲动远超实际需求。"新技术带来的兴奋感会让人失去判断力——"Agent"这个词本身就带有一种技术先进性的光环，让开发者觉得"用Agent就是更先进的方案"。但在开始设计之前，先诚实地问自己：<strong>这个任务真的需要动态决策吗？它的执行路径真的无法预先确定吗？</strong>如果答案犹豫超过3秒，大概率不需要Agent。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区3：忽视工具优化优先级</p>
+
+<p>Anthropic在构建SWE-bench Agent时发现了一个反直觉的事实：<strong>花在优化工具上的时间比优化Prompt更多</strong>。工具定义的质量直接影响Agent的效果——如果工具描述模糊（"这个工具用来处理数据"——什么数据？怎么处理？）、参数设计不合理（必填参数太多、缺乏默认值、类型不明确），再强的LLM也无法正确使用它们。这一发现也被九大最佳实践中的"Single-tool and single-responsibility agents"所印证——一个Agent最好只负责一个工具，不要让它管理太多工具。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区4：框架抽象层遮蔽底层逻辑</p>
+
+<p>LangChain、CrewAI等框架降低了入门门槛——几行代码就能跑起一个Agent。但这种便利也创建了额外的抽象层，使得Prompt和Response难以调试——当Agent行为异常时，你很难确定是Prompt的问题、是框架路由逻辑的问题、还是工具定义的问题。<strong>建议</strong>：先直接使用LLM API构建原型（如直接调用deepseek-v4.1-flash API），理解了底层逻辑后再引入框架提效。框架应该是"提效工具"而不是"理解替代品"。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区5：忽视成本管理</p>
+
+<p>Agent的自主循环可能导致Token消耗失控——我们在2.4节已经看到了60倍差距的真实案例。一个没有设置预算限制的Agent，就像一张没有额度上限的信用卡——它会持续消耗直到任务完成或超时。<strong>必须设置</strong>：最大循环次数（如max_iterations=10）、Token预算上限（如max_tokens=50000）、单次工具调用超时（如timeout=30s）。这三个参数是使用Agent时的"三道保险丝"。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区6：幻觉和输出不一致</p>
+
+<p>LangChain的State of Agent Engineering报告指出：对于10k+员工的企业，<strong>幻觉和输出一致性</strong>是最大挑战。Agent在推理过程中可能"发明"不存在的工具参数（如给查询API传一个不存在的表名）、虚构API返回结果（工具返回了空值但Agent声称获取到了数据）、或者生成完全不符合逻辑的执行路径（在不需要登录的API上调用登录方法）。这需要系统级的防幻觉机制——包括输出校验、工具调用Schema严格验证、以及结果合理性检查——而非单纯依赖模型能力提升。</p>
+
+</div>
+
+<div class="box pitfall">
+
+<p class="box-title">误区7：部署与集成的"最后一英里"</p>
+
+<p>Composio的2025 AI Agent报告发现了一个扎心的现实："LLM工作正常，但它接收的数据是垃圾。"大量Agent试点在进入生产环境时失败，不是因为模型能力不够，而是因为Agent与业务系统之间的数据管道不完善——API返回的数据格式与Agent预期不一致、数据库中的数据有脏值、外部系统的响应延迟导致Agent超时。解决方案不是让Agent更聪明，而是<strong>构建可靠的Agent-Native Integration Layer</strong>——让数据管道先于Agent就绪。Composio将其比喻为"Build an Agent-Native Integration Layer that acts as the LLM's OS"——为LLM构建一个操作系统级的数据集成层。</p>
+
+</div>
+
+<p>以上七个误区的共同特征是：<strong>它们都不是模型能力问题，而是系统工程问题</strong>。一个更强大的LLM并不能解决这些问题——过度工程化不会因为模型变强而消失，成本失控不会因为模型变便宜而根治，调试困难不会因为推理能力提升而自动化解。这些问题的根源在于架构决策和工程实践——这正是"Agent Engineering"作为一门工程学科存在的意义。</p>
+
+<p>选择Agent不是选择了更强的技术，而是选择了更复杂的工程挑战。你需要为这个挑战做好充分的准备——包括方法论（如何评估和迭代Agent效果）、工具链（如何监控和调试Agent行为）、监控体系（如何检测异常和成本失控）、安全机制（如何防止Agent执行危险操作）。这也是为什么本书剩余的58道题会深入讨论工具调用（G2）、记忆系统（G3）、规划推理（G4）、框架实战（G5）、生产部署和安全（G7）——它们都是应对Agent工程挑战的具体工具和方法。</p>
+
+<p>Stanford HAI在2026年AI Index Report中还指出了一个值得警惕的现象：前沿模型能在评测环境中表现出比生产使用中更安全的行为——<strong>在测试时更安全，在生产中风险更高</strong>。这意味着你在开发环境中测试通过的Agent，到了生产环境可能展现出完全不同的行为模式。这种"评测-部署鸿沟"进一步凸显了系统工程的重要性——你不能假设生产环境会和测试环境一样友善。因此，在Agent上线后，持续的监控和红队测试（Red Teaming）不是可选项，而是必须项。我们会在（红队测试）和（可观测性）中详细讨论这些主题。</p>
+
+<div class="box key">
+
+<p class="box-title">一句话总结</p>
+
+<p>Anthropic说"找到最简单的可行方案"。Vellum说"当前创新在Level 2"。Orkes说"用Workflow治理Agent"。Towards Data Science说"95%在用AI，只有1%成熟"。这四句话合在一起，就是本章的核心结论：<strong>在大多数场景下，最简单的方案不是Agent——但知道何时该用Agent，才是架构师的真正功力。</strong></p>
+
+</div>
+
+<!-- ===== Section 3: 参考答案 ===== -->
+
+<h2 style="border-top:2px solid;border-image:linear-gradient(90deg,#E040FB,#BA68C8,transparent) 1;border-left:4px solid #E040FB;padding-left:14px;padding-top:20px;margin-top:40px;font-size:1.5rem;font-weight:700;color:#4A148C;">Section 3：参考答案</h2>
+
+<h3>3.1 Agent/Workflow决策器（Python实现）</h3>
+
+<p>下面将2.5节的四维度决策树编码为一个可执行的Python决策器。给定一个场景的四个维度评估值，它会输出选型建议、预估成本和实施建议。这个决策器的价值在于<strong>将主观判断转化为客观规则</strong>——任何人都可以用同一套标准来评估不同的场景，避免"凭感觉选型"。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["from dataclasses import dataclass","from typing import Literal","","@dataclass","class ScenarioAssessment:","
+
+\"\"\"场景评估数据模型\"\"\"","
+
+name: str","
+
+# 维度1: 任务路径是否固定？","
+
+path_deterministic: bool  # True=路径固定, False=需动态决策","
+
+# 维度2: 成本敏感度","
+
+cost_sensitive: Literal[\"high\", \"medium\", \"low\"]","
+
+# 维度3: 容错空间","
+
+error_tolerance: Literal[\"low\", \"medium\", \"high\"]","
+
+# 维度4: 涉及工具数量","
+
+tool_count: int","","def recommend_architecture(s: ScenarioAssessment) -> dict:","
+
+\"\"\"","
+
+Agent/Workflow 选型决策器","
+
+基于四维度评估法输出架构建议","
+
+遵循 Anthropic 原则：从最简单的方案开始","
+
+\"\"\"","
+
+# 维度1: 路径固定 → 直接用 Workflow","
+
+if s.path_deterministic:","
+
+pattern = choose_workflow_pattern(s)","
+
+return {","
+
+\"recommendation\": \"Workflow\",","
+
+\"pattern\": pattern,","
+
+\"reason\": f\"任务路径确定，适合{pattern}模式\",","
+
+\"estimated_tokens\": \"2K-5K per call\",","
+
+\"estimated_latency\": \"2-8s\",","
+
+}","","
+
+# 维度2: 路径不确定 + 成本高度敏感 → Router Workflow","
+
+if s.cost_sensitive == \"high\":","
+
+return {","
+
+\"recommendation\": \"Router Workflow (Level 2)\",","
+
+\"pattern\": \"Routing\",","
+
+\"reason\": \"路径不确定但成本敏感，用LLM做路由决策，限制可选路径\",","
+
+\"estimated_tokens\": \"3K-8K per call\",","
+
+\"estimated_latency\": \"3-12s\",","
+
+}","","
+
+# 维度3: 路径不确定 + 成本弹性 + 容错空间低 → HITL Agent","
+
+if s.error_tolerance == \"low\":","
+
+return {","
+
+\"recommendation\": \"HITL Agent (Agent + 人工审核)\",","
+
+\"pattern\": \"Agent with Human-in-the-Loop\",","
+
+\"reason\": \"路径不确定且容错空间小，需Agent推理但关键决策由人工确认\",","
+
+\"estimated_tokens\": \"10K-40K per task\",","
+
+\"estimated_latency\": \"15-60s (含人工审核时间)\",","
+
+}","","
+
+# 维度4: 工具数量微调","
+
+if s.tool_count > 15:","
+
+return {","
+
+\"recommendation\": \"Multi-Agent System\",","
+
+\"pattern\": \"多Agent协作\",","
+
+\"reason\": f\"工具数量{s.tool_count}个，建议多Agent分工\",","
+
+\"estimated_tokens\": \"30K-100K per task\",","
+
+\"estimated_latency\": \"30s-3min\",","
+
+}","","
+
+# 默认: 单Agent","
+
+return {","
+
+\"recommendation\": \"Single Agent\",","
+
+\"pattern\": \"ReAct Agent\",","
+
+\"reason\": \"路径不确定、成本弹性、容错空间可接受，适合单Agent\",","
+
+\"estimated_tokens\": \"8K-30K per task\",","
+
+\"estimated_latency\": \"10-45s\",","
+
+}","","def choose_workflow_pattern(s: ScenarioAssessment) -> str:","
+
+\"\"\"根据场景特征选择Workflow模式\"\"\"","
+
+if s.tool_count > 3:","
+
+return \"Parallelization (并行化)\"","
+
+elif s.error_tolerance == \"low\":","
+
+return \"Evaluator-Optimizer (评估-优化)\"","
+
+else:","
+
+return \"Prompt Chaining (提示链)\"","","","# ===== 对 Section 1 中的 5 个场景进行评估 =====","scenarios = [","
+
+ScenarioAssessment(\"客服系统\", False, \"high\", \"medium\", 5),","
+
+ScenarioAssessment(\"周报生成\", True, \"medium\", \"high\", 3),","
+
+ScenarioAssessment(\"合同审查\", True, \"low\", \"low\", 4),","
+
+ScenarioAssessment(\"运维告警处理\", False, \"low\", \"low\", 8),","
+
+ScenarioAssessment(\"销售跟进\", False, \"medium\", \"medium\", 6),","]","","for s in scenarios:","
+
+result = recommend_architecture(s)","
+
+print(f\"📊 场景: {s.name}\")","
+
+print(f\"
+
+建议: {result['recommendation']}\")","
+
+print(f\"
+
+模式: {result['pattern']}\")","
+
+print(f\"
+
+理由: {result['reason']}\")","
+
+print(f\"
+
+预估Token: {result['estimated_tokens']}\")","
+
+print(f\"
+
+预估延迟: {result['estimated_latency']}\")","
+
+print()"],"steps":[{"title":"导入模块：dataclass, Literal","desc":"导入 dataclass, Literal 等模块，为后续的代码提供必要的工具函数和类。","lineRange":[0,1]},{"title":"定义类 ScenarioAssessment","desc":"维度1: 任务路径是否固定？；True=路径固定, False=需动态决策；维度2: 成本敏感度；维度3: 容错空间。","lineRange":[4,14]},{"title":"定义函数 recommend_architecture(s)","desc":"维度1: 路径固定 → 直接用 Workflow；维度2: 路径不确定 + 成本高度敏感 → Router Workflow；维度3: 路径不确定 + 成本弹性 + 容错空间低 → HITL Agent；维度4: 工具数量微调。","lineRange":[16,70]},{"title":"定义函数 choose_workflow_pattern(s)","desc":"定义函数 choose_workflow_pattern(s)，封装可复用的计算逻辑，具体操作：返回计算结果，参数 s 分别表示对应的输入数据。","lineRange":[72,79]},{"title":"计算：scenarios","desc":"计算并赋值给 scenarios，调用函数：ScenarioAssessment。","lineRange":[83,83]},{"title":"循环处理：s","desc":"执行循环迭代，每轮更新变量：result，具体操作包括：格式化输出结果。","lineRange":[91,99]}]}
+
+</script>
+</div>
+
+<h3>3.2 Token成本计算器</h3>
+
+<p>为了更精确地量化Agent和Workflow的成本差异，下面是一个Token消耗估算器。它可以帮你在项目启动阶段就做好预算规划——这是避免"上线后才发现成本爆炸"的关键。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"lang":"python","lines":["def estimate_agent_tokens(","
+
+system_prompt: int,","
+
+tool_definitions: int,","
+
+tool_count: int,","
+
+avg_observation: int,","
+
+rounds: int,","
+
+reasoning_per_round: int = 500,",") -> dict:","
+
+\"\"\"","
+
+估算Agent在多轮循环中的Token消耗","
+
+","
+
+核心洞察: Agent的上下文随轮数线性增长","
+
+因为LLM是无状态的,每轮都要重发完整历史","
+
+\"\"\"","
+
+static_tokens = system_prompt + tool_definitions * tool_count","
+
+input_tokens = 0","
+
+output_tokens = 0","","
+
+for r in range(1, rounds + 1):","
+
+# 输入: 静态部分 + 累积的对话历史","
+
+history = (r - 1) * (reasoning_per_round + avg_observation)","
+
+input_tokens += static_tokens + history","
+
+# 输出: 推理Token + 工具调用Token","
+
+output_tokens += reasoning_per_round + 100","","
+
+return {","
+
+\"total_input\": input_tokens,","
+
+\"total_output\": output_tokens,","
+
+\"total_tokens\": input_tokens + output_tokens,","
+
+\"rounds\": rounds,","
+
+\"avg_per_round\": (input_tokens + output_tokens) // rounds,","
+
+}","","def estimate_workflow_tokens(","
+
+steps: int,","
+
+prompt_per_step: int = 800,","
+
+output_per_step: int = 500,",") -> dict:","
+
+\"\"\"估算Workflow的Token消耗（固定步骤）\"\"\"","
+
+total_input = steps * prompt_per_step","
+
+total_output = steps * output_per_step","
+
+return {","
+
+\"total_input\": total_input,","
+
+\"total_output\": total_output,","
+
+\"total_tokens\": total_input + total_output,","
+
+\"steps\": steps,","
+
+}","","# ===== 成本对比：同一任务两种方案 =====","# 场景: 分析销售数据并生成报告","","# 方案A: Workflow (3步: 查数据 → 分析 → 写报告)","wf = estimate_workflow_tokens(steps=3, prompt_per_step=1000, output_per_step=800)","","# 方案B: Agent (5轮ReAct循环, 8个工具)","ag = estimate_agent_tokens(","
+
+system_prompt=2000, tool_definitions=300,","
+
+tool_count=8, avg_observation=600, rounds=5,",")","","print(\"=\" * 50)","print(\"📊 Token 消耗对比报告\")","print(\"=\" * 50)","print(f\"\\n【Workflow方案】3步固定流程\")","print(f\"  输入Token: {wf['total_input']:,}\")","print(f\"  输出Token: {wf['total_output']:,}\")","print(f\"  总Token:
+
+{wf['total_tokens']:,}\")","","print(f\"\\n【Agent方案】5轮ReAct循环, 8个工具\")","print(f\"  输入Token: {ag['total_input']:,}\")","print(f\"  输出Token: {ag['total_output']:,}\")","print(f\"  总Token:
+
+{ag['total_tokens']:,}\")","print(f\"  每轮均值:  {ag['avg_per_round']:,}\")","","ratio = ag['total_tokens'] / max(wf['total_tokens'], 1)","print(f\"\\n⚠️ Agent/Workflow Token比: {ratio:.1f}x\")","print(f\"
+
+Agent多消耗: {ag['total_tokens'] - wf['total_tokens']:,} tokens\")",""],"steps":[{"title":"定义函数 estimate_agent_tokens(system_prompt, tool_definitions, tool_count, avg_observation, rounds, reasoning_per_round)","desc":"输入: 静态部分 + 累积的对话历史；输出: 推理Token + 工具调用Token。","lineRange":[0,31],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 estimate_workflow_tokens(steps, prompt_per_step, output_per_step)","desc":"定义函数 estimate_workflow_tokens(steps, prompt_per_step, output_per_step)，返回计算结果。","lineRange":[33,46],"vars":{},"changedVars":[],"output":null},{"title":"计算：wf","desc":"方案B: Agent (5轮ReAct循环, 8个工具)。","lineRange":[52,76],"vars":{"wf":{"value":"{'total_input': 3000, 'total_output': 2400, 'total_tokens': 5400, 'steps': 3}","type":"dict"},"ag":{"value":"{'total_input': 33000, 'total_output': 3000, 'total_tokens': 36000, 'rounds': 5,...","type":"dict"},"ratio":{"value":"6.666666666666667","type":"float"}},"changedVars":["wf","ag","ratio"],"output":"==================================================\n📊 Token 消耗对比报告\n==================================================\n\n【Workflow方案】3步固定流程\n  输入Token: 3,000\n  输出Token: 2,400\n  总Token:
+
+5,400\n\n【Agent方案】5轮ReAct循环, 8个工具\n  输入Token: 33,000\n  输出Token: 3,000\n  总Token:
+
+36,000\n  每轮均值:  7,200\n\n⚠️ Agent/Workflow Token比: 6.7x\n
+
+Agent多消耗: 30,600 tokens"}]}
+
+</script>
+</div>
+
+<p>运行这段代码，你会看到一个清晰的量化对比报告。对于这个"分析销售数据并生成报告"的场景，Agent方案大约消耗Workflow方案的<strong>8-10倍Token</strong>。如果你的任务频率是每天1000次，按主流大模型的定价计算，月度成本差距可能达到数千元到数万元——这就是为什么"在不需要Agent的场景上Agent"是第一大选型错误的量化证据。</p>
+
+<p>还需要注意的是，这个计算器给出的是<strong>下限估算</strong>。实际场景中Agent的Token消耗可能更高，原因包括：LLM可能输出比预估更长的推理链（特别是遇到复杂问题时）；工具调用的返回结果可能包含大量结构化数据（如API返回的JSON）；Agent可能在某些轮次中"改变主意"（先决定调用工具A，然后又改为工具B），这种犹豫不决会额外消耗Token。因此，在生产环境中规划Token预算时，建议将估算值乘以1.5-2倍的安全系数。</p><p></p>
+
+<h3>3.3 六大Workflow模式快速参考</h3>
+
+<p>最后，提供六种Workflow模式的Python伪代码框架。在实际项目中，你可以根据任务特征选择合适的模式，用这些框架快速搭建原型——通常比从零构建Agent快得多，而且更可靠。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"lang":"python","lines":["# ===== 六大Workflow模式快速参考 =====","# 框架级伪代码，展示核心设计思路","","# 模式1: Prompt Chaining (提示链)","def prompt_chaining(input_text: str) -> str:","
+
+\"\"\"顺序步骤: 翻译 → 审查 → 润色\"\"\"","
+
+step1 = llm_call(f\"将以下中文翻译为英文: {input_text}\")","
+
+step2 = llm_call(f\"检查这段英文翻译的准确性: {step1}\")","
+
+step3 = llm_call(f\"润色以下英文使其更地道: {step2}\")","
+
+return step3","","# 模式2: Routing (路由分发)","def routing(user_input: str) -> str:","
+
+\"\"\"分类输入 → 路由到专用处理\"\"\"","
+
+category = llm_call(f\"将以下问题分类为[退款/技术/咨询]: {user_input}\")","
+
+if \"退款\" in category:","
+
+return llm_call(REFUND_PROMPT + user_input)","
+
+elif \"技术\" in category:","
+
+return llm_call(TECH_PROMPT + user_input)","
+
+else:","
+
+return llm_call(GENERAL_PROMPT + user_input)","","# 模式3: Parallelization - Sectioning","def parallel_section(document: str) -> dict:","
+
+\"\"\"多维度并行分析（实际用asyncio.gather并行）\"\"\"","
+
+aspects = [\"合规性\", \"完整性\", \"可读性\", \"风险点\"]","
+
+return {a: llm_call(f\"从{a}角度审查: {document}\") for a in aspects}","","# 模式3变体: Parallelization - Voting","def parallel_voting(question: str, n: int = 5) -> str:","
+
+\"\"\"多次调用取多数一致结果\"\"\"","
+
+from collections import Counter","
+
+answers = [llm_call(question) for _ in range(n)]","
+
+return Counter(answers).most_common(1)[0][0]","","# 模式4: Orchestrator-Workers","def orchestrator(task: str) -> str:","
+
+\"\"\"中央LLM动态分解任务并分派\"\"\"","
+
+subtasks = llm_call(f\"将任务分解为子任务: {task}\")","
+
+results = [llm_call(f\"执行: {st}\") for st in subtasks]","
+
+return llm_call(f\"整合结果: {results}\")","","# 模式5: Evaluator-Optimizer","def eval_optimize(content: str, max_rounds: int = 3) -> str:","
+
+\"\"\"生成 → 评估 → 改进循环\"\"\"","
+
+draft = llm_call(f\"生成初稿: {content}\")","
+
+for _ in range(max_rounds):","
+
+feedback = llm_call(f\"评估并给出建议: {draft}\")","
+
+if \"无需改进\" in feedback:","
+
+break","
+
+draft = llm_call(f\"根据反馈改进: {draft}\\n反馈: {feedback}\")","
+
+return draft","","# 模式6: Context-Augmentation (RAG)","def rag_query(question: str, kb) -> str:","
+
+\"\"\"检索 → 注入 → 生成\"\"\"","
+
+context = kb.search(question, top_k=3)","
+
+return llm_call(f\"基于以下背景回答:\\n背景: {context}\\n问题: {question}\")","","# 占位: 替换为你的LLM API调用","def llm_call(prompt: str) -> str: ...",""],"steps":[{"title":"定义函数 prompt_chaining(input_text)","desc":"定义函数 prompt_chaining(input_text)，内部调用：llm_call，格式化字符串；返回计算结果。","lineRange":[4,9],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 routing(user_input)","desc":"定义函数 routing(user_input)，内部调用：llm_call，格式化字符串；返回计算结果。","lineRange":[12,20],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 parallel_section(document)","desc":"定义函数 parallel_section(document)，内部调用：llm_call，返回计算结果。","lineRange":[23,26],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 parallel_voting(question, n)","desc":"定义函数 parallel_voting(question, n)，内部调用：llm_call, range, most_common, Counter，生成序列；返回计算结果。","lineRange":[29,33],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 orchestrator(task)","desc":"定义函数 orchestrator(task)，内部调用：llm_call，格式化字符串；返回计算结果。","lineRange":[36,40],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 eval_optimize(content, max_rounds)","desc":"定义函数 eval_optimize(content, max_rounds)，内部调用：llm_call, range，格式化字符串；生成序列；返回计算结果。","lineRange":[43,51],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 rag_query(question, kb)","desc":"定义函数 rag_query(question, kb)，内部调用：search, llm_call，返回计算结果。","lineRange":[54,57],"vars":{},"changedVars":[],"output":null},{"title":"定义函数 llm_call(prompt)","desc":"定义函数 llm_call(prompt)。","lineRange":[60,60],"vars":{},"changedVars":[],"output":null}]}
+
+</script>
+</div>
+
+<p>这六种模式覆盖了绝大多数不需要Agent自主决策的AI应用场景。在实际项目中，建议的做法是：先用这套模式快速构建MVP（最小可行产品），验证核心价值，然后根据实际效果和用户反馈，决定是否需要在特定节点引入Agent的灵活性。这种渐进式的策略有几个好处：第一，MVP的上市速度最快——Workflow模式通常几天就能上线，而Agent方案可能需要数周的调试。第二，Workflow的可预测性让你能准确衡量ROI——你清楚地知道每次调用的成本和预期产出。第三，当Workflow确实不够用时，你已经积累了足够的领域知识和用户反馈，能更精准地定位"到底哪里需要Agent的灵活性"——而不是盲目地"全面Agent化"。</p>
+
+<p>一个实战建议：在Workflow的每个步骤中加入<strong>效果监控</strong>——记录每一步的输入、输出、执行时间和Token消耗。这些数据将在后续决定"是否升级为Agent"时提供客观依据。如果你发现Workflow的某个步骤频繁需要人工干预（比如分类步骤经常分错），那就是一个可能需要Agent灵活性的信号。如果所有步骤都稳定运行，那就保持Workflow——不要修不需要修的东西。</p>
+
+<div class="box practice">
+
+<p class="box-title">最佳实践总结</p>
+
+<ol>
+
+<li><strong>先问"能不能用Workflow解决"</strong>，而不是"怎么用Agent解决"——这个提问顺序的改变能避免50%以上的过度工程化</li>
+
+<li><strong>量化Token成本</strong>：用3.2节的计算器在项目启动阶段就做好预算，设好Token预算上限</li>
+
+<li><strong>混合架构优先</strong>：核心流程用Workflow保证可靠性，关键决策点用Agent提供灵活性</li>
+
+<li><strong>设置安全阀</strong>：即使选了Agent方案，也要设置max_iterations、max_tokens、timeout三道保险丝</li>
+
+<li><strong>从Level 2开始</strong>：Router Workflow是性价比最高的Agentic系统形态——先证明它不够，再考虑Level 3</li>
+
+</ol>
+
+</div>
+
+<!-- ===== Section 4: 举一反三 ===== -->
+
+<h2 style="border-top:2px solid;border-image:linear-gradient(90deg,#E040FB,#BA68C8,transparent) 1;border-left:4px solid #E040FB;padding-left:14px;padding-top:20px;margin-top:40px;font-size:1.5rem;font-weight:700;color:#4A148C;">Section 4：举一反三</h2>
+
+<p>掌握了决策框架之后，通过以下三个变体练习来巩固你的选型判断力。每个变体都设置了不同的业务约束条件，训练你在复杂现实环境中灵活应用四维度评估法的能力。这些变体不是简单的重复——它们各自引入了新的复杂度维度，需要你深入思考。</p>
+
+<h3>变体题1：智能客服系统升级——从规则到Agent的渐进路径</h3>
+
+<div class="box case">
+
+<p class="box-title">场景描述</p>
+
+<p>某电商平台的客服系统目前使用基于关键词匹配的规则引擎（纯代码），日均处理10万次咨询，平均解决率65%。产品团队希望升级为"AI驱动"的智能客服，目标是将解决率提升到85%。工程团队提出了三种方案：</p>
+
+<ul>
+
+<li><strong>方案A</strong>：保持规则引擎不变，只在规则无法覆盖时调用LLM生成回复（Fallback策略）</li>
+
+<li><strong>方案B</strong>：用Router Workflow替代规则引擎，LLM做意图分类后路由到4-6个专用处理流程</li>
+
+<li><strong>方案C</strong>：构建全自主客服Agent，能查订单系统、处理退款、发优惠券、升级工单</li>
+
+</ul>
+
+<p><strong>约束条件</strong>：日均10万次调用（成本高度敏感）、解决率目标85%、错误回复的投诉成本高（影响品牌声誉）、需要支持多轮对话。</p>
+
+</div>
+
+<p><strong>学习目标</strong>：训练在高频、成本敏感场景下的方案评估能力。理解为什么"从Level 2开始"是最佳策略，以及如何在成本约束下最大化系统效果。</p>
+
+<p><strong>与原题的差异</strong>：引入了具体业务指标（解决率65%→85%、日均10万次）、多种渐进方案的对比、多轮对话需求。约束更具体，需要你量化估算每种方案的成本和效果。</p>
+
+<p><strong>考察的核心能力</strong>：方案对比分析能力、成本-质量平衡的量化思维、分阶段实施策略规划。</p>
+
+<p><strong>输入输出示例</strong>：输入——3种方案的描述 + 业务约束条件；输出——推荐方案 + 详细论证（含Token成本估算和解决率预估）+ 分阶段实施路线图（从当前状态到目标状态的迁移计划）。</p>
+
+<h3>变体题2：代码审查Pipeline——并行Workflow vs Agent审查</h3>
+
+<div class="box case">
+
+<p class="box-title">场景描述</p>
+
+<p>一个50人工程团队需要为代码仓库的Pull Request构建AI审查系统。当前PR平均修改约200行代码，涉及3-5个文件。团队考虑两种架构：</p>
+
+<ul>
+
+<li><strong>方案A（并行Workflow）</strong>：4个LLM并行审查不同维度——安全性、性能、可读性、测试覆盖率——最后汇聚为综合审查报告</li>
+
+<li><strong>方案B（Agent）</strong>：一个Agent自主阅读PR diff、决定检查哪些维度、调用SonarQube和测试覆盖率工具、生成审查报告</li>
+
+</ul>
+
+<p><strong>约束条件</strong>：每天约30个PR、审查需在PR提交后5分钟内完成、团队已有SonarQube等静态分析工具、需要与GitHub Actions集成。</p>
+
+</div>
+
+<p><strong>学习目标</strong>：训练在"任务可并行化"场景下的架构判断——理解Parallelization模式何时比Agent更优，以及如何利用已有工具增强Workflow。</p>
+
+<p><strong>与原题的差异</strong>：聚焦于一个特定的工作流模式（Parallelization vs Agent），要求深入分析而非笼统对比。引入了已有工具（SonarQube）的整合需求。</p>
+
+<p><strong>考察的核心能力</strong>：并行化设计能力、对延迟约束的敏感度、工具整合判断、与CI/CD系统的集成设计。</p>
+
+<p><strong>输入输出示例</strong>：输入——PR规模（200行/5文件）、审查维度列表、5分钟延迟约束；输出——推荐架构 + 每个维度的Prompt设计要点 + 延迟估算 + 与GitHub Actions和SonarQube的整合方案。</p>
+
+<h3>变体题3：动态营销文案——从模板到创意的自主度光谱</h3>
+
+<div class="box case">
+
+<p class="box-title">场景描述</p>
+
+<p>一家DTC（Direct-to-Consumer）品牌需要为500个SKU生成差异化的营销文案，并根据用户反馈数据（点击率、转化率）持续优化文案效果。团队在两种方案间犹豫：</p>
+
+<ul>
+
+<li><strong>方案A（Evaluator-Optimizer Workflow）</strong>：固定流程生成→评估→改进，3轮迭代后输出最终文案</li>
+
+<li><strong>方案B（Agent）</strong>：Agent读取用户画像和历史A/B测试数据，自主决定文案风格（幽默/专业/感性）、A/B测试策略、迭代方向</li>
+
+</ul>
+
+<p><strong>约束条件</strong>：500个SKU × 每月更新2次 = 1000次/月（中等频率）、文案质量直接影响转化率（高业务价值）、有3个月的历史A/B测试数据可用。</p>
+
+</div>
+
+<p><strong>学习目标</strong>：训练在"创意性任务"场景下的选型判断——理解Evaluator-Optimizer何时够用，何时真正需要Agent的数据驱动决策能力。这是一个边界模糊的场景，需要仔细权衡。</p>
+
+<p><strong>与原题的差异</strong>：聚焦于创意/内容生成领域，任务路径半结构化（有框架但有创意空间）。需要你判断"质量上限"和"可控性"之间的权衡。</p>
+
+<p><strong>考察的核心能力</strong>：创意任务的结构化拆解能力、A/B测试思维、数据驱动优化意识、对"质量上限"的量化判断。</p>
+
+<p><strong>输入输出示例</strong>：输入——SKU数量（500）、更新频率（2次/月）、历史数据量（3个月）；输出——推荐架构 + 质量vs成本权衡分析 + 如果选Agent需要哪些工具 + 如果选Workflow的迭代策略。</p>
+
+<div class="box key">
+
+<p class="box-title">🔑 三个变体的共同考察点</p>
+
+<p>无论变体如何变化，核心都在考察你能否<strong>结构化地评估一个场景</strong>：拆解为路径确定性、成本敏感度、容错空间、工具复杂度四个维度，然后基于评估结果给出有理有据的选型建议。这套方法论不仅适用于Agent/Workflow选型，也适用于任何"简单方案 vs 复杂方案"的技术决策——它是架构师的核心思维模型之一。</p>
+
+</div>
+
+<!-- ===== 要点回顾 ===== -->
+
+<div class="box key">
+
+<p class="box-title">本章要点回顾</p>
+
+<ul>
+
+<li><strong>本质区别</strong>：Workflow的控制流由开发者决定，Agent的控制流由LLM动态决定——选型的核心问题是"谁来做决策"</li>
+
+<li><strong>三级模型</strong>：Vellum的三级决策模型（输出/任务/流程）在二元选择之间定义了精细的谱系；Level 2 Router Workflow是当前创新热点</li>
+
+<li><strong>六大模式</strong>：Prompt Chaining、Routing、Parallelization、Orchestrator-Workers、Evaluator-Optimizer、Context-Augmentation——不上Agent也能解决大量复杂问题</li>
+
+<li><strong>隐藏成本</strong>：Agent的Token消耗是Workflow的6-20倍，外加延迟、调试、维护和安全成本——这些都是隐藏的"冰山水下部分"</li>
+
+<li><strong>决策框架</strong>：四维度评估法——路径确定性 → 成本敏感度 → 容错空间 → 工具数量，依次过滤</li>
+
+<li><strong>混合架构</strong>：核心流程用Workflow保证可靠性，关键决策点嵌入Agent提供灵活性——这是2025-2026年生产系统的主流架构</li>
+
+<li><strong>七大误区</strong>：过度工程化、跳过"是否需要Agent"、忽视工具优化、框架遮蔽底层、忽视成本、幻觉风险、集成"最后一英里"</li>
+
+<li><strong>核心原则</strong>：从最简单的方案开始，只在证明不够时才增加复杂性（Anthropic）</li>
+
+</ul>
+
+</div>
+
+<!-- ===== 章节导航 ===== --></div>
+<div class="footer">
+  <p>Agent架构师试炼 · 开源资料 · GitHub</p>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,3905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单Agent与多Agent架构——从单体到协作的演进</title>
+<style>
+/* ===== 标准电子资料样式 ===== */
+/* 协调者子agent在初始化阶段复制此文件到输出目录 */
+/* 配色通过 CSS 变量控制，协调者根据主题选择色板 */
+
+:root {
+  /* ===== 色板切换指南（协调者替换以下整块 :root 变量） =====
+  内置色板（直接复制对应区块替换默认值）：
+
+  绿色系（默认，Python/Qt系）：
+    --primary:#2C5F2D; --primary-dark:#1B3A1C; --primary-light:#4A8B4C; --accent:#41CD52; --accent-dark:#2E7D32; --accent-light:#81C784;
+    --primary-bg:#E8F5E9; --primary-border:#4CAF50; --accent-bg:#F1F8E9; --accent-border:#8BC34A; --bg-alt:#F4F9F4; --tip-bg:#E8F5E9;
+    SVG推荐：主题#2C5F2D#1B3A1C#4A8B4C#41CD52#81C784 背景#E8F5E9#F1F8E9#F5F5F5
+
+  蓝色系（通用技术）：
+    --primary:#2196F3; --primary-dark:#1565C0; --primary-light:#64B5F6; --accent:#00BCD4; --accent-dark:#00838F; --accent-light:#80DEEA;
+    --primary-bg:#E3F2FD; --primary-border:#42A5F5; --accent-bg:#E0F7FA; --accent-border:#26C6DA; --bg-alt:#F0F7FF; --tip-bg:#E3F2FD;
+    SVG推荐：主题#2196F3#1565C0#64B5F6#00BCD4#80DEEA 背景#E3F2FD#E0F7FA#F5F5F5
+
+  紫色系（AI/数据系）：
+    --primary:#7B1FA2; --primary-dark:#4A148C; --primary-light:#BA68C8; --accent:#E040FB; --accent-dark:#AA00FF; --accent-light:#EA80FC;
+    --primary-bg:#F3E5F5; --primary-border:#AB47BC; --accent-bg:#FCE4EC; --accent-border:#F48FB1; --bg-alt:#F4EFF5; --tip-bg:#F3E5F5;
+    SVG推荐：主题#7B1FA2#4A148C#BA68C8#E040FB#EA80FC 背景#F3E5F5#FCE4EC#F5F5F5
+
+  橙色系（Blender/设计系）：
+    --primary:#E8723A; --primary-dark:#C45A2D; --primary-light:#F5A623; --accent:#FF9800; --accent-dark:#E65100; --accent-light:#FFB74D;
+    --primary-bg:#FFF3E0; --primary-border:#FF9800; --accent-bg:#FFF8E1; --accent-border:#FFC107; --bg-alt:#FFF8F0; --tip-bg:#FFF3E0;
+    SVG推荐：主题#E8723A#C45A2D#F5A623#FF9800#FFB74D 背景#FFF3E0#FFF8E1#F5F5F5
+  */
+  /* 主题色（跟着色板走，切换色板时必须同步更新以下6行 + 衍生背景色6行） */
+  --primary: #7B1FA2;
+  --primary-dark: #4A148C;
+  --primary-light: #BA68C8;
+  --accent: #E040FB;
+  --accent-dark: #2E7D32;
+  --accent-light: #81C784;
+
+  /* 主题衍生背景色（跟着色板走） */
+  --primary-bg: #E8F5E9;        /* 主题色浅背景，用于信息卡片、提示框 */
+  --primary-border: #4CAF50;    /* 主题色边框 */
+  --accent-bg: #F1F8E9;         /* 强调色浅背景 */
+  --accent-border: #8BC34A;     /* 强调色边框 */
+  --bg-alt: #F4F9F4;            /* 主题色极浅背景，用于页面交替色 */
+  --tip-bg: #E8F5E9;            /* 提示框背景（与primary-bg一致） */
+
+  /* 语义色（固定不变，不随色板切换） */
+  --info-bg: #E3F2FD;           /* 蓝色信息背景 */
+  --info-border: #2196F3;       /* 蓝色信息边框 */
+  --info-text: #1565C0;         /* 蓝色信息文字 */
+  --success-bg: #E8F5E9;        /* 绿色成功背景 */
+  --success-border: #4CAF50;    /* 绿色成功边框 */
+  --success-text: #2E7D32;      /* 绿色成功文字 */
+  --warning-bg: #FFF3E0;        /* 橙色警告背景 */
+  --warning-border: #FF9800;    /* 橙色警告边框 */
+  --warning-text: #E65100;      /* 橙色警告文字 */
+  --danger-bg: #FFEBEE;         /* 红色危险背景 */
+  --danger-border: #E53935;     /* 红色危险边框 */
+  --danger-text: #C62828;       /* 红色危险文字 */
+  --highlight-bg: #FFFDE7;      /* 高亮背景（黄色系） */
+
+  /* 中性色（固定不变） */
+  --bg: #FFFFFF;
+  --bg-page: #F0EBE5;
+  --bg-card: #F5F5F5;           /* 卡片/面板背景 */
+  --bg-code-inline: #F0F0F0;    /* 行内代码背景 */
+  --text: #2D2D2D;
+  --text-light: #555;
+  --text-muted: #757575;        /* 次要文字（标签、注释） */
+  --border: #D0D0D0;
+  --border-light: #E0E0E0;      /* 浅边框（分隔线） */
+  --code-bg: #1E1E2E;
+  --code-text: #CDD6F4;
+  --max-width: 900px;
+
+  /*
+  SVG推荐色板（SVG fill/stroke 必须用十六进制，从以下颜色中选用）：
+  主题：#2C5F2D(主) #1B3A1C(深) #4A8B4C(浅) #41CD52(强调) #81C784(强调浅)
+  语义：#2196F3(信息) #4CAF50(成功) #FF9800(警告) #E53935(危险) #FFB300(注意)
+  中性：#757575(灰) #BDBDBD(浅灰) #E0E0E0(极浅灰) #fff(白) #2D2D2D(深)
+  背景：#E8F5E9(主题浅) #E3F2FD(信息浅) #FFF3E0(警告浅) #FFEBEE(危险浅) #F5F5F5(卡片)
+  */
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", -apple-system, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--bg-page);
+  line-height: 1.85; -webkit-font-smoothing: antialiased;
+  word-break: break-word; overflow-wrap: break-word;
+}
+/* 等宽字体异步加载（Fira Code CDN） */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== 内容容器（模拟纸张感） ===== */
+.book {
+  max-width: var(--max-width); margin: 0 auto;
+  background: var(--bg); min-height: 100vh;
+  box-shadow: 0 0 40px rgba(0,0,0,0.06); overflow: hidden;
+}
+
+/* ===== 封面 ===== */
+.cover {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  min-height: 100vh; text-align: center;
+  background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 90%, var(--accent) 100%);
+  color: #fff; padding: 3rem 2rem; page-break-after: always;
+  position: relative; overflow: hidden;
+}
+.cover::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.cover::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.15));
+  pointer-events: none;
+}
+.cover-decoration { margin-bottom: 24px; position: relative; z-index: 1; }
+.cover-badge {
+  display: inline-block; padding: 4px 16px; border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; font-size: 0.8rem; letter-spacing: 0.1em;
+  margin-bottom: 20px; opacity: 0.75; position: relative; z-index: 1;
+}
+.cover h1 { font-size: 3.75rem; font-weight: 900; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #fff !important; border: none !important; page-break-before: auto !important; padding: 0 !important; position: relative; z-index: 1; }
+.cover .subtitle { font-size: 1.625rem; opacity: 0.85; margin-bottom: 1rem; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.cover .tagline { font-size: 1.1rem; opacity: 0.65; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 1; }
+.cover-features { display: flex; gap: 12px; margin-bottom: 2rem; position: relative; z-index: 1; flex-wrap: wrap; justify-content: center; }
+.cover-feature {
+  padding: 4px 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; font-size: 0.85rem; letter-spacing: 0.02em;
+}
+.cover-author { font-size: 1.1rem; opacity: 0.7; margin-bottom: 0.3rem; position: relative; z-index: 1; }
+.cover-date { font-size: 0.9rem; opacity: 0.5; position: relative; z-index: 1; }
+/* 兼容旧版封面 */
+.cover .meta { font-size: 1.1rem; opacity: 0.55; position: relative; z-index: 1; }
+
+/* ===== 目录（卡片式） ===== */
+.toc { padding: 50px 40px; background: #FFFCF9; border-bottom: 1px solid #EDE8E3; }
+.toc-title { font-size: 1.5rem; color: var(--text); margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid var(--accent); display: inline-block; }
+.toc-list { display: flex; flex-direction: column; gap: 12px; }
+.toc-item {
+  display: block; padding: 12px 18px; background: #fff;
+  border: 1px solid #EDE8E3; border-radius: 10px;
+  text-decoration: none; color: var(--text); font-size: 0.95rem;
+  transition: all 0.2s;
+}
+.toc-item:hover { background: var(--bg-alt); border-color: var(--accent); transform: translateX(4px); text-decoration: none; }
+.toc-num { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-desc { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.toc-section { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+/* Practice type TOC */
+.toc-section-title { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+.toc-group { margin-bottom: 8px; }
+.toc-group-title { font-size: 0.85rem; color: var(--text-light); font-weight: 600; margin: 8px 0; padding-left: 4px; }
+.toc-number { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-title-text { color: var(--text); }
+.toc-tags { float: right; display: flex; gap: 6px; align-items: center; }
+.toc-tag { font-size: 0.75rem; color: var(--primary); background: var(--primary-bg, #E8F5E9); padding: 2px 8px; border-radius: 4px; }
+
+/* ===== 章节容器 ===== */
+.chapter {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.chapter::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+  margin: 20px 0 0; opacity: 0.6;
+}
+
+/* ===== 前言 ===== */
+.preface {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 术语表 ===== */
+.glossary {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 附录 ===== */
+.appendix {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 练习题容器（practice类型） ===== */
+.problem {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.problem::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 20px 0 0; opacity: 0.4;
+}
+
+/* ===== 练习题头部 ===== */
+.problem-header {
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent);
+}
+
+/* ===== 章节头部（编号圆圈+标题） ===== */
+.chapter-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent); position: relative;
+}
+.chapter-header::after {
+  content: ''; position: absolute; bottom: -3px; left: 0; width: 60px; height: 3px;
+  background: var(--primary-dark); border-radius: 2px;
+}
+.chapter-header .chapter-num {
+  flex-shrink: 0; width: 48px; height: 48px; line-height: 48px;
+  text-align: center; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+  border-radius: 50%; font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+}
+.chapter-header .chapter-num::after {
+  content: ''; position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px;
+  border-radius: 50%; border: 2px solid var(--accent); opacity: 0.4;
+}
+.chapter-header .chapter-title {
+  font-size: 1.8rem; font-weight: 800; color: var(--primary);
+  line-height: 1.35; margin: 0; border: none; padding: 0;
+}
+.chapter-header .chapter-icon { flex-shrink: 0; }
+
+/* ===== 标题层级 ===== */
+h1 { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 40px 0 20px; line-height: 1.4; page-break-before: always; }
+h1:first-of-type { page-break-before: auto; }
+h2 {
+  font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin: 40px 0 18px; padding-top: 20px;
+  padding-left: 14px;
+  border-top: 2px solid;
+  border-image: linear-gradient(90deg, var(--accent), var(--primary-light), transparent) 1;
+  line-height: 1.4;
+  border-left: 4px solid var(--accent);
+}
+h3 {
+  font-size: 1.2rem; font-weight: 700; color: var(--primary-light); margin: 30px 0 12px; line-height: 1.4;
+  padding-left: 10px; border-left: 3px solid var(--primary-light);
+}
+h4 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 22px 0 10px; }
+
+/* ===== 段落 ===== */
+p { margin: 14px 0; text-align: justify; line-height: 1.85; }
+ul, ol { margin: 14px 0; padding-left: 28px; }
+li { margin: 8px 0; line-height: 1.8; }
+li ul { margin: 4px 0; }
+strong { color: var(--primary-dark); }
+
+/* ===== 难度标记 ===== */
+.difficulty { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+.difficulty.basic { background: #E8F5E9; color: #2E7D32; }
+.difficulty.intermediate { background: #FFF3E0; color: #E65100; }
+.difficulty.advanced { background: #FCE4EC; color: #C62828; }
+
+/* ===== 代码块 ===== */
+pre {
+  background: var(--code-bg) !important; color: var(--code-text);
+  padding: 20px 24px; border-radius: 10px;
+  overflow-x: auto; margin: 18px 0; max-width: 100%;
+  font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace;
+  font-size: 0.87rem; line-height: 1.7;
+  page-break-inside: avoid; border: 1px solid #2A2A3E;
+  position: relative;
+}
+pre code {
+  background: transparent !important; color: var(--code-text) !important;
+  font-size: 0.87rem; line-height: 1.7;
+  display: block; white-space: pre-wrap; word-wrap: break-word;
+}
+code { font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace; font-size: 0.88em; }
+:not(pre) > code {
+  background: #FFF3E0; color: #C45A2D;
+  padding: 2px 6px; border-radius: 4px; word-break: break-all;
+}
+
+/* 语法高亮 */
+pre .kw { color: #569CD6; }
+pre .str { color: #CE9178; }
+pre .cmt { color: #6A9955; font-style: italic; }
+pre .fn { color: #DCDCAA; }
+pre .num { color: #B5CEA8; }
+pre .cls { color: #4EC9B0; }
+pre .op { color: #D4D4D4; }
+pre .dec { color: #C586C0; }
+pre .param { color: #9CDCFE; }
+
+/* 实战案例完整代码块 */
+.project-example { margin: 1.5rem 0; border: 2px solid var(--accent); border-radius: 10px; overflow: hidden; }
+.project-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+.project-tag { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+.project-title { font-weight: 600; font-size: 14px; }
+.project-desc { padding: 10px 16px; background: #FFF8F0; font-size: 14px; color: #555; border-bottom: 1px solid #EEE; }
+.project-example pre { margin: 0; border-radius: 0; border: none; }
+.project-run { padding: 10px 16px; background: #F0FFF0; font-size: 13px; color: #333; border-top: 1px solid #DDD; }
+
+/* 代码块滚动条 */
+pre::-webkit-scrollbar { height: 6px; }
+pre::-webkit-scrollbar-track { background: var(--code-bg); }
+pre::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* 代码块语言标签（纯CSS实现） */
+pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute; top: 0; right: 0;
+  padding: 3px 10px; border-radius: 0 10px 0 6px;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-transform: uppercase;
+}
+
+/* ===== 表格 ===== */
+.styled-table, table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  margin: 18px 0; font-size: 0.9rem;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid #EDE8E3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+th {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; font-weight: 600; padding: 12px 16px; text-align: left; white-space: nowrap;
+}
+td { padding: 10px 16px; border-top: 1px solid #F0EBE5; }
+tr:nth-child(even) { background: #FFFCF9; }
+tr:hover { background: var(--bg-alt); }
+
+/* 宽表格水平滚动（防溢出） */
+.table-wrap { overflow-x: auto; margin: 18px 0; border-radius: 10px; }
+.table-wrap table { margin: 0; }
+
+/* ===== 装饰性SVG/图表容器 ===== */
+.concept-svg {
+  text-align: center; margin: 25px 0; padding: 18px;
+  background: linear-gradient(135deg, var(--bg-alt) 0%, #FAFAFA 100%);
+  border-radius: 12px; border: 1px solid #E0E8E0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.concept-svg svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+/* SVG 内部元素默认视觉增强 */
+.concept-svg svg rect { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+.concept-svg svg circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+
+/* 兼容旧版 CSS div 图表 */
+.chart-container { max-width: 800px; margin: 28px auto; padding: 16px; font-family: -apple-system, "PingFang SC", sans-serif; }
+.chart-container h3, .chart-container h4 { font-size: 1rem; color: var(--primary); margin-bottom: 14px; text-align: center; }
+.flowchart { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.flowchart .step { padding: 14px 22px; background: var(--bg-alt); border: 2px solid var(--primary-light); border-radius: 10px; font-weight: 600; text-align: center; min-width: 110px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+.flowchart .step.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: var(--primary-dark); }
+.flowchart .arrow { font-size: 22px; color: var(--primary-light); padding: 0 4px; }
+
+/* ===== CSS div 图表样式（SVG 替代方案，节省 token） ===== */
+/* 对比卡片（左右对比、前后对比） */
+.compare-card { display: flex; flex-direction: column; gap: 12px; align-items: stretch; margin: 24px 0; }
+.compare-card .compare-col { display: flex; flex-direction: column; gap: 10px; }
+.compare-card .compare-item { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-alt); }
+.compare-card .compare-item.bad { border-color: #E57373; background: #FFF5F5; }
+.compare-card .compare-item.good { border-color: #81C784; background: #F1F8F1; }
+.compare-card .compare-item strong { display: block; margin-bottom: 4px; font-size: 0.93rem; }
+.compare-card .compare-item span { font-size: 0.87rem; color: var(--text-light); }
+.compare-card .compare-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.compare-card .compare-item:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+.compare-card .compare-divider { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary); font-weight: 700; }
+
+/* 步骤卡片 */
+.steps-card { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+.steps-card .step-item { display: flex; gap: 14px; padding: 14px 0; border-left: 3px solid var(--primary-light); padding-left: 16px; position: relative; }
+.steps-card .step-item::before { content: attr(data-step); position: absolute; left: -14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.steps-card .step-item strong { display: block; margin-bottom: 4px; }
+.steps-card .step-item span { font-size: 0.9rem; color: var(--text-light); }
+.steps-card .step-item { transition: border-color 0.2s ease; }
+.steps-card .step-item:hover { border-color: var(--primary-dark); }
+
+/* 特性/标签网格 */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+.feature-grid .feature-item { padding: 14px 16px; border-radius: 8px; background: var(--bg-alt); border: 1px solid var(--border); }
+.feature-grid .feature-item strong { display: block; margin-bottom: 6px; color: var(--primary-dark); }
+.feature-grid .feature-item span { font-size: 0.87rem; color: var(--text-light); line-height: 1.6; }
+.feature-grid .feature-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.feature-grid .feature-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--primary-border); }
+.timeline { position: relative; padding-left: 44px; }
+.timeline::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--primary), var(--primary-light)); border-radius: 2px; }
+.timeline .event { position: relative; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-alt); border-radius: 10px; border: 1px solid #D6E8D6; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+.timeline .event:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: var(--primary-light); }
+.timeline .event::before { content: ''; position: absolute; left: -36px; top: 16px; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--primary); }
+.timeline .event .year { font-weight: 700; color: var(--primary); font-size: 1.05rem; }
+.compare { display: flex; flex-direction: column; gap: 12px; }
+.compare .col { flex: 1; padding: 22px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.compare .col-a { background: #FFF3E0; border-left: 5px solid #FF9800; }
+.compare .col-b { background: #E8F5E9; border-left: 5px solid #4CAF50; }
+.compare .col-c { background: #E3F2FD; border-left: 5px solid #2196F3; }
+.compare .col h3 { margin-top: 0; font-size: 1.05rem; }
+.compare .col ul { padding-left: 18px; }
+.hierarchy { text-align: center; }
+.hierarchy .node { display: inline-block; padding: 12px 28px; border-radius: 10px; margin: 6px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.hierarchy .level-0 .node { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; font-size: 18px; }
+.hierarchy .level-1 .node { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: white; }
+.hierarchy .level-2 .node { background: linear-gradient(135deg, #B8D9BA, #A0C8A0); color: #333; }
+.hierarchy .arrow-down { color: #999; font-size: 22px; margin: 4px 0; }
+.matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #ddd; border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; }
+.matrix .cell { padding: 28px; text-align: center; font-weight: 600; }
+.matrix .q1 { background: #E3F2FD; }
+.matrix .q2 { background: #FFF3E0; }
+.matrix .q3 { background: #F3E5F5; }
+.matrix .q4 { background: #E8F5E9; }
+.cycle { text-align: center; }
+.cycle .ring { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 14px; max-width: 520px; }
+.cycle .node { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; padding: 10px; border: 3px solid; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+/* ===== 引用框 ===== */
+blockquote.chapter-quote {
+  background: linear-gradient(135deg, #FFF8F3, #FFFCF9);
+  border-left: 4px solid var(--accent); padding: 18px 22px; margin: 20px 0;
+  border-radius: 0 10px 10px 0; font-style: normal;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+blockquote.chapter-quote::before {
+  content: '"'; font-size: 2.5rem; color: var(--accent); opacity: 0.3;
+  position: absolute; top: -5px; left: 10px; font-family: Georgia, serif;
+}
+blockquote.chapter-quote { position: relative; }
+blockquote p { margin: 6px 0; }
+
+/* ===== 提示框 ===== */
+.box {
+  padding: 1.1rem 1.3rem; border-radius: 10px; margin: 1.2rem 0 1.5rem;
+  border-left: 5px solid; page-break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.box p:last-child { margin-bottom: 0; }
+.box-title { font-weight: 700; margin-bottom: 0.3rem; font-size: 0.95rem; }
+/* 提示框标题 emoji 增强显示 */
+.box-title::before { margin-right: 4px; }
+.box.tip { background: var(--tip-bg); border-color: var(--accent); }
+.box.tip .box-title { color: var(--primary); }
+.box.warn { background: var(--warn-bg); border-color: #FFA000; }
+.box.warn .box-title { color: #E65100; }
+.box.danger { background: var(--danger-bg); border-color: #D32F2F; }
+.box.danger .box-title { color: #C62828; }
+.box.info { background: #E3F2FD; border-color: #1976D2; }
+.box.info .box-title { color: #0D47A1; }
+
+/* 实战案例框 */
+.box.case { background: #FFF8E1; border-color: #FF8F00; }
+.box.case .box-title::before { content: '💡 '; }
+.box.case .box-title { color: #E65100; }
+
+/* 常见错误框 */
+.box.pitfall { background: #FBE9E7; border-color: #BF360C; }
+.box.pitfall .box-title::before { content: '⚠️ '; }
+.box.pitfall .box-title { color: #BF360C; }
+
+/* 知识卡片 */
+.box.key { background: #E8EAF6; border-color: #303F9F; }
+.box.key .box-title::before { content: '🔑 '; }
+.box.key .box-title { color: #1A237E; }
+
+/* 对比分析框 */
+.box.compare-box { background: #F3E5F5; border-color: #7B1FA2; }
+.box.compare-box .box-title::before { content: '⚖️ '; }
+.box.compare-box .box-title { color: #4A148C; }
+
+/* 最佳实践框 */
+.box.practice { background: #E0F2F1; border-color: #00695C; }
+.box.practice .box-title::before { content: '✅ '; }
+.box.practice .box-title { color: #004D40; }
+
+/* 公式/关键数据框 */
+.box.formula { background: #ECEFF1; border-color: #546E7A; }
+.box.formula .box-title::before { content: '📊 '; }
+.box.formula .box-title { color: #37474F; }
+
+/* ===== 统计卡片网格 ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 24px 0; }
+.stat-grid .stat-item { padding: 18px 16px; border-radius: 10px; background: var(--bg-alt); border: 1px solid var(--border); text-align: center; transition: transform 0.2s ease, border-color 0.2s ease; }
+.stat-grid .stat-item:hover { transform: translateY(-2px); border-color: var(--primary); }
+.stat-grid .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-grid .stat-label { font-size: 0.85rem; color: var(--text-light); margin-top: 6px; }
+.stat-grid .stat-item.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border-color: var(--primary-dark); }
+.stat-grid .stat-item.highlight .stat-value { color: #fff; }
+.stat-grid .stat-item.highlight .stat-label { color: rgba(255,255,255,0.8); }
+
+/* ===== 进度条/能力条 ===== */
+.progress-list { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+.progress-list .progress-item { }
+.progress-list .progress-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; font-weight: 600; }
+.progress-list .progress-label span:last-child { color: var(--primary); }
+.progress-list .progress-bar { height: 10px; background: #E8E8E8; border-radius: 5px; overflow: hidden; }
+.progress-list .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--primary-light), var(--primary)); transition: width 0.3s; }
+.progress-list .progress-fill.warn { background: linear-gradient(90deg, #FFB74D, #FF9800); }
+.progress-list .progress-fill.danger { background: linear-gradient(90deg, #E57373, #D32F2F); }
+
+/* ===== 四象限图 ===== */
+.quadrant { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--border); border-radius: 12px; overflow: hidden; max-width: 640px; margin: 24px auto; }
+.quadrant .q-cell { padding: 22px 18px; }
+.quadrant .q-cell.q1 { background: #E3F2FD; }
+.quadrant .q-cell.q2 { background: #FFF3E0; }
+.quadrant .q-cell.q3 { background: #F3E5F5; }
+.quadrant .q-cell.q4 { background: #E8F5E9; }
+.quadrant .q-cell strong { display: block; font-size: 0.95rem; margin-bottom: 6px; color: var(--primary-dark); }
+.quadrant .q-cell ul { padding-left: 16px; margin: 0; }
+.quadrant .q-cell li { font-size: 0.85rem; margin: 3px 0; }
+.quadrant .axis-label { text-align: center; font-size: 0.8rem; color: var(--text-light); padding: 6px 0; font-weight: 600; }
+.quadrant .axis-x { grid-column: 1 / -1; border-top: 2px solid var(--primary-light); }
+.quadrant .axis-y-left { writing-mode: vertical-lr; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+.quadrant .axis-y-right { writing-mode: vertical-rl; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+
+/* ===== 标签云 ===== */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; justify-content: center; }
+.tag-cloud .tag { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: var(--bg-alt); border: 1px solid var(--border); color: var(--primary-dark); }
+.tag-cloud .tag.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tag-cloud .tag.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== 分隔线 ===== */
+hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 40px 0; }
+/* 装饰性分隔符（章节间主题切换时使用） */
+hr.divider-accent {
+  height: 3px; margin: 48px 0;
+  background: linear-gradient(90deg, transparent 5%, var(--primary-light) 20%, var(--accent) 50%, var(--primary-light) 80%, transparent 95%);
+  position: relative;
+}
+hr.divider-accent::after {
+  content: '◆'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--bg); color: var(--accent); padding: 0 8px; font-size: 0.7rem;
+}
+
+/* ===== 面包屑导航 ===== */
+.breadcrumb { padding: 12px 0; font-size: 14px; color: #888; border-bottom: 1px solid #F0EBE5; margin-bottom: 24px; }
+.breadcrumb a { color: var(--primary); text-decoration: none; }
+
+/* ===== 底部章节导航 ===== */
+.chapter-nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; margin-top: 48px; border-top: 2px solid #F0EBE5; }
+.chapter-nav a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ===== 开头引子 ===== */
+.hook { padding: 20px 0; margin-bottom: 10px; }
+
+/* ===== 页脚 ===== */
+.footer { text-align: center; padding: 2rem; margin-top: 3rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-light); }
+
+/* ===== 回到顶部 ===== */
+.back-top {
+  position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px;
+  background: var(--primary); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: none; z-index: 100; line-height: 44px; text-align: center;
+  text-decoration: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .sidebar-toc { transform: translateX(-100%); }
+  .sidebar-toc.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.1); }
+  button.sidebar-toggle { display: block; }
+  .book { margin-left: 0 !important; }
+}
+
+@media (max-width: 768px) {
+  .book { box-shadow: none; }
+  .chapter, .toc { padding: 30px 20px; }
+  .cover { padding: 50px 20px 40px; }
+  .cover h1 { font-size: 2.5rem; }
+  .chapter-header { flex-direction: column; text-align: center; }
+  .chapter-header .chapter-title { font-size: 1.4rem; }
+  h2 { font-size: 1.3rem; }
+  pre { padding: 14px 16px; font-size: 0.8rem; }
+  .compare { flex-direction: column; }
+  .chart-container { max-width: 100%; }
+  table, .styled-table { font-size: 0.85rem; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (max-width: 480px) {
+  .cover h1 { font-size: 2rem; }
+  .chapter, .toc { padding: 20px 15px; }
+  pre { padding: 12px; border-radius: 6px; }
+}
+
+/* ===== 打印 ===== */
+@media print {
+  body { background: #fff; color: #000; font-size: 12pt; line-height: 1.6; }
+  .book { box-shadow: none; max-width: 100%; }
+  .cover {
+    background: none; color: #000; border: 2px solid #000;
+    page-break-after: auto;
+    /* 2026-08-17 封面整页修复：内联 min-height:100vh 在打印中映射纸高(297mm)>内容区(267mm)会溢出成空白页，
+       改为固定内容区高度(留 9mm 余量防舍入溢出)，flex 垂直居中保留 */
+    min-height: 258mm !important; height: 258mm !important; max-height: 258mm !important;
+    box-sizing: border-box !important; margin: 0 !important; padding: 0 !important;
+  }
+  .cover h1 { color: #000 !important; text-shadow: none; font-size: 30pt; }
+  .cover .subtitle, .cover .tagline { color: #333; opacity: 1; }
+  h1, h2, h3, h4 { color: #000; page-break-after: avoid; }
+  h1 { page-break-before: always; font-size: 18pt; }
+  h1:first-of-type { page-break-before: auto; }
+  h2 { font-size: 14pt; border-left-width: 3px; border-left-color: #666; border-top-color: #ddd; }
+  h3 { font-size: 12pt; border-left-color: #999; }
+  .chapter { page-break-inside: auto; padding: 20px 0; border-bottom: 1px solid #ccc; }
+  pre {
+    border: 1px solid #ccc; background: #f5f5f5 !important;
+    color: #333 !important; font-size: 9pt; line-height: 1.5;
+    page-break-inside: avoid; white-space: pre-wrap;
+  }
+  pre .kw, pre .str, pre .cmt, pre .fn, pre .num, pre .cls, pre .op, pre .dec, pre .param {
+    color: #333 !important;
+  }
+  a { color: #000; text-decoration: underline; }
+  .box { border-left-width: 2px; background: #f9f9f9 !important; }
+  .box .box-title { color: #333 !important; }
+  table, .styled-table { box-shadow: none; }
+  th { background: #eee !important; color: #000 !important; }
+  tr:nth-child(even) { background: #fafafa; }
+  .concept-svg { background: none; border: 1px solid #ddd; }
+  .no-print, .back-top, .back-to-top, .chapter-nav, .breadcrumb, .sidebar-toc, .sidebar-toggle, .reading-progress { display: none !important; }
+  body.sidebar-active { padding-left: 0 !important; }
+  .book { margin-left: 0 !important; }
+  .toc { background: none; border: none; page-break-after: auto; page-break-before: always; break-before: page; }
+  /* 2026-08-17 空白页修复：分页统一由 break-before 承担，隐藏 .page-break 空div和锚点，
+     避免"内容恰好填满一页 + 尾随 break div 溢出"产生的空白页 */
+  .page-break { display: none !important; }
+  .section-anchor { display: none !important; }
+  .preface, .chapter, .problem, .copyright-page { page-break-before: always; break-before: page; }
+  .copyright-page { min-height: 200mm !important; height: auto !important; padding: 80px 20px; }
+  @page { margin: 14mm 10mm; size: A4; }
+}
+
+/* ===== 代码块增强（后处理脚本自动生成） ===== */
+/* Writer 无需手动写这些结构，enhance-code.py 会自动将 <pre> 包裹为 code-block */
+
+.code-block {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.code-block .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.code-block .code-lang {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .code-filename {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  margin-left: 8px;
+}
+.code-block .copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .copy-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
+}
+.code-block .copy-btn.copied {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  background: rgba(76,175,80,0.1);
+}
+.code-block pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+/* 行号支持：code-block-numbered 的 pre 使用 CSS counter 显示行号 */
+.code-block.code-block-numbered pre {
+  counter-reset: code-line;
+}
+.code-block.code-block-numbered .code-line {
+  counter-increment: code-line;
+  display: block;
+  min-height: 1.5em;
+}
+.code-block.code-block-numbered .code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 1em;
+  text-align: right;
+  color: rgba(255,255,255,0.18);
+  font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+/* 空行的行号仍然显示 */
+.code-block.code-block-numbered .code-line:empty::before {
+  content: counter(code-line);
+}
+/* 隐藏 data-language 伪元素（code-block 已有自己的语言标签） */
+.code-block pre[data-language]::before {
+  display: none;
+}
+.code-block .code-output {
+  padding: 14px 20px;
+  background: #0d1117;
+  border-top: 1px solid #2A2A3E;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #8b949e;
+}
+.code-block .code-output .output-label {
+  font-size: 0.7rem;
+  color: #4CAF50;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.code-block .code-output .output-label::before {
+  content: "▶ ";
+  font-size: 0.6rem;
+}
+.code-block .code-output .output-text {
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 打印时隐藏复制按钮 */
+@media print {
+  .code-block .code-header { background: #f5f5f5; border-bottom-color: #ccc; }
+  .code-block .code-lang { color: #666; }
+  .code-block .copy-btn { display: none; }
+  .code-block .code-output { background: #f9f9f9; border-top-color: #ccc; color: #333; }
+  .code-block .code-output .output-label { color: #666; }
+  .code-block .code-output .output-text { color: #333; }
+}
+
+/* ===== 分步执行器（后处理脚本自动生成） ===== */
+/* enhance-code.py 对可执行的 Python 代码自动生成分步执行数据，前端渲染 */
+
+.step-executor {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: #0D1117;
+  outline: none;
+}
+.step-executor:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25), 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* 顶部信息栏 */
+.step-executor .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-header .exec-lang {
+  font-size: 0.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.step-executor .exec-header .exec-meta {
+  font-size: 0.75rem; color: rgba(255,255,255,0.3);
+}
+.step-executor .exec-header .exec-copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 2px 10px; border-radius: 4px;
+  font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+  margin-left: auto;
+}
+.step-executor .exec-header .exec-copy-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-header .exec-copy-btn.copied {
+  color: #10b981; border-color: #10b981;
+}
+
+/* 顶部导航栏 */
+.step-executor .exec-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1a1f2b;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-nav .step-dots {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #333; transition: all 0.3s; cursor: pointer;
+}
+.step-executor .exec-nav .step-dot.active {
+  background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,0.4);
+}
+.step-executor .exec-nav .step-dot.done {
+  background: var(--success);
+}
+.step-executor .exec-nav .step-info {
+  font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-left: 12px;
+}
+.step-executor .exec-nav .nav-btns {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .nav-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 14px; border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+}
+.step-executor .exec-nav .nav-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-nav .nav-btn.primary {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.step-executor .exec-nav .nav-btn.primary:hover { background: var(--primary-dark); }
+
+/* 主体区域：左代码 + 右面板 */
+.step-executor .exec-body {
+  display: flex; min-height: 200px;
+}
+
+/* 左侧代码 */
+.step-executor .exec-code {
+  flex: 7; overflow-x: auto; overflow-y: auto;
+  max-height: 600px;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem; line-height: 1.8;
+  padding: 12px 0;
+}
+.step-executor .exec-code .eline {
+  display: flex; padding: 0 16px;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+  white-space: pre;
+}
+.step-executor .exec-code .eline .lnum {
+  min-width: 28px; text-align: right;
+  color: #484f58; margin-right: 14px; user-select: none; flex-shrink: 0;
+}
+.step-executor .exec-code .eline .ltxt { color: #c9d1d9; flex: 1; }
+/* Syntax highlighting */
+.step-executor .exec-code .eline .ltxt .hl-keyword { color: #ff7b72; font-weight: 600; }
+.step-executor .exec-code .eline .ltxt .hl-string { color: #a5d6ff; }
+.step-executor .exec-code .eline .ltxt .hl-comment { color: #484f58; font-style: italic; }
+.step-executor .exec-code .eline .ltxt .hl-number { color: #79c0ff; }
+.step-executor .exec-code .eline .ltxt .hl-type { color: #ffa657; }
+.step-executor .exec-code .eline .ltxt .hl-decorator { color: #d2a8ff; }
+/* Code-block syntax highlighting */
+.code-block pre code .hl-keyword { color: #ff7b72; font-weight: 600; }
+.code-block pre code .hl-string { color: #a5d6ff; }
+.code-block pre code .hl-comment { color: #484f58; font-style: italic; }
+.code-block pre code .hl-number { color: #79c0ff; }
+.code-block pre code .hl-type { color: #ffa657; }
+.code-block pre code .hl-decorator { color: #d2a8ff; }
+.step-executor .exec-code .eline.step-active {
+  background: rgba(245,158,11,0.12); border-left-color: var(--accent);
+}
+.step-executor .exec-code .eline.step-active .lnum { color: var(--accent); }
+.step-executor .exec-code .eline.step-done {
+  background: rgba(16,185,129,0.06); border-left-color: rgba(16,185,129,0.3);
+}
+.step-executor .exec-code .eline.step-done .lnum { color: rgba(16,185,129,0.5); }
+
+/* 右侧面板 */
+.step-executor .exec-panel {
+  flex: 3; border-left: 1px solid #2A2A3E;
+  display: flex; flex-direction: column;
+  background: #1a1f2b;
+}
+.step-executor .step-explain {
+  padding: 16px; border-bottom: 1px solid #2A2A3E; flex-shrink: 0;
+}
+.step-executor .step-explain .stitle {
+  font-size: 0.85rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.step-executor .step-explain .stitle .sbadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 0.65rem; font-weight: 700;
+}
+.step-executor .step-explain .sdesc {
+  font-size: 0.8rem; color: #c9d1d9; line-height: 1.6;
+}
+
+/* 变量面板 */
+.step-executor .var-panel {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+}
+.step-executor .var-panel .vp-title {
+  font-size: 0.65rem; color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px; font-weight: 600;
+}
+.step-executor .var-panel .vitem {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 8px; border-radius: 4px; margin-bottom: 2px;
+  transition: all 0.3s;
+}
+.step-executor .var-panel .vitem.changed {
+  background: rgba(245,158,11,0.08);
+  animation: vflash 0.6s ease;
+}
+.step-executor .var-panel .vtoggle {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.step-executor .var-panel .vtoggle:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+}
+.step-executor .var-panel .vfold {
+  display: none;
+}
+@keyframes vflash {
+  0% { background: rgba(245,158,11,0.25); }
+  100% { background: rgba(245,158,11,0.08); }
+}
+.step-executor .var-panel .vname {
+  color: #7DD3FC; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; font-weight: 600; flex-shrink: 0; min-width: 60px;
+}
+.step-executor .var-panel .vval {
+  color: #6EE7B7; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; word-break: break-all; line-height: 1.5;
+}
+.step-executor .var-panel .vtype {
+  font-size: 0.6rem; color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px; border-radius: 3px;
+}
+
+/* 输出面板 */
+.step-executor .exec-output {
+  padding: 10px 16px; border-top: 1px solid #2A2A3E;
+  background: rgba(0,0,0,0.2); max-height: 100px; overflow-y: auto;
+}
+.step-executor .exec-output .eo-label {
+  font-size: 0.65rem; color: var(--success);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 4px; font-weight: 600;
+}
+.step-executor .exec-output .eo-text {
+  font-family: "Fira Code", monospace; font-size: 0.72rem;
+  color: #c9d1d9; white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .step-executor .exec-body { flex-direction: column; }
+  .step-executor .exec-panel { width: 100%; border-left: none; border-top: 1px solid #2A2A3E; }
+  .step-executor .exec-nav .step-dots { display: none; }
+}
+
+/* ===== Fullscreen mode ===== */
+.step-executor.exec-fullscreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+.step-executor.exec-fullscreen .exec-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1a1a2e;
+}
+.step-executor.exec-fullscreen .exec-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 56px);
+}
+.step-executor.exec-fullscreen .exec-code {
+  max-height: none;
+}
+.step-executor.exec-fullscreen .exec-panel {
+  max-height: none;
+  overflow-y: auto;
+}
+.step-executor .exec-header .exec-fullscreen-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+.step-executor .exec-header .exec-fullscreen-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+
+/* 打印 */
+@media print {
+  .step-executor .exec-nav { display: none; }
+  .step-executor .exec-panel { display: none; }
+  .step-executor .exec-body { min-height: auto; }
+  .step-executor .exec-code .eline.step-active,
+  .step-executor .exec-code .eline.step-done { background: none; border-left-color: transparent; }
+  .step-executor .exec-code .eline .lnum { color: #999; }
+}
+
+/* ===== Walkthrough 模式（干跑讲解，不执行代码） ===== */
+.step-executor.walkthrough .exec-panel {
+  flex: 3; /* 代码区:讲解面板 = 7:3 */
+}
+.step-executor.walkthrough .step-explain {
+  flex: 1; /* 讲解面板占满剩余空间 */
+  border-bottom: none;
+  overflow-y: auto;
+}
+.step-executor.walkthrough .step-explain .sdesc {
+  line-height: 1.75; /* walkthrough 描述更长，行高加大 */
+}
+.step-executor.walkthrough .exec-meta::after {
+  content: ' · 讲解模式';
+}
+
+@media (max-width: 768px) {
+  .step-executor.walkthrough .exec-panel {
+    width: 100%;
+  }
+}
+
+@media print {
+  .step-executor.walkthrough .exec-panel {
+    display: block;
+    border-top: 1px solid #ccc;
+  }
+  .step-executor.walkthrough .step-explain .sdesc {
+    color: #333;
+  }
+}
+
+/* ===== 实用工具类（writer 高频 inline style 的 CSS 类替代） ===== */
+/* 使用这些类替代重复的 inline style，保持 HTML 整洁 */
+
+/* 文字尺寸与颜色 */
+.text-sm { font-size: 0.8rem; }
+.text-xs { font-size: 0.72rem; }
+.text-muted { color: var(--text-light); }
+.text-center { text-align: center; }
+.text-primary { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-white { color: #fff; }
+
+/* SVG 通用（替代重复的 max-width:100%;width:100%;height:auto） */
+.svg-responsive { max-width: 100%; width: 100%; height: auto; }
+
+/* 间距 */
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 16px; }
+
+/* Flex 布局 */
+.flex-col { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.flex-1 { flex: 1; }
+
+/* 卡片/标签 */
+.tag-sm { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; font-weight: 600; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+.card-sm { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border: 1px solid var(--border); }
+.card-accent { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border-left: 4px solid var(--accent); }
+
+/* 宽度 */
+.w-full { width: 100%; }
+.w-half { width: 50%; }
+
+/* 长代码折叠 */
+details.code-collapse { margin: 18px 0; }
+details.code-collapse > summary {
+  padding: 8px 16px; background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 0.9rem; color: var(--primary);
+  font-weight: 600; list-style: none;
+}
+details.code-collapse > summary::before { content: "▶ "; font-size: 0.75rem; }
+details.code-collapse[open] > summary::before { content: "▼ "; }
+details.code-collapse > pre { margin-top: 0; border-radius: 0 0 10px 10px; }
+
+/* ===== 著作权声明页（末页） ===== */
+.copyright-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 60px 40px; background: #fff; }
+.copyright-content { max-width: 520px; text-align: center; color: #555; font-size: 0.9rem; line-height: 2; }
+.copyright-title { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; margin-bottom: 4px; }
+.copyright-author { font-size: 1rem; color: #666; margin-bottom: 4px; }
+.copyright-version { font-size: 0.82rem; color: #999; margin-bottom: 8px; }
+.copyright-notice { font-size: 0.85rem; color: #777; margin: 2px 0; }
+.copyright-divider { height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); margin: 18px 0; }
+.copyright-statement, .copyright-disclaimer { text-align: left; font-size: 0.82rem; color: #666; padding: 0 10px; }
+.copyright-statement p, .copyright-disclaimer p { margin: 3px 0; }
+.copyright-footer { font-size: 0.85rem; color: #666; margin-top: 10px; }
+.copyright-footer strong { color: var(--primary); }
+.copyright-footer-sub { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+
+/* ===== 侧边目录 ===== */
+/* Sidebar active state - used by merge.js adjustLayout */
+body.sidebar-active { padding-left: 260px; }
+
+.sidebar-toc {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 20px 0;
+  font-size: 0.82rem;
+  transition: transform 0.3s ease;
+}
+.sidebar-toc .sidebar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+.sidebar-toc a {
+  display: block;
+  padding: 8px 16px;
+  color: #666;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+.sidebar-toc a:hover {
+  color: var(--primary);
+  background: var(--bg-alt);
+}
+.sidebar-toc a.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: var(--primary-bg);
+  font-weight: 600;
+}
+.sidebar-toc a .ch-num {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* Sidebar collapsible groups (for books with >20 chapters) */
+.sidebar-group { border-bottom: 1px solid #f0f0f0; }
+.sidebar-group-label {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-group-label::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+}
+.sidebar-group.expanded .sidebar-group-label::before {
+  transform: rotate(90deg);
+}
+.sidebar-group-items {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.sidebar-group.expanded .sidebar-group-items {
+  max-height: 1000px;
+}
+.sidebar-group-items a {
+  padding-left: 24px;
+  font-size: 0.78rem;
+}
+
+/* 侧边目录切换按钮（移动端） */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  left: 12px;
+  bottom: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  line-height: 40px;
+  text-align: center;
+  padding: 0;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 100;
+  transition: width 0.1s linear;
+  width: 0;
+}
+
+/* 回到顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  line-height: 40px;
+  text-align: center;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.back-to-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.back-to-top:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== 知识体系图卡片 hover 效果（纯CSS） ===== */
+.knowledge-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.knowledge-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.knowledge-card .card-detail {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+.knowledge-card:hover .card-detail {
+  max-height: 100px;
+  opacity: 1;
+  margin-top: 6px;
+}
+
+/* ===== 实拍效果图（capture_visuals，2026-09-10）===== */
+.render-figure { margin: 1.6em auto; text-align: center; }
+.render-figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.render-figure figcaption { margin-top: .5em; font-size: .88em; color: #6b7683; }
+
+/* ===== SVG 流程图类配色（writer SVG 以 class 引用，缺失会回退默认黑色填充，2026-09-10）===== */
+.flowchart-steps .process { fill: #e8f0fe; stroke: #4285f4; stroke-width: 1.5; }
+.flowchart-steps .start-end { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
+.flowchart-steps .decision { fill: #fef7e0; stroke: #f9ab00; stroke-width: 1.5; }
+.flowchart-steps text { fill: #202124; }
+.flowchart-steps path, .flowchart-steps line, .flowchart-steps polyline { stroke: #5f6368; fill: none; }
+.flowchart-steps polygon { fill: #5f6368; stroke: none; }
+
+</style>
+</head>
+<body style="background:#F0EBE5;">
+<div class="book">
+<div class="chapter"><div class="problem-header">
+
+<div class="problem-num">5</div>
+
+<h1 class="problem-title" style="border:none;padding:0;margin:0;font-size:1.8rem;font-weight:800;color:var(--primary);">05. 单Agent与多Agent架构——从单体到协作的演进</h1>
+
+<div class="problem-tags" style="margin-top:10px;">
+
+<span class="difficulty intermediate">⭐⭐⭐ 中级</span>
+
+<span class="topic tag-sm" style="background:var(--primary-bg);color:var(--primary-dark);">单Agent天花板</span>
+
+<span class="topic tag-sm" style="background:var(--primary-bg);color:var(--primary-dark);">多Agent编排</span>
+
+<span class="topic tag-sm" style="background:var(--primary-bg);color:var(--primary-dark);">通信开销</span>
+
+<span class="topic tag-sm" style="background:var(--primary-bg);color:var(--primary-dark);">分解时机</span>
+
+<span class="topic tag-sm" style="background:var(--primary-bg);color:var(--primary-dark);">MAST失败分类</span>
+
+</div>
+
+</div>
+
+<!-- ==================== Section 1: 题目描述 ==================== -->
+
+<h2 id="section1">一、题目描述</h2>
+
+<h3>背景故事:FinAssist 的架构危机</h3>
+
+<p>你是一家金融科技创业公司 FinAssist 的技术负责人。一年前,你们推出了一个 AI 财务助手--起初很简单,只有 3 个工具:股票查询、新闻搜索、持仓查看。那时候 Agent 响应迅速、选工具精准、用户好评如潮。</p>
+
+<p>但成功的代价是需求的膨胀。产品经理每月都会塞进来新功能:风险评估、税务计算、汇率换换、合规检查、情感分析、财报解读、策略回测、智能提醒、账单解析、信用卡推荐......到现在,你的单个 Agent 已经挂载了 <strong>22 个工具</strong>。</p>
+
+<p>问题随之而来:</p>
+
+<ul>
+
+<li><strong>工具选择错误率飙升</strong>:用户问"帮我算一下卖出 AAPL 的税",Agent 却调用了"汇率换算"工具。测试数据显示,工具超过 15 个后,选择准确率从 94% 下降到 71%</li>
+
+<li><strong>响应延迟翻倍</strong>:每次推理都要在 22 个工具描述中做选择,系统提示词膨胀到 6000+ tokens,仅工具定义就吃掉了上下文窗口的 15%</li>
+
+<li><strong>维护噩梦</strong>:新增一个工具,全量回归测试要跑 80+ 个场景,因为新工具可能与现有任何一个工具产生语义冲突</li>
+
+<li><strong>团队协作困难</strong>:股票组、风控组、合规组三个团队同时往同一个 system prompt 里加指令,互相覆盖、互相干扰</li>
+
+</ul>
+
+<p>CTO 在周会上甩出一张架构图:"我觉得该拆了,搞成多个 Agent。但我听说多 Agent 系统的失败率很高......你怎么看?"</p>
+
+<p>这正是 Agent 架构设计中最经典的抉择时刻--<strong>单 Agent 还是多 Agent?如果选多 Agent,选什么模式?如何避免常见的失败陷阱?</strong></p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 420" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<!-- Title -->
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C">图1:单Agent vs 多Agent--架构全景对比</text>
+
+<!-- Left side: Single Agent -->
+
+<text x="200" y="55" text-anchor="middle" font-size="13" font-weight="600" fill="#7B1FA2">单Agent架构(当前)</text>
+
+<!-- Central node -->
+
+<circle cx="200" cy="120" r="32" fill="#7B1FA2" stroke="#4A148C" stroke-width="2"></circle>
+
+<text x="200" y="118" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">LLM</text>
+
+<text x="200" y="130" text-anchor="middle" font-size="9" fill="#fff">Agent</text>
+
+<!-- Memory box -->
+
+<rect x="130" y="170" width="60" height="24" rx="4" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1.5"></rect>
+
+<text x="160" y="186" text-anchor="middle" font-size="9" fill="#4A148C">Memory</text>
+
+<!-- 22 tools radiating out -->
+
+<g font-size="7" fill="#333">
+
+<rect x="60" y="220" width="50" height="18" rx="3" fill="#FCE4EC" stroke="#E040FB" stroke-width="0.8"></rect><text x="85" y="232" text-anchor="middle">股票查询</text>
+
+<rect x="120" y="220" width="50" height="18" rx="3" fill="#FCE4EC" stroke="#E040FB" stroke-width="0.8"></rect><text x="145" y="232" text-anchor="middle">新闻搜索</text>
+
+<rect x="180" y="220" width="50" height="18" rx="3" fill="#FCE4EC" stroke="#E040FB" stroke-width="0.8"></rect><text x="205" y="232" text-anchor="middle">持仓查看</text>
+
+<rect x="240" y="220" width="50" height="18" rx="3" fill="#FCE4EC" stroke="#E040FB" stroke-width="0.8"></rect><text x="265" y="232" text-anchor="middle">风险评估</text>
+
+<rect x="300" y="220" width="50" height="18" rx="3" fill="#FCE4EC" stroke="#E040FB" stroke-width="0.8"></rect><text x="325" y="232" text-anchor="middle">税务计算</text>
+
+</g>
+
+<text x="200" y="260" text-anchor="middle" font-size="10" fill="#E53935" font-weight="600">⚠ 22个工具挤在一起</text>
+
+<!-- Problem labels -->
+
+<text x="200" y="280" text-anchor="middle" font-size="8" fill="#666">工具选择准确率: 71% ↓</text>
+
+<text x="200" y="294" text-anchor="middle" font-size="8" fill="#666">Token消耗: 6K+ 仅工具定义</text>
+
+<text x="200" y="308" text-anchor="middle" font-size="8" fill="#666">维护成本: 每新增1工具→80+测试</text>
+
+<!-- Separator -->
+
+<line x1="420" y1="40" x2="420" y2="320" stroke="#D0D0D0" stroke-width="2" stroke-dasharray="6,4"></line>
+
+<!-- Right side: Multi Agent -->
+
+<text x="610" y="55" text-anchor="middle" font-size="13" font-weight="600" fill="#7B1FA2">多Agent架构(目标)</text>
+
+<!-- Supervisor -->
+
+<rect x="555" y="85" width="110" height="40" rx="8" fill="#4A148C" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="610" y="103" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">Supervisor</text>
+
+<text x="610" y="117" text-anchor="middle" font-size="9" fill="#EA80FC">协调·路由·聚合</text>
+
+<!-- Three specialist agents -->
+
+<g>
+
+<rect x="445" y="160" width="90" height="55" rx="6" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></rect>
+
+<text x="490" y="178" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">行情Agent</text>
+
+<text x="490" y="193" text-anchor="middle" font-size="8" fill="#666">·股票查询</text>
+
+<text x="490" y="205" text-anchor="middle" font-size="8" fill="#666">·新闻搜索</text>
+
+<text x="490" y="217" text-anchor="middle" font-size="8" fill="#666">·财报解读</text>
+
+</g>
+
+<g>
+
+<rect x="565" y="160" width="90" height="55" rx="6" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></rect>
+
+<text x="610" y="178" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">风控Agent</text>
+
+<text x="610" y="193" text-anchor="middle" font-size="8" fill="#666">·风险评估</text>
+
+<text x="610" y="205" text-anchor="middle" font-size="8" fill="#666">·合规检查</text>
+
+<text x="610" y="217" text-anchor="middle" font-size="8" fill="#666">·策略回测</text>
+
+</g>
+
+<g>
+
+<rect x="685" y="160" width="90" height="55" rx="6" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></rect>
+
+<text x="730" y="178" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">交易Agent</text>
+
+<text x="730" y="193" text-anchor="middle" font-size="8" fill="#666">·税务计算</text>
+
+<text x="730" y="205" text-anchor="middle" font-size="8" fill="#666">·汇率换算</text>
+
+<text x="730" y="217" text-anchor="middle" font-size="8" fill="#666">·账单解析</text>
+
+</g>
+
+<!-- Connection lines -->
+
+<line x1="580" y1="125" x2="490" y2="160" stroke="#BA68C8" stroke-width="1.5"></line>
+
+<line x1="610" y1="125" x2="610" y2="160" stroke="#BA68C8" stroke-width="1.5"></line>
+
+<line x1="640" y1="125" x2="730" y2="160" stroke="#BA68C8" stroke-width="1.5"></line>
+
+<!-- Benefit labels -->
+
+<text x="610" y="260" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="600">✓ 每个 Agent 仅 5-8 个工具</text>
+
+<text x="610" y="280" text-anchor="middle" font-size="8" fill="#666">工具选择准确率: 92%+ ↑</text>
+
+<text x="610" y="294" text-anchor="middle" font-size="8" fill="#666">可独立扩展·故障隔离</text>
+
+<text x="610" y="308" text-anchor="middle" font-size="8" fill="#666">团队按 Agent 边界协作</text>
+
+<!-- Cost warning -->
+
+<rect x="445" y="335" width="330" height="50" rx="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="1"></rect>
+
+<text x="610" y="352" text-anchor="middle" font-size="9" fill="#E65100" font-weight="600">⚠ 代价:通信开销 +30-50% Token · 多Agent失败率 41-87%</text>
+
+<text x="610" y="368" text-anchor="middle" font-size="8" fill="#666">需要:清晰的边界定义 · 可靠的编排器 · 独立的验证层</text>
+
+</svg>
+
+</div>
+
+<h3>题目要求</h3>
+
+<p>作为技术负责人,你需要完成以下任务:</p>
+
+<div class="box info">
+
+<p class="box-title">📋 任务清单</p>
+
+<ol>
+
+<li><strong>架构分析</strong>:分析当前单 Agent 架构的瓶颈所在,量化工具数量与性能的关系</li>
+
+<li><strong>模式选择</strong>:从 4 种多 Agent 模式中选择最适合 FinAssist 的方案,并说明理由</li>
+
+<li><strong>原型实现</strong>:使用 LangGraph 1.x 实现 Supervisor 模式的多 Agent 原型</li>
+
+<li><strong>风险评估</strong>:基于 MAST 失败分类法,识别 3 个最可能出现的失败模式并设计防御方案</li>
+
+</ol>
+
+</div>
+
+<p>这个任务模拟的是一个真实场景:你作为技术负责人,需要向 CTO 和产品团队<strong>证明架构决策的合理性</strong>。仅有代码是不够的--你还需要一份清晰的架构设计文档,说明为什么选择多 Agent(而非单 Agent 优化)、为什么选 Supervisor 模式(而非 Swarm 或 Pipeline)、预期收益和风险各是什么。这正是面试中"系统设计"题的核心考察点:不光看你能不能写出代码,更看你能不能讲清楚 why。</p>
+
+<h4>输入:当前工具清单(22个,跨 5 个领域)</h4>
+
+<div class="table-wrap">
+
+<table style="table-layout:fixed;">
+
+<thead>
+
+<tr>
+
+<th>领域</th>
+
+<th>工具列表</th>
+
+<th>数量</th>
+
+<th>日均调用量</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td>行情查询</td>
+
+<td>股票查询、新闻搜索、财报解读、K线分析、板块对比</td>
+
+<td>5</td>
+
+<td>1200</td>
+
+</tr>
+
+<tr>
+
+<td>风险管理</td>
+
+<td>风险评估、合规检查、策略回测、压力测试</td>
+
+<td>4</td>
+
+<td>300</td>
+
+</tr>
+
+<tr>
+
+<td>交易执行</td>
+
+<td>下单、撤单、持仓查看、资金划转、税费计算</td>
+
+<td>5</td>
+
+<td>500</td>
+
+</tr>
+
+<tr>
+
+<td>资讯分析</td>
+
+<td>情感分析、舆情监控、智能摘要、研报解读</td>
+
+<td>4</td>
+
+<td>400</td>
+
+</tr>
+
+<tr>
+
+<td>客户服务</td>
+
+<td>账单解析、信用卡推荐、智能提醒、汇率换算</td>
+
+<td>4</td>
+
+<td>600</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<h4>输出要求</h4>
+
+<ul>
+
+<li>架构设计文档(含选型理由和决策树)</li>
+
+<li>可运行的原型代码(LangGraph 1.x + deepseek-v4.1-flash)</li>
+
+<li>风险防御方案(基于 MAST 分类法的 3 个关键防御措施)</li>
+
+</ul>
+
+<!-- ==================== Section 2: 思路分析 ==================== -->
+
+<h2>二、思路分析</h2>
+
+<p>这道题考察的不是"会不会写多 Agent 代码",而是<strong>架构判断力</strong>--在什么情况下从单 Agent 升级为多 Agent?选什么模式?如何避免翻车?这是 Agent 架构师最核心的能力之一。</p>
+
+<!-- ---------- 2.1 ---------- -->
+
+<h3 id="analysis-1">2.1 从"一个顶所有"到"术业有专攻"--单Agent天花板效应</h3>
+
+<p>要理解为什么单 Agent 会遇到天花板,我们首先需要看清 LLM 在每次推理时实际发生了什么。当你给 Agent 挂载了 22 个工具时,每一次用户提问,LLM 都要执行以下认知操作:</p>
+
+<div class="steps-card">
+
+<div class="step-item" data-step="1">
+
+<strong>读取所有工具描述</strong>
+
+<span>22 个工具 × 平均 80 tokens 描述 = ~1760 tokens 的工具定义。这些 tokens 在每次推理时都会被发送给模型,无论用户问的是"今天天气"还是"帮我做风险对冲"。</span>
+
+</div>
+
+<div class="step-item" data-step="2">
+
+<strong>语义匹配与排序</strong>
+
+<span>LLM 需要在 22 个工具的描述中找到与当前请求最匹配的那一个。这本质上是一个"注意力分配"问题--Transformer 的注意力机制需要在大量工具描述之间分配注意力权重。</span>
+
+</div>
+
+<div class="step-item" data-step="3">
+
+<strong>解析参数 Schema</strong>
+
+<span>每个工具的 JSON Schema 参数定义(参数名、类型、描述、是否必填)也在消耗上下文空间和注意力。</span>
+
+</div>
+
+<div class="step-item" data-step="4">
+
+<strong>抑制干扰工具</strong>
+
+<span>最关键的一步--LLM 需要主动"忽略"那些看起来相关但实际上不该调用的工具。工具越多,相似度越高,抑制难度越大。</span>
+
+</div>
+
+</div>
+
+<p>这就是为什么工具数量超过某个阈值后,工具选择准确率会急剧下降。LangChain 和多个研究团队的实验数据一致指向一个经验值:<strong>约 15 个工具是单 Agent 的实际工作极限</strong>。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 360" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">图2:工具数量 vs Agent 性能--~15个工具是关键拐点</text>
+
+<!-- Axes -->
+
+<line x1="80" y1="300" x2="750" y2="300" stroke="#757575" stroke-width="2"></line>
+
+<line x1="80" y1="300" x2="80" y2="50" stroke="#757575" stroke-width="2"></line>
+
+<!-- Axis labels -->
+
+<text x="415" y="340" text-anchor="middle" font-size="12" fill="#555">工具数量</text>
+
+<text x="35" y="175" text-anchor="middle" font-size="12" fill="#555" transform="rotate(-90,35,175)">准确率/效率</text>
+
+<!-- X-axis ticks -->
+
+<g font-size="10" fill="#757575">
+
+<text x="130" y="318" text-anchor="middle">3</text>
+
+<text x="220" y="318" text-anchor="middle">5</text>
+
+<text x="310" y="318" text-anchor="middle">8</text>
+
+<text x="400" y="318" text-anchor="middle">12</text>
+
+<text x="490" y="318" text-anchor="middle">15</text>
+
+<text x="580" y="318" text-anchor="middle">20</text>
+
+<text x="670" y="318" text-anchor="middle">25</text>
+
+</g>
+
+<!-- Optimal zone shading -->
+
+<rect x="80" y="55" width="410" height="245" fill="#E8F5E9" opacity="0.4"></rect>
+
+<text x="280" y="75" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="600">✓ 舒适区</text>
+
+<!-- Warning zone -->
+
+<rect x="490" y="55" width="120" height="245" fill="#FFF3E0" opacity="0.5"></rect>
+
+<text x="550" y="75" text-anchor="middle" font-size="10" fill="#E65100" font-weight="600">⚠ 拥挤区</text>
+
+<!-- Danger zone -->
+
+<rect x="610" y="55" width="140" height="245" fill="#FFEBEE" opacity="0.5"></rect>
+
+<text x="680" y="75" text-anchor="middle" font-size="10" fill="#C62828" font-weight="600">✗ 危险区</text>
+
+<!-- Accuracy curve -->
+
+<path d="M 130 90 Q 220 95 310 110 Q 400 120 490 160 Q 580 220 670 270" stroke="#7B1FA2" stroke-width="3" fill="none"></path>
+
+<circle cx="130" cy="90" r="5" fill="#7B1FA2"></circle>
+
+<circle cx="310" cy="110" r="5" fill="#7B1FA2"></circle>
+
+<circle cx="490" cy="160" r="6" fill="#E65100" stroke="#fff" stroke-width="2"></circle>
+
+<circle cx="670" cy="270" r="5" fill="#E53935"></circle>
+
+<!-- Data labels -->
+
+<text x="130" y="85" font-size="9" fill="#7B1FA2" font-weight="600">~95%</text>
+
+<text x="310" y="105" font-size="9" fill="#7B1FA2" font-weight="600">~92%</text>
+
+<text x="490" y="155" font-size="9" fill="#E65100" font-weight="600">~85% (拐点)</text>
+
+<text x="670" y="265" font-size="9" fill="#E53935" font-weight="600">~71%</text>
+
+<!-- Inflection annotation -->
+
+<line x1="490" y1="50" x2="490" y2="300" stroke="#FF9800" stroke-width="1.5" stroke-dasharray="4,3"></line>
+
+<text x="490" y="45" text-anchor="middle" font-size="10" fill="#E65100" font-weight="600">~15 工具天花板</text>
+
+<!-- Legend -->
+
+<rect x="530" y="120" width="14" height="3" fill="#7B1FA2"></rect>
+
+<text x="550" y="125" font-size="10" fill="#555">工具选择准确率</text>
+
+</svg>
+
+</div>
+
+<p>但这并不意味着"15"是一个物理常数。它受到多个因素的影响:</p>
+
+<div class="feature-grid">
+
+<div class="feature-item">
+
+<strong>工具描述质量</strong>
+
+<span>描述越清晰、区分度越高,天花板越高。好描述可以把天花板推到 18-20 个。差描述可能 10 个就开始混乱。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>工具语义距离</strong>
+
+<span>22 个完全不同领域的工具比 22 个相似领域的工具更容易区分。"股票查询"和"K线分析"的混淆概率远高于"股票查询"和"账单解析"。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>模型能力</strong>
+
+<span>更强的模型(如 deepseek-v4.1-flash)注意力分配能力更强,可以处理更多工具。但即使是最强的模型,超过 20 个工具后也会出现明显退化。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>工具分组与Reranking</strong>
+
+<span>通过先对工具分组、再在组内做精排的二级选择策略,可以有效突破天花板。这正是从单 Agent 走向多 Agent 的渐进路径。</span>
+
+</div>
+
+</div>
+
+<p>所以"15 个工具天花板"更像是一个<strong>架构预警信号</strong>,而非硬性限制。当你发现 Agent 的工具选择准确率持续下降、维护成本持续上升、团队协作开始互相干扰时--不管工具数量是 12 还是 22--都是时候认真考虑架构拆分了。</p>
+
+<p>除了工具选择准确率,单 Agent 天花板还体现在另外两个容易被忽视的维度上。第一个是<strong>系统提示词战争</strong>:当多个领域的指令共享一个 system prompt 时,它们会互相竞争注意力权重。比如风控组要求"所有建议必须附带风险提示",而行情组要求"回答简洁直接"--这两条指令在语义上就是矛盾的,LLM 只能选择一个优先遵循。第二个是<strong>Few-shot 示例膨胀</strong>:好的工具使用示例可以大幅提升准确率,但 22 个工具的示例本身就是数千 token 的额外开销。在多 Agent 架构中,每个子 Agent 只需要加载自己领域的示例,示例质量和数量都可以提升而不必担心膨胀。</p>
+
+<div class="box pitfall">
+
+<p class="box-title">⚠️ 常见误判:"只要模型够强,工具多少都不是问题"</p>
+
+<p>这是面试和架构评审中最常见的错误观点。事实上,即使是最强的模型(如 deepseek-v4.1-flash 的 128K 上下文窗口),注意力分散的问题依然存在。论文《Lost in the Middle》(Liu et al., 2023)已经证明,LLM 对位于上下文中部的信息利用率显著低于首尾位置。22 个工具的定义占据了大量上下文空间,即使模型"看到"了所有工具描述,也未必能有效利用中间位置的工具。这也是为什么<strong>减少每个 Agent 的工具数量比单纯增强模型能力更有效</strong>--注意力集中比窗口大小更重要。</p>
+
+</div>
+
+<!-- ---------- 2.2 ---------- -->
+
+<h3 id="analysis-2">2.2 多Agent架构四大模式--LangChain 分类法</h3>
+
+<p>LangChain 在 2025 年的多 Agent 架构指南中,将多 Agent 模式归纳为四种基础模式。这不是唯一的分类方法(微软 Azure 架构中心有不同的命名),但它是目前业界接受度最高的分类框架。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 560" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">图3:四种多Agent基础模式对比</text>
+
+<!-- Pattern 1: Subagents -->
+
+<rect x="30" y="45" width="350" height="230" rx="10" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5" opacity="0.6"></rect>
+
+<text x="205" y="68" text-anchor="middle" font-size="12" fill="#4A148C" font-weight="700">模式1: Subagents(子代理模式)</text>
+
+<text x="205" y="83" text-anchor="middle" font-size="9" fill="#666">集中式编排 · Supervisor 通过工具调用协调</text>
+
+<!-- Supervisor node -->
+
+<circle cx="205" cy="125" r="22" fill="#7B1FA2"></circle>
+
+<text x="205" y="123" text-anchor="middle" font-size="9" fill="#fff" font-weight="600">Super</text>
+
+<text x="205" y="134" text-anchor="middle" font-size="9" fill="#fff">visor</text>
+
+<!-- Sub-agents -->
+
+<rect x="55" y="180" width="60" height="28" rx="4" fill="#BA68C8" stroke="#7B1FA2"></rect>
+
+<text x="85" y="198" text-anchor="middle" font-size="9" fill="#fff">Agent A</text>
+
+<rect x="175" y="180" width="60" height="28" rx="4" fill="#BA68C8" stroke="#7B1FA2"></rect>
+
+<text x="205" y="198" text-anchor="middle" font-size="9" fill="#fff">Agent B</text>
+
+<rect x="295" y="180" width="60" height="28" rx="4" fill="#BA68C8" stroke="#7B1FA2"></rect>
+
+<text x="325" y="198" text-anchor="middle" font-size="9" fill="#fff">Agent C</text>
+
+<line x1="185" y1="142" x2="85" y2="180" stroke="#BA68C8" stroke-width="1"></line>
+
+<line x1="205" y1="147" x2="205" y2="180" stroke="#BA68C8" stroke-width="1"></line>
+
+<line x1="225" y1="142" x2="325" y2="180" stroke="#BA68C8" stroke-width="1"></line>
+
+<text x="205" y="232" text-anchor="middle" font-size="9" fill="#4A148C">✓ 强上下文隔离 · 易调试</text>
+
+<text x="205" y="246" text-anchor="middle" font-size="9" fill="#E65100">⚠ 每次交互多一次模型调用</text>
+
+<text x="205" y="260" text-anchor="middle" font-size="8" fill="#666">适用:个人助手、研究系统</text>
+
+<!-- Pattern 2: Skills -->
+
+<rect x="420" y="45" width="350" height="230" rx="10" fill="#E3F2FD" stroke="#2196F3" stroke-width="1.5" opacity="0.6"></rect>
+
+<text x="595" y="68" text-anchor="middle" font-size="12" fill="#0D47A1" font-weight="700">模式2: Skills(技能模式)</text>
+
+<text x="595" y="83" text-anchor="middle" font-size="9" fill="#666">渐进式披露 · 单Agent按需加载专长</text>
+
+<!-- Single agent with skill slots -->
+
+<circle cx="595" cy="125" r="22" fill="#2196F3"></circle>
+
+<text x="595" y="123" text-anchor="middle" font-size="9" fill="#fff" font-weight="600">Agent</text>
+
+<text x="595" y="134" text-anchor="middle" font-size="9" fill="#fff">(单一)</text>
+
+<!-- Skill badges -->
+
+<rect x="445" y="170" width="70" height="24" rx="4" fill="#BBDEFB" stroke="#2196F3"></rect>
+
+<text x="480" y="186" text-anchor="middle" font-size="9" fill="#0D47A1">技能: 编程</text>
+
+<rect x="560" y="170" width="70" height="24" rx="4" fill="#BBDEFB" stroke="#2196F3"></rect>
+
+<text x="595" y="186" text-anchor="middle" font-size="9" fill="#0D47A1">技能: 分析</text>
+
+<rect x="675" y="170" width="70" height="24" rx="4" fill="#BBDEFB" stroke="#2196F3"></rect>
+
+<text x="710" y="186" text-anchor="middle" font-size="9" fill="#0D47A1">技能: 写作</text>
+
+<line x1="575" y1="142" x2="480" y2="170" stroke="#64B5F6" stroke-width="1"></line>
+
+<line x1="595" y1="147" x2="595" y2="170" stroke="#64B5F6" stroke-width="1"></line>
+
+<line x1="615" y1="142" x2="710" y2="170" stroke="#64B5F6" stroke-width="1"></line>
+
+<text x="595" y="232" text-anchor="middle" font-size="9" fill="#0D47A1">✓ 无通信开销 · 最简单</text>
+
+<text x="595" y="246" text-anchor="middle" font-size="9" fill="#E65100">⚠ 技能累积导致Token膨胀</text>
+
+<text x="595" y="260" text-anchor="middle" font-size="8" fill="#666">适用:编码助手、创意助手</text>
+
+<!-- Pattern 3: Handoffs -->
+
+<rect x="30" y="300" width="350" height="230" rx="10" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1.5" opacity="0.6"></rect>
+
+<text x="205" y="323" text-anchor="middle" font-size="12" fill="#2E7D32" font-weight="700">模式3: Handoffs(交接模式)</text>
+
+<text x="205" y="338" text-anchor="middle" font-size="9" fill="#666">状态驱动转换 · 动态切换活跃Agent</text>
+
+<!-- Agents in sequence -->
+
+<rect x="50" y="375" width="70" height="32" rx="6" fill="#66BB6A"></rect>
+
+<text x="85" y="395" text-anchor="middle" font-size="9" fill="#fff">客服Agent</text>
+
+<rect x="170" y="375" width="70" height="32" rx="6" fill="#66BB6A"></rect>
+
+<text x="205" y="395" text-anchor="middle" font-size="9" fill="#fff">技术Agent</text>
+
+<rect x="290" y="375" width="70" height="32" rx="6" fill="#66BB6A"></rect>
+
+<text x="325" y="395" text-anchor="middle" font-size="9" fill="#fff">账单Agent</text>
+
+<!-- Handoff arrows -->
+
+<path d="M 120 391 L 170 391" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowG)"></path>
+
+<path d="M 240 391 L 290 391" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrowG)"></path>
+
+<text x="205" y="430" text-anchor="middle" font-size="9" fill="#2E7D32">✓ 专注度高 · 对话自然</text>
+
+<text x="205" y="444" text-anchor="middle" font-size="9" fill="#E65100">⚠ 状态管理复杂</text>
+
+<text x="205" y="458" text-anchor="middle" font-size="8" fill="#666">适用:客服流程、多阶段对话</text>
+
+<text x="205" y="472" text-anchor="middle" font-size="8" fill="#666">每个Agent可调用handoff工具转移</text>
+
+<!-- Pattern 4: Router -->
+
+<rect x="420" y="300" width="350" height="230" rx="10" fill="#FFF3E0" stroke="#FF9800" stroke-width="1.5" opacity="0.6"></rect>
+
+<text x="595" y="323" text-anchor="middle" font-size="12" fill="#E65100" font-weight="700">模式4: Router(路由模式)</text>
+
+<text x="595" y="338" text-anchor="middle" font-size="9" fill="#666">并行调度 · 分类后并行查询再综合</text>
+
+<!-- Router node -->
+
+<rect x="560" y="365" width="70" height="28" rx="4" fill="#FF9800"></rect>
+
+<text x="595" y="383" text-anchor="middle" font-size="9" fill="#fff" font-weight="600">Router</text>
+
+<!-- Parallel agents -->
+
+<rect x="440" y="420" width="55" height="24" rx="4" fill="#FFB74D"></rect>
+
+<text x="467" y="436" text-anchor="middle" font-size="8" fill="#fff">Agent A</text>
+
+<rect x="510" y="420" width="55" height="24" rx="4" fill="#FFB74D"></rect>
+
+<text x="537" y="436" text-anchor="middle" font-size="8" fill="#fff">Agent B</text>
+
+<rect x="580" y="420" width="55" height="24" rx="4" fill="#FFB74D"></rect>
+
+<text x="607" y="436" text-anchor="middle" font-size="8" fill="#fff">Agent C</text>
+
+<rect x="650" y="420" width="55" height="24" rx="4" fill="#FFB74D"></rect>
+
+<text x="677" y="436" text-anchor="middle" font-size="8" fill="#fff">Agent D</text>
+
+<!-- Fan-out lines -->
+
+<line x1="575" y1="393" x2="467" y2="420" stroke="#FFB74D" stroke-width="1"></line>
+
+<line x1="585" y1="393" x2="537" y2="420" stroke="#FFB74D" stroke-width="1"></line>
+
+<line x1="605" y1="393" x2="607" y2="420" stroke="#FFB74D" stroke-width="1"></line>
+
+<line x1="615" y1="393" x2="677" y2="420" stroke="#FFB74D" stroke-width="1"></line>
+
+<text x="595" y="470" text-anchor="middle" font-size="9" fill="#E65100">✓ 并行加速 · 独立领域</text>
+
+<text x="595" y="484" text-anchor="middle" font-size="9" fill="#E65100">⚠ 结果综合需要额外步骤</text>
+
+<text x="595" y="498" text-anchor="middle" font-size="8" fill="#666">适用:多领域查询、竞争情报</text>
+
+<!-- Arrow markers -->
+
+<defs>
+
+<marker id="arrowG" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<path d="M0,0 L8,4 L0,8 z" fill="#4CAF50"></path>
+
+</marker>
+
+</defs>
+
+</svg>
+
+</div>
+
+<p>这四种模式各有适用场景,理解它们的差异是做出正确架构选择的基础:</p>
+
+<p><strong>Subagents(子代理模式)</strong>是多 Agent 系统中最常见的模式。一个 Supervisor Agent 维护完整的对话上下文,将具体任务通过工具调用的方式委派给无状态的子 Agent。每个子 Agent 有自己独立的工具集和系统提示词,完成工作后将结果返回给 Supervisor。这个模式的优势在于<strong>强上下文隔离</strong>--每个子 Agent 只看到与它专业相关的信息,不会被其他领域的噪音干扰。但代价是每次委派都增加一次 LLM 调用(Supervisor 调用一次,子 Agent 调用一次),因此延迟和 Token 消耗都会增加。</p>
+
+<p><strong>Skills(技能模式)</strong>是一个有趣的"伪多 Agent"方案。技术上它只使用一个 Agent,但这个 Agent 可以按需加载不同的"技能包"--每个技能包含专门的提示词、知识库和工具集合。当用户问编程问题时加载编程技能,问分析问题时切换到分析技能。这种模式的通信开销为零(因为只有一个 Agent),但随着技能累积,对话历史可能膨胀。它最适合<strong>"一个大脑、多种才能"</strong>的场景。</p>
+
+<p><strong>Handoffs(交接模式)</strong>更像是一个接力赛。当前活跃的 Agent 根据对话上下文判断"这个问题不该我处理",然后通过 handoff 工具把控制权交给更合适的 Agent。与 Subagents 不同的是,Handoff 不是"委托后等结果",而是"完全移交控制权"。这种模式在客服流程中特别有用--先由信息收集 Agent 了解用户问题,然后交给技术支持 Agent 解决,最后交给满意度回访 Agent 收尾。</p>
+
+<p><strong>Router(路由模式)</strong>是唯一原生支持并行处理的模式。Router 首先对输入进行分类,然后将任务同时分发给多个专门的 Agent 并行处理,最后将所有结果综合为最终答案。当你需要同时查询多个独立领域的信息时(比如"对比 AAPL 和 TSLA 的技术面和基本面"),Router 可以让行情 Agent 和分析 Agent 同时工作,大幅减少响应时间。Router 的技术实现通常是在 Supervisor 中使用一个轻量级分类器(甚至可以是基于规则的关键词匹配而非 LLM),先判断输入属于哪些领域,然后并行分发任务。这种"先分类后并行"的策略在多领域问答场景中特别有效。</p>
+
+<p>理解了四种模式之后,一个自然的问题是:<strong>能否混合使用多种模式?</strong>答案是肯定的,而且生产环境中混合使用才是常态。例如,一个系统可以对外使用 Router 模式做并行分发,对内每个子 Agent 使用 Skills 模式按需加载专业能力。或者一个客服系统在前期使用 Handoff 模式收集信息,到需要多维度分析时切换为 Subagents 模式并行处理。模式选择不是非此即彼的,关键是理解每种模式的优势和代价,然后根据场景需求进行组合。</p>
+
+<!-- ---------- 2.3 ---------- -->
+
+<h3 id="analysis-3">2.3 五种生产级编排拓扑--从学术到工程</h3>
+
+<p>上面的四种模式是概念层面的分类。在生产环境中,这些概念落地为五种具体的编排拓扑结构。微软 Azure 架构中心和多个生产部署团队的经验总结如下:</p>
+
+<div class="table-wrap">
+
+<table style="table-layout:fixed;">
+
+<thead>
+
+<tr>
+
+<th>编排拓扑</th>
+
+<th>控制方式</th>
+
+<th>核心优势</th>
+
+<th>主要风险</th>
+
+<th>生产采用率</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td><strong>Orchestrator-Worker</strong></td>
+
+<td>集中(fan-out / fan-in)</td>
+
+<td>易调试、水平扩展、错误恢复</td>
+
+<td>编排器单点故障 + 吞吐瓶颈</td>
+
+<td>⬤⬤⬤⬤⬤ (最高)</td>
+
+</tr>
+
+<tr>
+
+<td><strong>Pipeline</strong></td>
+
+<td>顺序阶段处理</td>
+
+<td>简单可审计、流程清晰</td>
+
+<td>无并行能力、串行延迟</td>
+
+<td>⬤⬤⬤⬤ (高)</td>
+
+</tr>
+
+<tr>
+
+<td><strong>Hierarchical</strong></td>
+
+<td>树状委派</td>
+
+<td>清晰的职责层级</td>
+
+<td>层间延迟累积、过度分解</td>
+
+<td>⬤⬤⬤ (中)</td>
+
+</tr>
+
+<tr>
+
+<td><strong>Handoff</strong></td>
+
+<td>状态驱动转换</td>
+
+<td>低延迟直接通信</td>
+
+<td>状态管理复杂</td>
+
+<td>⬤⬤⬤ (中)</td>
+
+</tr>
+
+<tr>
+
+<td><strong>Swarm</strong></td>
+
+<td>去中心化涌现</td>
+
+<td>大规模并行探索</td>
+
+<td>可观测性差、收敛困难</td>
+
+<td>⬤ (低·多见于研究)</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>一个关键的工程洞察:<strong>生产部署中绝大多数使用 Orchestrator-Worker 模式</strong>。Dev.to 的调研文章指出:"The pattern we see across production deployments is consistent: the overwhelming majority implement the hub-and-spoke orchestrator-worker model, not the complex swarm architectures that dominate academic papers."(生产部署的模式高度一致:绝大多数实现了 hub-and-spoke 的编排器-工作者模型,而非学术论文中主导的复杂 swarm 架构。)</p>
+
+<p>这不是巧合。Orchestrator-Worker 模式有四个关键工程优势:</p>
+
+<div class="feature-grid">
+
+<div class="feature-item">
+
+<strong>可调试性</strong>
+
+<span>所有任务流经一个编排器,日志集中在一条链路上。出了问题,你只需要看编排器的 Trace 就能定位。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>错误恢复</strong>
+
+<span>编排器可以在某个 Worker 失败时重试、降级或切换到备用 Worker。这种集中式的错误处理比分布式协调简单一个数量级。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>水平扩展</strong>
+
+<span>Worker 是无状态的,可以根据负载水平扩展。编排器本身可以用 LLM 也可以用规则引擎实现。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>渐进迁移</strong>
+
+<span>从单 Agent 迁移到 Orchestrator-Worker 时,可以先把现有 Agent 作为第一个 Worker,然后逐步拆分出新 Worker。</span>
+
+</div>
+
+</div>
+
+<p>但 Orchestrator-Worker 也有明确的瓶颈。如果编排器本身使用 LLM 做路由决策,每次路由都需要一次 LLM 调用(通常 2-5 秒)。假设有 20 个 Worker 等待分配任务,编排器的分解吞吐上限约为 <strong>6.7 tasks/s</strong>。对于高吞吐场景,需要用规则引擎替代 LLM 编排器,或者引入多级编排器(如树状结构,每个子编排器管理一组 Worker),将路由决策分散化。多级编排器是 Hierarchical 拓扑的核心思想--但层级的引入也意味着延迟累积(每增加一层编排器增加 1-3 秒延迟),需要在响应速度和系统可扩展性之间权衡。</p>
+
+<p>Swarm 模式虽然在生产中采用率最低,但它在特定场景中有不可替代的优势。当你需要<strong>大规模并行探索</strong>--比如对 100 家公司同时做尽职调查--Swarm 可以让每个 Agent 独立工作、相互不依赖。关键挑战是<strong>收敛</strong>:如何把这些 Agent 的发现聚合为有意义的结论?实践中通常需要一个专门的"聚合 Agent"来收集和综合所有 Worker 的发现,或者引入投票机制(多个 Agent 对同一问题独立给出结论,取多数共识)。AWorld 框架就是这种思路的典型代表--它在 6 小时内构建的多 Agent 系统成功解决了 2025 年 IMO 6 道题中的 5 道,证明了 Swarm + 投票模式在复杂推理任务上的潜力。</p>
+
+<p>Pipeline 模式虽然概念简单,但在特定垂直场景中却是最优选择。以法律合同审查为例:文档解析→条款提取→风险识别→合规检查→报告生成,每个阶段有明确的输入输出契约,前一步的输出是后一步的唯一输入。这种<strong>严格顺序、无分支、无并行</strong>的特征使得 Pipeline 模式比 Orchestrator-Worker 更合适--不需要编排器做路由决策,减少了不必要的 LLM 调用。Pipeline 的另一个优势是<strong>天然可审计</strong>:每个阶段的中间结果都可以持久化,形成完整的处理链路,满足合规要求。在生产实践中,Pipeline 模式常用于文档处理、数据清洗、内容审核等流程化任务,是"最朴素但最可靠"的多 Agent 模式。</p>
+
+<p>Hierarchical 模式则适用于<strong>组织结构复杂、任务嵌套层级深</strong>的场景。一个典型的生产案例:<strong>某大型银行的智能投顾系统</strong>采用了三层结构——顶层是<strong>总控编排器</strong>(接收用户请求,判断属于“理财咨询”“贷款审批”“合规审查”中的哪个业务线);第二层是各业务线的<strong>领域编排器</strong>(如理财线编排器负责任务分解,决定需要调用行情查询、风险评估还是产品推荐);第三层是具体的<strong>工作 Agent</strong>(如行情查询 Agent、风险计量 Agent、合同生成 Agent)。这种三级结构在实践中是必要的:该银行有 15 个以上的工作 Agent,如果全部挂在单个编排器下,路由准确率会显著下降;而引入中间层后,每个领域编排器只需管理 3-5 个工作 Agent,路由准确率保持在 90% 以上。代价是延迟累积——三层串行调用总延迟约 5-9 秒,对于非实时场景(如投资报告生成)可以接受,但对实时聊天场景则偏慢。微软 Azure 架构中心建议:当 Agent 数量超过 10 个时,应考虑引入层级化分组,避免单个编排器成为瓶颈。不过层级也不宜过深——实践经验表明,超过 3 层的层级结构会因延迟累积和上下文传递损耗而导致用户体验严重下降。</p>
+
+<!-- ---------- 2.4 ---------- -->
+
+<h3 id="analysis-4">2.4 何时分解--六大信号与决策框架</h3>
+
+<p>知道了有哪些多 Agent 模式,下一个问题是:<strong>什么时候该从单 Agent 升级到多 Agent?</strong>过早拆分是"premature multi-agentization"(过早多 Agent 化),增加复杂性却没有收益;过晚拆分则让系统在瓶颈中挣扎。</p>
+
+<p>综合 LangChain 指南、微软 Azure 架构建议和生产团队的经验,我们提炼出<strong>六大分解信号</strong>:</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 500" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">图4:架构选择决策树--单Agent还是多Agent?</text>
+
+<!-- Root node -->
+
+<rect x="300" y="45" width="200" height="36" rx="6" fill="#7B1FA2"></rect>
+
+<text x="400" y="68" text-anchor="middle" font-size="12" fill="#fff" font-weight="600">起点:当前是单Agent</text>
+
+<!-- Branch 1: Tool count -->
+
+<line x1="400" y1="81" x2="400" y2="105" stroke="#BA68C8" stroke-width="2"></line>
+
+<polygon points="400,105 380,115 400,125 420,115" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></polygon>
+
+<text x="400" y="118" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">工具 &gt; 15个?</text>
+
+<!-- Yes branch -->
+
+<line x1="380" y1="115" x2="200" y2="150" stroke="#E53935" stroke-width="2"></line>
+
+<text x="270" y="135" font-size="9" fill="#E53935" font-weight="600">是</text>
+
+<rect x="120" y="150" width="160" height="30" rx="4" fill="#FFEBEE" stroke="#E53935"></rect>
+
+<text x="200" y="170" text-anchor="middle" font-size="10" fill="#C62828">信号1: 工具天花板 ⚠</text>
+
+<!-- No branch -->
+
+<line x1="420" y1="115" x2="580" y2="150" stroke="#4CAF50" stroke-width="2"></line>
+
+<text x="520" y="135" font-size="9" fill="#4CAF50" font-weight="600">否</text>
+
+<!-- Branch 2: Domain diversity -->
+
+<line x1="580" y1="180" x2="580" y2="200" stroke="#BA68C8" stroke-width="2"></line>
+
+<polygon points="580,200 560,210 580,220 600,210" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></polygon>
+
+<text x="580" y="213" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">跨多个领域?</text>
+
+<line x1="560" y1="210" x2="450" y2="245" stroke="#E53935" stroke-width="2"></line>
+
+<text x="490" y="230" font-size="9" fill="#E53935" font-weight="600">是</text>
+
+<rect x="370" y="245" width="160" height="30" rx="4" fill="#FFEBEE" stroke="#E53935"></rect>
+
+<text x="450" y="265" text-anchor="middle" font-size="10" fill="#C62828">信号2: 领域多样性 ⚠</text>
+
+<line x1="600" y1="210" x2="700" y2="245" stroke="#4CAF50" stroke-width="2"></line>
+
+<text x="660" y="230" font-size="9" fill="#4CAF50" font-weight="600">否</text>
+
+<!-- Branch 3: Parallelism need -->
+
+<line x1="700" y1="275" x2="700" y2="295" stroke="#BA68C8" stroke-width="2"></line>
+
+<polygon points="700,295 680,305 700,315 720,305" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></polygon>
+
+<text x="700" y="308" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">需并行处理?</text>
+
+<line x1="680" y1="305" x2="580" y2="340" stroke="#E53935" stroke-width="2"></line>
+
+<text x="620" y="325" font-size="9" fill="#E53935" font-weight="600">是</text>
+
+<rect x="500" y="340" width="160" height="30" rx="4" fill="#FFEBEE" stroke="#E53935"></rect>
+
+<text x="580" y="360" text-anchor="middle" font-size="10" fill="#C62828">信号3: 并行需求 ⚠</text>
+
+<line x1="720" y1="305" x2="780" y2="340" stroke="#4CAF50" stroke-width="2"></line>
+
+<text x="755" y="325" font-size="9" fill="#4CAF50" font-weight="600">否</text>
+
+<!-- Branch 4: Team structure -->
+
+<line x1="780" y1="370" x2="780" y2="390" stroke="#BA68C8" stroke-width="2"></line>
+
+<polygon points="780,390 760,400 780,410 800,400" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="1.5"></polygon>
+
+<text x="780" y="403" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">多团队维护?</text>
+
+<line x1="780" y1="410" x2="780" y2="435" stroke="#4CAF50" stroke-width="2"></line>
+
+<text x="795" y="428" font-size="9" fill="#4CAF50" font-weight="600">否</text>
+
+<!-- Final recommendation: Single Agent -->
+
+<rect x="680" y="435" width="200" height="45" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="780" y="455" text-anchor="middle" font-size="11" fill="#2E7D32" font-weight="700">✓ 保持单Agent</text>
+
+<text x="780" y="470" text-anchor="middle" font-size="9" fill="#555">优化工具描述 + 分组策略</text>
+
+<!-- Final recommendation: Multi Agent (left side) -->
+
+<rect x="50" y="400" width="280" height="80" rx="8" fill="#FCE4EC" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="190" y="420" text-anchor="middle" font-size="11" fill="#4A148C" font-weight="700">→ 考虑升级为多Agent</text>
+
+<text x="190" y="438" text-anchor="middle" font-size="9" fill="#555">≥2个信号 = 建议拆分</text>
+
+<text x="190" y="453" text-anchor="middle" font-size="9" fill="#555">首选:Orchestrator-Worker</text>
+
+<text x="190" y="468" text-anchor="middle" font-size="9" fill="#555">跨边界/多团队 → 直接多Agent</text>
+
+<!-- Arrow from signals to recommendation -->
+
+<path d="M 200 180 Q 200 300 190 400" stroke="#7B1FA2" stroke-width="2" fill="none" stroke-dasharray="4,3"></path>
+
+<path d="M 450 275 Q 300 350 190 400" stroke="#7B1FA2" stroke-width="1.5" fill="none" stroke-dasharray="4,3"></path>
+
+<path d="M 580 370 Q 350 390 190 400" stroke="#7B1FA2" stroke-width="1.5" fill="none" stroke-dasharray="4,3"></path>
+
+</svg>
+
+</div>
+
+<p>除了决策树中的四个核心问题,还有两个经常被忽略但同样重要的信号:</p>
+
+<p><strong>信号5:安全与合规边界</strong>。如果你的 Agent 同时处理需要不同权限级别的操作(比如查询公开行情 vs 执行交易指令),将它们拆分为不同安全级别的 Agent 可以实现更精确的权限控制。微软的多 Agent 决策指南明确指出:如果用例<strong>跨越安全和合规边界</strong>,应该直接从多 Agent 系统开始。</p>
+
+<p><strong>信号6:独立扩展需求</strong>。当某些功能模块的调用量远高于其他模块时(如"股票查询"日均 1200 次而"合规检查"只有 50 次),多 Agent 允许你只对高频模块增加计算资源,而不必扩展整个系统。这类似于微服务架构的核心思想--将不同负载特征的功能拆分为独立服务,按需伸缩。在 FinAssist 的案例中,行情 Agent 可以部署 5 个副本应对高峰流量,而合规 Agent 只需要 1 个副本--这在单 Agent 架构中是做不到的。</p>
+
+<p>综合六个信号,我们可以总结出一个简单的<strong>二分决策规则</strong>:</p>
+
+<ul>
+
+<li><strong>0-1 个信号</strong>:保持单 Agent,通过优化工具描述、引入分组/Reranking 策略来解决当前问题。这是最低风险的选项。</li>
+
+<li><strong>2-3 个信号</strong>:建议拆分,首选 Orchestrator-Worker 模式。可以先从 Skills 分组开始验证拆分效果,再逐步迁移到 Subagents。</li>
+
+<li><strong>4+ 个信号</strong>:必须拆分,且应考虑混合模式(如 Router + Subagents)。拆分越早越好,技术债务会随时间指数增长。</li>
+
+<li><strong>跨越安全/合规边界</strong>:无论信号数量多少,直接使用多 Agent。安全边界的隔离需求优先于架构简化诉求。</li>
+
+</ul>
+
+<div class="box tip">
+
+<p class="box-title">💡 黄金法则</p>
+
+<p>当你在纠结"该不该拆"时,先用<strong> Skills 模式</strong>(技能分组)作为中间步骤--它不需要引入多 Agent 的复杂性,但可以验证"按领域拆分"是否真的能提升工具选择准确率。如果 Skills 模式验证有效,再升级为 Subagents 模式实现真正的隔离。这是一个<strong>低风险的渐进迁移路径</strong>。</p>
+
+</div>
+
+<!-- ---------- 2.5 ---------- -->
+
+<h3 id="analysis-5">2.5 通信开销--多Agent的隐性税</h3>
+
+<p>多 Agent 系统的通信开销是一把隐形利刃--它不会在架构图中显示出来,却能在生产环境中持续蚕食你的利润率和用户体验。理解通信开销的量级和构成,是做出合理的多 Agent 架构决策的前提。很多团队在上线后才发现实际成本是预期的 2-3 倍,根本原因就是低估了通信开销。</p>
+
+<p>多 Agent 不是免费午餐。每增加一个 Agent 节点,就增加一条通信链路,而每条通信链路都意味着额外的 Token 消耗和延迟。理解通信开销的量级,是做出合理架构决策的前提。</p>
+
+<p>我们来看单 Agent 和多 Agent 在处理同一个请求时的 Token 消耗对比。单 Agent 方案中,用户输入约 50 token,系统提示词约 200 token,22 个工具定义约 1760 token,LLM 推理输出约 100 token,总计约 2110 token,只需 1 次 LLM 调用。而多 Agent(Supervisor)方案中:用户输入约 50 token,Supervisor 提示词加子 Agent 描述约 450 token,路由决策约 30 token,委派给子 Agent 后子 Agent 提示词约 150 token 加 5 个工具定义约 400 token,推理加工具调用约 200 token,结果回传加 Supervisor 综合约 150 token,总计约 1430 token--Token 总量反而更低!但代价是需要 2 次 LLM 调用,延迟翻倍(×1.8-2.2)。</p>
+
+<div class="chart-placeholder" style="display:none">
+
+<!-- 图表已内联为文字描述 -->
+
+</div>
+
+<p>这个对比揭示了一个反直觉的事实:<strong>多 Agent 的 Token 总量不一定比单 Agent 高</strong>。因为每个子 Agent 只加载自己领域的工具定义(5 个工具 ~400 tokens vs 22 个工具 ~1760 tokens),实际上节省了大量"无关工具的描述 Token"。但多 Agent 的<strong>实际成本</strong>更高,因为:</p>
+
+<ol>
+
+<li><strong>LLM 调用次数翻倍</strong>:Supervisor 路由一次,子 Agent 执行一次,如果是多轮对话 Supervisor 还需要综合结果--一个请求可能触发 2-3 次 LLM 调用</li>
+
+<li><strong>延迟累积</strong>:每次 LLM 调用 1-3 秒,两次串行调用就是 2-6 秒。对于延迟敏感场景这是不可接受的</li>
+
+<li><strong>上下文传递损耗</strong>:Supervisor 需要把用户请求"翻译"成子 Agent 能理解的格式,子 Agent 的结果又需要"翻译"成用户能理解的回答。每次翻译都可能丢失信息</li>
+
+</ol>
+
+<div class="stat-grid">
+
+<div class="stat-item highlight">
+
+<div class="stat-value">+30-50%</div>
+
+<div class="stat-label">多Agent平均额外Token开销</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">×1.8-2.2</div>
+
+<div class="stat-label">延迟倍数(串行调用)</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">O(n2)</div>
+
+<div class="stat-label">Mesh拓扑连接复杂度</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">~6.7/s</div>
+
+<div class="stat-label">编排器吞吐天花板</div>
+
+</div>
+
+</div>
+
+<p>通信开销还有一个容易被忽视的维度:<strong>上下文窗口竞争</strong>。在 Supervisor 模式中,Supervisor 需要维护完整的对话历史,同时还要加载所有子 Agent 的描述。随着对话轮数增加,对话历史不断膨胀,可能挤占子 Agent 描述的空间。当上下文窗口逼近上限时,Supervisor 可能被迫截断早期的对话历史,导致上下文丢失。这恰恰会触发 MAST 分类中的"上下文丢失"失败模式。生产环境中的最佳实践是:为 Supervisor 设置<strong>对话历史压缩策略</strong>(如每 10 轮对话做一次摘要),并为每个子 Agent 设置<strong>独立的上文窗口</strong>(子 Agent 只看到与当前任务相关的上下文,而非全部历史),从而避免上下文窗口竞争问题。</p>
+
+<p>另一个降低通信开销的有效策略是<strong>缓存子 Agent 的工具调用结果</strong>。在金融场景中,许多查询具有时效性但变化不频繁(如财报数据每季度才更新一次)。通过在 Supervisor 层引入短期缓存(如 Redis),对相同参数的工具调用直接返回缓存结果,可以避免重复的子 Agent 调用。实测数据显示,合理的缓存策略可以减少 30-45% 的子 Agent 调用次数,显著降低延迟和 Token 成本。但缓存必须设置合理的过期时间--行情价格等实时数据的缓存不应超过 30 秒,而财报数据的缓存可以持续到下一季度发布。</p>
+
+<!-- ---------- 2.6 ---------- -->
+
+<h3 id="analysis-6">2.6 MAST失败分类法--多Agent翻车大全</h3>
+
+<p>如果你决定走多 Agent 路线,你必须了解多 Agent 系统的失败模式。NeurIPS 2025 的 Spotlight 论文 <strong>MAST(Multi-Agent System Failure Taxonomy)</strong>是首个经验驱动的多 Agent 失败分类法,分析了 7 个主流 MAS 框架上的 1600+ 条执行轨迹,标注一致性 Cohen's Kappa = 0.88(很高)。</p>
+
+<p>核心发现令人警醒:<strong>多 Agent 系统的生产失败率在 41%-86.7% 之间</strong>,取决于框架和任务复杂度。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 550" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">图5:MAST多Agent失败分类法--三大支柱·14种失败模式</text>
+
+<!-- Pillar 1: Specification Issues -->
+
+<rect x="30" y="45" width="240" height="480" rx="10" fill="#FFF3E0" stroke="#FF9800" stroke-width="2" opacity="0.7"></rect>
+
+<rect x="30" y="45" width="240" height="40" rx="10" fill="#FF9800"></rect>
+
+<rect x="30" y="75" width="240" height="10" fill="#FF9800"></rect>
+
+<text x="150" y="70" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">支柱1: 规约问题</text>
+
+<text x="150" y="103" text-anchor="middle" font-size="20" fill="#E65100" font-weight="800">~26%</text>
+
+<g font-size="10" fill="#333">
+
+<rect x="45" y="120" width="210" height="55" rx="5" fill="#FFF8E1" stroke="#FFB74D"></rect>
+
+<text x="55" y="137" font-weight="600" fill="#E65100">1. 任务描述模糊</text>
+
+<text x="55" y="152" font-size="8" fill="#666">Agent对目标理解不一致</text>
+
+<text x="55" y="165" font-size="8" fill="#999">例: "分析市场" → 分析哪些?多深?</text>
+
+<rect x="45" y="185" width="210" height="55" rx="5" fill="#FFF8E1" stroke="#FFB74D"></rect>
+
+<text x="55" y="202" font-weight="600" fill="#E65100">2. 角色边界不清</text>
+
+<text x="55" y="217" font-size="8" fill="#666">多Agent职责重叠</text>
+
+<text x="55" y="230" font-size="8" fill="#999">例: 分析Agent和策略Agent都做"评估"</text>
+
+<rect x="45" y="250" width="210" height="55" rx="5" fill="#FFF8E1" stroke="#FFB74D"></rect>
+
+<text x="55" y="267" font-weight="600" fill="#E65100">3. 输出格式未规范</text>
+
+<text x="55" y="282" font-size="8" fill="#666">Agent间数据格式不匹配</text>
+
+<text x="55" y="295" font-size="8" fill="#999">例: 返回自由文本 vs JSON</text>
+
+<rect x="45" y="315" width="210" height="55" rx="5" fill="#FFF8E1" stroke="#FFB74D"></rect>
+
+<text x="55" y="332" font-weight="600" fill="#E65100">4. 评估标准歧义</text>
+
+<text x="55" y="347" font-size="8" fill="#666">不同Agent对"完成"定义不同</text>
+
+<text x="55" y="360" font-size="8" fill="#999">例: 详细 vs 简洁都算"完成"?</text>
+
+</g>
+
+<!-- Pillar 2: Inter-Agent Misalignment -->
+
+<rect x="280" y="45" width="240" height="480" rx="10" fill="#FFEBEE" stroke="#E53935" stroke-width="2" opacity="0.7"></rect>
+
+<rect x="280" y="45" width="240" height="40" rx="10" fill="#E53935"></rect>
+
+<rect x="280" y="75" width="240" height="10" fill="#E53935"></rect>
+
+<text x="400" y="70" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">支柱2: Agent间错位</text>
+
+<text x="400" y="103" text-anchor="middle" font-size="20" fill="#C62828" font-weight="800">~53%</text>
+
+<g font-size="10" fill="#333">
+
+<rect x="295" y="120" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="137" font-weight="600" fill="#C62828">5. 通信协议失败</text>
+
+<text x="305" y="152" font-size="8" fill="#666">消息丢失或被误解</text>
+
+<rect x="295" y="170" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="187" font-weight="600" fill="#C62828">6. 上下文丢失</text>
+
+<text x="305" y="202" font-size="8" fill="#666">交接中关键信息遗漏</text>
+
+<rect x="295" y="220" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="237" font-weight="600" fill="#C62828">7. 决策冲突</text>
+
+<text x="305" y="252" font-size="8" fill="#666">多Agent给出矛盾结论</text>
+
+<rect x="295" y="270" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="287" font-weight="600" fill="#C62828">8. 角色倒置</text>
+
+<text x="305" y="302" font-size="8" fill="#666">子Agent越权决策</text>
+
+<rect x="295" y="320" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="337" font-weight="600" fill="#C62828">9. 循环依赖(死锁)</text>
+
+<text x="305" y="352" font-size="8" fill="#666">Agent互相等待对方输出</text>
+
+<rect x="295" y="370" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="387" font-weight="600" fill="#C62828">10. 信息级联错误</text>
+
+<text x="305" y="402" font-size="8" fill="#666">早期错误被下游放大</text>
+
+<rect x="295" y="420" width="210" height="42" rx="5" fill="#FFCDD2" stroke="#EF9A9A"></rect>
+
+<text x="305" y="437" font-weight="600" fill="#C62828">11. 组织崩溃</text>
+
+<text x="305" y="452" font-size="8" fill="#666">协作结构完全瓦解</text>
+
+</g>
+
+<!-- Pillar 3: Task Verification -->
+
+<rect x="530" y="45" width="240" height="480" rx="10" fill="#E3F2FD" stroke="#2196F3" stroke-width="2" opacity="0.7"></rect>
+
+<rect x="530" y="45" width="240" height="40" rx="10" fill="#2196F3"></rect>
+
+<rect x="530" y="75" width="240" height="10" fill="#2196F3"></rect>
+
+<text x="650" y="70" text-anchor="middle" font-size="13" fill="#fff" font-weight="700">支柱3: 任务验证</text>
+
+<text x="650" y="103" text-anchor="middle" font-size="20" fill="#1565C0" font-weight="800">~21%</text>
+
+<g font-size="10" fill="#333">
+
+<rect x="545" y="120" width="210" height="55" rx="5" fill="#BBDEFB" stroke="#64B5F6"></rect>
+
+<text x="555" y="137" font-weight="600" fill="#1565C0">12. 缺乏验证步骤</text>
+
+<text x="555" y="152" font-size="8" fill="#666">没有独立质检Agent</text>
+
+<text x="555" y="165" font-size="8" fill="#999">结果:错误直达用户</text>
+
+<rect x="545" y="185" width="210" height="55" rx="5" fill="#BBDEFB" stroke="#64B5F6"></rect>
+
+<text x="555" y="202" font-weight="600" fill="#1565C0">13. 验证标准不一致</text>
+
+<text x="555" y="217" font-size="8" fill="#666">不同Agent对"正确"定义不同</text>
+
+<text x="555" y="230" font-size="8" fill="#999">例: 精确 vs 模糊都通过?</text>
+
+<rect x="545" y="250" width="210" height="55" rx="5" fill="#BBDEFB" stroke="#64B5F6"></rect>
+
+<text x="555" y="267" font-weight="600" fill="#1565C0">14. 错误传播</text>
+
+<text x="555" y="282" font-size="8" fill="#666">错误输出被下游采信放大</text>
+
+<text x="555" y="295" font-size="8" fill="#999">例: 错误数据→错误分析→错误建议</text>
+
+</g>
+
+<!-- Footer note -->
+
+<rect x="545" y="320" width="210" height="80" rx="5" fill="#E8F5E9" stroke="#4CAF50"></rect>
+
+<text x="650" y="340" text-anchor="middle" font-size="10" fill="#2E7D32" font-weight="600">📌 防御策略</text>
+
+<text x="650" y="358" text-anchor="middle" font-size="8" fill="#555">1. 精确的角色和任务规约</text>
+
+<text x="650" y="372" text-anchor="middle" font-size="8" fill="#555">2. 标准化JSON通信格式</text>
+
+<text x="650" y="386" text-anchor="middle" font-size="8" fill="#555">3. 独立验证Agent + 超时</text>
+
+<text x="650" y="400" text-anchor="middle" font-size="8" fill="#555">4. 分布式Tracing</text>
+
+</svg>
+
+</div>
+
+<p>MAST 的数据告诉我们,<strong>超过一半的失败(53%)发生在 Agent 之间的交互环节</strong>,而不是单个 Agent 的能力不足。这意味着即使你用了最强的 LLM,如果 Agent 之间的通信协议设计不当,系统依然会失败。这个发现对架构设计有深远影响:提升多 Agent 系统的可靠性,投入产出比最高的方向不是"买更强的模型",而是"设计更好的 Agent 间通信协议和验证机制"。</p>
+
+<p>一个经典的失败案例:<strong>ChatDev Wordle 实验</strong>。研究者让多个 Agent 协作开发一个 Wordle 猜词游戏。由于任务描述中"游戏规则"的表述存在歧义,不同的 Agent 对规则有不同的理解--负责逻辑的 Agent 实现了标准 Wordle 规则,而负责 UI 的 Agent 实现了变体规则。最终集成时游戏行为完全错乱。这就是典型的<strong>规约歧义</strong>导致的失败。</p>
+
+<p>MAST 的发现中有一个反直觉的结论值得特别注意:<strong>失败率与 Agent 数量并非线性关系</strong>。增加 Agent 从 1 个到 3 个,失败率上升幅度可控(从 ~30% 到 ~45%);但从 3 个增加到 5 个时,失败率跳跃式上升(到 ~65%),因为 Agent 间的两两交互路径从 3 条暴增到 10 条。这意味着<strong>控制 Agent 数量是多 Agent 系统可靠性的最有效杠杆--能用 3 个 Agent 解决的问题,绝对不要用 5 个,这是多 Agent 架构设计的黄金法则。</strong></p><strong>
+
+<p>针对每一种失败模式,我们可以制定具体的防御策略。以下四层防御体系覆盖了 MAST 的三大支柱:</p>
+
+<ol>
+
+<li><strong>规约层</strong>(防支柱1):为每个 Agent 编写精确的角色定义(Role)、任务边界(Scope)和输出格式(Format),使用 JSON Schema 约束通信格式,消除自然语言歧义。实践提示:在 YAML 配置文件中定义 Agent 规范,而不是用自然语言在 prompt 中描述。</li>
+
+<li><strong>通信层</strong>(防支柱2):引入消息确认机制(接收方必须回执"已收到并理解"),关键决策需要二次确认,设置通信超时和重试策略。特别是对于 Supervisor 模式,Supervisor 应该对子 Agent 的返回结果做基本的合理性检查(如字段完整性、数值范围)。</li>
+
+<li><strong>验证层</strong>(防支柱3):添加独立的质检 Agent 或规则引擎,对最终输出进行事实核查、数值合理性检查和格式验证。验证层应该是<strong>独立于生产链路</strong>的--它不参与结果生成,只参与结果审查。</li>
+
+<li><strong>可观测层</strong>(跨支柱):实现分布式 Tracing,记录每个 Agent 的输入、输出和决策过程,使问题可定位、可回溯。LangFuse 等开源工具提供了 Agent 调用链追踪能力。</li>
+
+</ol>
+
+<p>ICLR 2025 的后续研究进一步细化为 18 种失败模式,归为四大类:规约歧义与错位、组织崩溃、Agent 间冲突与协调缺口、弱验证与质量控制。这些研究的核心启示是:<strong>多 Agent 系统的可靠性瓶颈不在单个 Agent 的智商,而在于 Agent 之间的"组织管理"</strong>。</p>
+
+<!-- ---------- 2.7 ---------- -->
+
+<h3 id="analysis-7">2.7 性能基准与数据--什么时候多Agent真的更优?</h3>
+
+<p>说了这么多风险,你可能会问:那多 Agent 到底值不值得?让我们看看硬数据。</p>
+
+<div class="stat-grid">
+
+<div class="stat-item highlight">
+
+<div class="stat-value">90.2%</div>
+
+<div class="stat-label">Anthropic多Agent研究系统 vs 单Agent提升幅度</div>
+
+</div>
+
+<div class="stat-item highlight">
+
+<div class="stat-value">42.68%</div>
+
+<div class="stat-label">多Agent复杂规划任务成功率 (Cornell研究)</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">2.92%</div>
+
+<div class="stat-label">单Agent deepseek-v4.1-flash 同一基准成功率</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">2/3</div>
+
+<div class="stat-label">Agentic AI市场已使用多Agent (Landbase 2025)</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">87%</div>
+
+<div class="stat-label">CIO报告AI Agent已嵌入工作流 (Dataiku)</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">5/6</div>
+
+<div class="stat-label">AWorld多Agent解2025年IMO题数(6小时内)</div>
+
+</div>
+
+</div>
+
+<p>Anthropic 的多 Agent 研究系统实验尤其值得关注:使用 deepseek-v4.1-flash 4 作为主 Agent + deepseek-v4.1-flash 4 子 Agent 的多 Agent 架构,在内部研究评估中比单 Agent deepseek-v4.1-flash 4 <strong>高出 90.2%</strong>。其优势来源于跨 Agent 分配工作、利用独立上下文窗口实现并行推理。</p>
+
+<p>Cornell 大学的研究则提供了更有戏剧性的对比:在复杂规划任务基准上,协调式多 Agent 系统达到 <strong>42.68%</strong> 的成功率,而单 Agent deepseek-v4.1-flash 只有 <strong>2.92%</strong>--近 15 倍差距。当然,这个基准测试的任务极其复杂(需要多步规划、多领域知识),对于简单任务,差距远没有这么大。关键启示是:<strong>任务复杂度越高,多 Agent 的优势越明显</strong>。如果你的场景主要是简单问答(如"今天天气怎么样"),单 Agent 足矣;但如果你的场景涉及多步推理、跨领域综合、需要并行探索,那么多 Agent 架构几乎是唯一的选择。</p>
+
+<div class="box tip">
+
+<p class="box-title">📊 数据解读:这些数字在你的日常场景中意味着什么?</p>
+
+<p><strong>90.2% 提升幅度(Anthropic)</strong>:这不是说多 Agent 比单 Agent 好 90%——它的意思是<strong>在研究类开放性问题中</strong>,多 Agent 的产出质量评分比单 Agent 高出约一倍。如果你的场景是 FAQ 客服,这个差距可能缩小到 5-10%;如果是多维度调研,差距可能更大。</p>
+
+<p><strong>42.68% vs 2.92%(Cornell)</strong>:这个近 15 倍的差距来自极其复杂的规划任务基准。关键信号是:<strong>当任务需要 5 步以上的规划时,多 Agent 开始显著领先</strong>。低于 3 步的任务,单 Agent 通常已经够用。</p>
+
+<p><strong>实用判断法则</strong>:用<strong>“步骤数 × 领域数”</strong>估算复杂度。乘积 &lt; 5,单 Agent 足够;乘积 5-15,考虑 Skills 分组;乘积 &gt; 15,多 Agent 是更优选择。这不是精确公式,但能帮你快速建立直觉。</p>
+
+</div>
+
+<p>另一个值得关注的趋势是<strong>多 Agent 辩论(Jury)模式</strong>的兴起。受 Marvin Minsky《Society of Mind》理论启发,这种模式让多个 Agent 对同一问题独立给出答案,然后通过投票或辩论选出最佳结论。研究表明,即使是 3 个中等能力 Agent 的投票,其准确率也能超过单个高能力 Agent。这是一种用"广度"替代"深度"的策略--通过多样化的视角来弥补单个 Agent 的盲点。代价是 Token 消耗是单 Agent 的 N 倍(N = Agent 数量),因此适用于对准确率要求极高而对成本不敏感的场景(如医疗诊断、法律判断)。</p>
+
+<div class="box compare-box">
+
+<p class="box-title">核心权衡总结</p>
+
+<table style="table-layout:fixed;">
+
+<thead>
+
+<tr><th>维度</th><th>单Agent</th><th>多Agent</th></tr>
+
+</thead>
+
+<tbody>
+
+<tr><td>工具选择准确率</td><td>工具多时下降明显</td><td>每个Agent工具少,准确率高</td></tr>
+
+<tr><td>延迟</td><td>1次LLM调用 (1-3s)</td><td>2-3次串行调用 (3-9s)</td></tr>
+
+<tr><td>Token开销</td><td>工具定义膨胀</td><td>通信开销但工具定义更精简</td></tr>
+
+<tr><td>并行能力</td><td>无</td><td>Router/Swarm模式可并行</td></tr>
+
+<tr><td>可维护性</td><td>工具多时耦合严重</td><td>按领域独立维护</td></tr>
+
+<tr><td>故障隔离</td><td>一损俱损</td><td>单个Agent故障可降级</td></tr>
+
+<tr><td>调试难度</td><td>单链路,较简单</td><td>需分布式Tracing</td></tr>
+
+<tr><td>系统复杂度</td><td>低</td><td>高(编排+通信+状态管理)</td></tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>回到 FinAssist 的场景:22 个工具跨 5 个领域、3 个团队维护、日均 3000 次调用、有合规边界需求。四个信号全部命中(工具 &gt;15、跨领域、多团队、安全边界)。结论很清晰:<strong>应该升级为多 Agent,首选 Orchestrator-Worker 模式</strong>。</p>
+
+<h3 id="analysis-8">2.8 框架选型指南--LangGraph vs CrewAI vs AutoGen</h3>
+
+<p>确定了架构模式后,下一个实际问题是选什么框架来实现。2025-2026 年主流的多 Agent 框架各有特色,选型不应只看功能列表,还要考虑团队技术栈、维护成本和学习曲线。</p>
+
+<p><strong>LangGraph</strong> 是目前生产环境采用率最高的多 Agent 框架。它的核心抽象是 StateGraph--一种有向图数据结构,节点代表 Agent 或处理逻辑,边代表数据流和控制流。LangGraph 1.x 的 <code>create_agent</code> API 让创建单个 Agent 变得简洁,而将多个 Agent 组合为图结构则提供了完整的控制力。它还内置了 Checkpointer(状态持久化)、Human-in-the-loop(人工介入)等生产级功能。缺点是学习曲线较陡,开发者需要理解图编程模型。</p>
+
+<p><strong>CrewAI</strong> 走的是"角色化抽象"路线。你不需要画图,而是定义角色(Agent)、任务(Task)和团队(Crew)。CrewAI 1.x 引入了 Flows 引擎,提供了更强大的编排能力,支持条件分支、错误处理和结构化输出。CrewAI 的代码量通常比 LangGraph 少 30-40%,适合快速原型开发和角色明确的场景。缺点是对底层数据流的控制不如 LangGraph 精细。</p>
+
+<p><strong>AutoGen</strong>(微软)是最灵活的框架,支持 Agent 间的自由对话和 human-in-the-loop。它在研究领域使用最广,因为可以快速实验各种协作模式。但生产部署的工具链(监控、部署、版本管理)不如前两个成熟。微软还推出了 <strong>Semantic Kernel</strong>,更适合 Azure 生态的企业应用。</p>
+
+<p>对于 FinAssist 的场景,我们推荐 <strong>LangGraph</strong>,原因是:(1) 需要自定义验证层(可在图中插入验证节点);(2) 交易场景需要状态持久化和恢复(LangGraph 的 Checkpointer 原生支持);(3)合规要求意味着需要完整的审计追踪(图结构天然可追溯)。如果你只是想快速验证想法,可以先花半天用 CrewAI 做个原型,确认架构方向后再用 LangGraph 实现生产版本。这种"CrewAI 原型 → LangGraph 生产"的渐进策略在实践中被广泛采用。</p>
+
+<div class="table-wrap">
+
+<table style="table-layout:fixed;">
+
+<thead>
+
+<tr>
+
+<th>评估维度</th>
+
+<th>LangGraph</th>
+
+<th>CrewAI</th>
+
+<th>AutoGen</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td><strong>核心抽象</strong></td>
+
+<td>有向图(StateGraph)</td>
+
+<td>角色+任务+团队</td>
+
+<td>自由对话</td>
+
+</tr>
+
+<tr>
+
+<td><strong>学习曲线</strong></td>
+
+<td>陡(需理解图编程)</td>
+
+<td>平缓(声明式配置)</td>
+
+<td>中等</td>
+
+</tr>
+
+<tr>
+
+<td><strong>生产成熟度</strong></td>
+
+<td>⭐⭐⭐⭐⭐</td>
+
+<td>⭐⭐⭐⭐</td>
+
+<td>⭐⭐⭐</td>
+
+</tr>
+
+<tr>
+
+<td><strong>状态管理</strong></td>
+
+<td>内置 Checkpointer</td>
+
+<td>Flows 引擎支持</td>
+
+<td>需手动实现</td>
+
+</tr>
+
+<tr>
+
+<td><strong>可审计性</strong></td>
+
+<td>强(图结构天然可追溯)</td>
+
+<td>中(任务链可追溯)</td>
+
+<td>弱(自由对话难审计)</td>
+
+</tr>
+
+<tr>
+
+<td><strong>最佳场景</strong></td>
+
+<td>生产级系统、需精细控制</td>
+
+<td>快速原型、角色明确场景</td>
+
+<td>研究实验、human-in-loop</td>
+
+</tr>
+
+<tr>
+
+<td><strong>代码量</strong></td>
+
+<td>100%(基准)</td>
+
+<td>~60-70%</td>
+
+<td>~80%</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>除了上述三个主流框架,2025-2026 年还出现了两个值得关注的趋势。第一个是<strong>扣子 Coze</strong>(字节跳动)和<strong>百炼</strong>(阿里云)等国内平台,它们提供了可视化编排界面和预置的 Agent 模板,极大降低了多 Agent 系统的构建门槛。对于不熟悉 LangGraph 图编程的团队,这些平台可以快速搭建原型并直接部署,显著缩短从设计到验证的周期。第二个趋势是<strong>MCP 协议对多 Agent 架构的影响</strong>:MCP 使得工具定义标准化,不同 Agent 可以共享同一套 MCP Server,无需为每个 Agent 分别定义工具。这意味着多 Agent 系统的"工具管理"复杂度大幅降低--你可以把所有工具注册到一个 MCP Server,然后让不同子 Agent 连接该 Server,按需调用自己领域的工具。这种"工具集中管理、Agent 按需使用"的模式正在成为多 Agent 系统工具管理的新标准。</p>
+
+<p>框架选型的最终建议是:<strong>不要在第一天就选定一个框架并绑死</strong>。用 CrewAI 或扣子/百炼花半天做原型,验证架构方向;用 LangGraph 实现生产版本,享受精细控制力和生态丰富性;在 Agent 和外部工具之间始终插入一层 MCP 标准化接口,为未来框架迁移预留空间。这种"原型快验 + 生产精建 + 接口标准"的三层策略,是多 Agent 项目从 Demo 走向生产的最佳实践,也是在面试中展示架构成熟度的加分项。</p>
+
+</strong><strong>
+
+<!-- ==================== Section 3: 参考答案 ==================== -->
+
+<div class="problem">
+
+<h2 id="section3">三、参考答案</h2>
+
+<h3>3.1 架构设计方案</h3>
+
+<p>基于上述分析,我们为 FinAssist 设计如下多 Agent 架构:</p>
+
+<ul>
+
+<li><strong>编排模式</strong>:Orchestrator-Worker(Supervisor 模式)</li>
+
+<li><strong>Agent 划分</strong>:按业务领域分为 5 个专业 Agent</li>
+
+<li><strong>通信协议</strong>:结构化 JSON 消息(防歧义)</li>
+
+<li><strong>验证层</strong>:独立的结果验证 Agent + 超时降级机制</li>
+
+<li><strong>模型选择</strong>:Supervisor 用 deepseek-v4.1-flash(需要更强推理),子 Agent 用 deepseek-v4.1-flash(够用且更经济)</li>
+
+</ul>
+
+<p>这个架构方案体现了三个关键设计理念。首先是<strong>领域驱动划分</strong>:Agent 的边界不是随意画的,而是沿着业务领域的自然边界切分--行情、风控、交易、资讯、客服各自有独立的知识库、工具集和评估标准。其次是<strong>模型分层策略</strong>:不同 Agent 使用不同能力等级的模型,这是成本控制的核心手段。Supervisor 需要做意图理解和路由决策,这是高复杂度任务,用更强的模型;子 Agent 的任务更聚焦(5 个工具 vs 22 个),中等模型就能胜任。实践数据显示,这种分层策略可以降低 40-60% 的 Token 成本,同时保持甚至提升整体性能。最后是<strong>独立验证层</strong>:这是针对 MAST 支柱 3(任务验证失败占 21%)的直接防御措施。验证层不参与结果生成,只负责审查--格式是否完整、数值是否合理、结论是否有数据支撑。验证层的实现可以采用规则引擎和 LLM 相结合的方式:规则引擎负责格式检查和数值范围验证(快且确定性强),LLM 负责语义合理性检查(如"建议卖出所有持仓"这类异常建议)。这种双层验证机制能在不显著增加延迟的前提下拦截大部分错误输出。</p>
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 400" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C">图6:FinAssist 多Agent架构数据流</text>
+
+<!-- User -->
+
+<ellipse cx="100" cy="120" rx="50" ry="25" fill="#7B1FA2"></ellipse>
+
+<text x="100" y="118" text-anchor="middle" font-size="11" fill="#fff" font-weight="600">用户</text>
+
+<text x="100" y="132" text-anchor="middle" font-size="9" fill="#fff">请求示例</text>
+
+<!-- Supervisor -->
+
+<rect x="280" y="85" width="160" height="70" rx="10" fill="#4A148C" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="360" y="110" text-anchor="middle" font-size="12" fill="#fff" font-weight="700">Supervisor Agent</text>
+
+<text x="360" y="125" text-anchor="middle" font-size="9" fill="#EA80FC">deepseek-v4.1-flash</text>
+
+<text x="360" y="140" text-anchor="middle" font-size="8" fill="#EA80FC">路由 · 聚合 · 验证</text>
+
+<!-- Arrow: User -> Supervisor -->
+
+<line x1="150" y1="120" x2="280" y2="120" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arr1)"></line>
+
+<text x="215" y="113" text-anchor="middle" font-size="8" fill="#666">"帮我分析AAPL</text>
+
+<text x="215" y="123" text-anchor="middle" font-size="8" fill="#666">并评估风险"</text>
+
+<!-- Five specialist agents -->
+
+<g>
+
+<rect x="540" y="30" width="100" height="40" rx="6" fill="#F3E5F5" stroke="#7B1FA2"></rect>
+
+<text x="590" y="48" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">行情Agent</text>
+
+<text x="590" y="62" text-anchor="middle" font-size="8" fill="#666">5工具 · deepseek-v4.1-flash</text>
+
+</g>
+
+<g>
+
+<rect x="680" y="80" width="100" height="40" rx="6" fill="#F3E5F5" stroke="#7B1FA2"></rect>
+
+<text x="730" y="98" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">风控Agent</text>
+
+<text x="730" y="112" text-anchor="middle" font-size="8" fill="#666">4工具 · deepseek-v4.1-flash</text>
+
+</g>
+
+<g>
+
+<rect x="540" y="140" width="100" height="40" rx="6" fill="#F3E5F5" stroke="#7B1FA2"></rect>
+
+<text x="590" y="158" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">交易Agent</text>
+
+<text x="590" y="172" text-anchor="middle" font-size="8" fill="#666">5工具 · deepseek-v4.1-flash</text>
+
+</g>
+
+<g>
+
+<rect x="680" y="200" width="100" height="40" rx="6" fill="#F3E5F5" stroke="#7B1FA2"></rect>
+
+<text x="730" y="218" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">资讯Agent</text>
+
+<text x="730" y="232" text-anchor="middle" font-size="8" fill="#666">4工具 · deepseek-v4.1-flash</text>
+
+</g>
+
+<g>
+
+<rect x="540" y="260" width="100" height="40" rx="6" fill="#F3E5F5" stroke="#7B1FA2"></rect>
+
+<text x="590" y="278" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">客服Agent</text>
+
+<text x="590" y="292" text-anchor="middle" font-size="8" fill="#666">4工具 · deepseek-v4.1-flash</text>
+
+</g>
+
+<!-- Arrows from Supervisor to agents -->
+
+<line x1="440" y1="100" x2="540" y2="50" stroke="#BA68C8" stroke-width="1.5" marker-end="url(#arr2)"></line>
+
+<line x1="440" y1="110" x2="680" y2="100" stroke="#BA68C8" stroke-width="1.5" marker-end="url(#arr2)"></line>
+
+<line x1="440" y1="125" x2="540" y2="160" stroke="#BA68C8" stroke-width="1.5" marker-end="url(#arr2)"></line>
+
+<line x1="440" y1="135" x2="680" y2="220" stroke="#BA68C8" stroke-width="1.5" marker-end="url(#arr2)"></line>
+
+<line x1="440" y1="145" x2="540" y2="280" stroke="#BA68C8" stroke-width="1.5" marker-end="url(#arr2)"></line>
+
+<!-- Verification Agent -->
+
+<rect x="280" y="220" width="160" height="50" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="360" y="240" text-anchor="middle" font-size="11" fill="#2E7D32" font-weight="600">验证模块</text>
+
+<text x="360" y="255" text-anchor="middle" font-size="8" fill="#555">格式检查 · 幻觉检测 · 超时降级</text>
+
+<line x1="360" y1="155" x2="360" y2="220" stroke="#4CAF50" stroke-width="1.5" stroke-dasharray="3,2"></line>
+
+<!-- Memory -->
+
+<rect x="100" y="220" width="120" height="50" rx="8" fill="#FCE4EC" stroke="#E040FB" stroke-width="1.5"></rect>
+
+<text x="160" y="240" text-anchor="middle" font-size="10" fill="#4A148C" font-weight="600">共享记忆层</text>
+
+<text x="160" y="255" text-anchor="middle" font-size="8" fill="#666">对话历史 · 用户画像</text>
+
+<line x1="280" y1="200" x2="220" y2="230" stroke="#E040FB" stroke-width="1" stroke-dasharray="3,2"></line>
+
+<line x1="220" y1="245" x2="280" y2="245" stroke="#E040FB" stroke-width="1" stroke-dasharray="3,2"></line>
+
+<!-- Legend -->
+
+<rect x="80" y="310" width="660" height="70" rx="8" fill="#FAFAFA" stroke="#E0E0E0"></rect>
+
+<text x="100" y="330" font-size="10" fill="#4A148C" font-weight="600">数据流:</text>
+
+<text x="100" y="347" font-size="9" fill="#555">1. 用户请求 → Supervisor 分析意图并路由</text>
+
+<text x="100" y="360" font-size="9" fill="#555">2. Supervisor 将子任务分发给对应专业Agent(可并行分发多个)</text>
+
+<text x="340" y="347" font-size="9" fill="#555">3. 子Agent 执行工具调用,返回结构化结果</text>
+
+<text x="340" y="360" font-size="9" fill="#555">4. 验证模块检查结果格式和合理性</text>
+
+<text x="580" y="347" font-size="9" fill="#555">5. Supervisor 综合多Agent结果</text>
+
+<text x="580" y="360" font-size="9" fill="#555">6. 回传用户 + 更新记忆</text>
+
+<!-- Arrow markers -->
+
+<defs>
+
+<marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+
+<path d="M0,0 L8,4 L0,8 z" fill="#7B1FA2"></path>
+
+</marker>
+
+<marker id="arr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+
+<path d="M0,0 L6,3 L0,6 z" fill="#BA68C8"></path>
+
+</marker>
+
+</defs>
+
+</svg>
+
+</div>
+
+<h3>3.2 LangGraph Supervisor 模式完整实现</h3>
+
+<p>以下是使用 LangGraph 1.x 的 <code>create_agent</code> API 实现的 Supervisor 模式完整代码。注意我们使用的是 LangGraph 1.x 的新 API(<code>create_agent</code>),而非已废弃的 <code>create_react_agent</code>。这个迁移是 LangGraph 1.x 最重要的 API 变更--<code>create_agent</code> 内部构建了一个包含 agent 节点和 tools 节点的 StateGraph,自动处理 ReAct 循环,同时暴露了更多的配置选项(如 prompt、模型、工具列表、name 等)。代码分为四个步骤:定义工具 → 创建子 Agent → 构建 Supervisor → 运行测试。你可以直接复制这段代码到本地运行,只需安装依赖包即可。</p>
+
+<div class="step-executor">
+
+<script type="application/json">{"mode": "walkthrough", "lang": "python", "lines": ["\"\"\"", "FinAssist 多Agent系统 - LangGraph 1.x Supervisor模式实现", "依赖: langgraph>=1.2.11, langchain>=1.4, langchain-zai", "\"\"\"", "from langchain.agents import create_agent", "from langchain.chat_models import init_chat_model", "from langchain_core.tools import tool", "from langchain_core.messages import HumanMessage, AIMessage, SystemMessage", "from langgraph.graph import StateGraph, MessagesState, START, END", "from typing import Literal, Annotated", "from pydantic import BaseModel, Field", "", "", "# ============================================", "# 第1步:定义专业工具(按领域分组)", "# ============================================", "", "# --- 行情工具组 ---", "@tool", "def query_stock_price(ticker: str) -> str:", "
+
+\"\"\"查询指定股票的当前价格、涨跌幅和成交量。", "", "
+
+Args:", "
+
+ticker: 股票代码,如 'AAPL'(苹果)、'TSLA'(特斯拉)", "", "
+
+Returns:", "
+
+包含价格、涨跌幅、成交量的格式化字符串", "
+
+\"\"\"", "
+
+# 实际项目中对接行情API", "
+
+mock_data = {", "
+
+\"AAPL\": \"苹果(AAPL) 当前价格: $182.50 | 涨跌: +1.2% | 成交量: 52.3M\",", "
+
+\"TSLA\": \"特斯拉(TSLA) 当前价格: $251.30 | 涨跌: -0.8% | 成交量: 89.1M\",", "
+
+\"GOOG\": \"谷歌(GOOG) 当前价格: $142.80 | 涨跌: +0.5% | 成交量: 21.7M\",", "
+
+}", "
+
+return mock_data.get(ticker.upper(), f\"未找到股票 {ticker} 的行情数据\")", "", "", "@tool", "def get_market_news(topic: str, limit: int = 5) -> str:", "
+
+\"\"\"获取指定主题的最新市场新闻。", "", "
+
+Args:", "
+
+topic: 新闻主题,如 '科技'、'金融'、'能源'", "
+
+limit: 返回新闻条数,默认5条,最多20条", "", "
+
+Returns:", "
+
+新闻列表的格式化字符串", "
+
+\"\"\"", "
+
+return f\"【{topic}新闻】\\n1. {topic}板块早盘走强,机构看好后续走势\\n2. 政策利好推动{topic}行业估值修复\\n3. 分析师上调{topic}龙头企业评级\"", "", "", "@tool", "def analyze_financial_report(company: str, quarter: str) -> str:", "
+
+\"\"\"解读指定公司的季度财报。", "", "
+
+Args:", "
+
+company: 公司名称或代码,如 'AAPL'", "
+
+quarter: 财报季度,如 '2025Q3'", "", "
+
+Returns:", "
+
+财报关键指标摘要", "
+
+\"\"\"", "
+
+return f\"【{company} {quarter}财报摘要】\\n营收: $89.5B (同比+8.1%)\\n净利润: $22.4B (同比+10.3%)\\n毛利率: 46.2%\\n现金流: $24.1B\\n评价: 超预期\"", "", "", "# --- 风控工具组 ---", "@tool", "def assess_portfolio_risk(portfolio_id: str) -> str:", "
+
+\"\"\"评估指定投资组合的风险指标。", "", "
+
+Args:", "
+
+portfolio_id: 投资组合ID,如 'port_001'", "", "
+
+Returns:", "
+
+风险评估报告(VaR、Beta、波动率等)", "
+
+\"\"\"", "
+
+return f\"【组合 {portfolio_id} 风险评估】\\nVaR(95%): -2.3%\\nBeta: 1.15\\n波动率(年化): 18.7%\\n最大回撤: -12.4%\\n风险等级: 中等偏低\"", "", "", "@tool", "def check_compliance(action: str, details: str) -> str:", "
+
+\"\"\"检查指定操作是否符合合规要求。", "", "
+
+Args:", "
+
+action: 操作类型,如 '大额交易'、'跨境转账'、'关联交易'", "
+
+details: 操作详情", "", "
+
+Returns:", "
+
+合规检查结果", "
+
+\"\"\"", "
+
+return f\"【合规检查】操作类型: {action}\\n状态: ✅ 通过\\n备注: 符合SEC合规要求,无需额外审批\"", "", "", "# --- 交易工具组 ---", "@tool", "def calculate_tax(sell_price: float, buy_price: float, quantity: int) -> str:", "
+
+\"\"\"计算股票交易的税费。", "", "
+
+Args:", "
+
+sell_price: 卖出价格", "
+
+buy_price: 买入价格", "
+
+quantity: 交易数量", "", "
+
+Returns:", "
+
+税费计算明细", "
+
+\"\"\"", "
+
+profit = (sell_price - buy_price) * quantity", "
+
+tax_rate = 0.20  # 长期资本利得税", "
+
+tax = max(0, profit * tax_rate)", "
+
+return f\"【税费计算】\\n卖出价: ${sell_price} × {quantity}股\\n买入价: ${buy_price} × {quantity}股\\n利润: ${profit:,.2f}\\n应缴税: ${tax:,.2f} (税率{tax_rate*100:.0f}%)\"", "", "", "@tool", "def get_portfolio_overview() -> str:", "
+
+\"\"\"获取当前投资组合概览。", "", "
+
+Returns:", "
+
+持仓列表、总市值、盈亏情况", "
+
+\"\"\"", "
+
+return \"【投资组合概览】\\n总市值: $125,300\\n持仓:\\n  AAPL: 200股 @ $182.50 = $36,500 (+8.2%)\\n  TSLA: 50股 @ $251.30 = $12,565 (-3.1%)\\n  GOOG: 100股 @ $142.80 = $14,280 (+2.1%\\n可用资金: $61,955\\n今日盈亏: +$842 (+0.67%)\"", "", "", "# ============================================", "# 第2步:创建专业子Agent", "# ============================================", "", "# 行情分析Agent(5个工具)", "market_agent = create_agent(", "
+
+model=init_chat_model(\"deepseek-v4.1-flash\", model_provider=\"deepseek\"),", "
+
+tools=[query_stock_price, get_market_news, analyze_financial_report],", "
+
+system_prompt=\"\"\"你是FinAssist的行情分析专家。你负责:", "- 股票价格查询和行情解读", "- 市场新闻搜索和分析", "- 财报解读和关键指标提取", "", "你的回答应该专业、准确、简洁。使用数据说话,避免模糊表述。", "如果用户的问题超出你的专业范围,明确告知并建议转交其他专家。\"\"\",", "
+
+name=\"market_agent\",", ")", "", "# 风险管理Agent(4个工具)", "risk_agent = create_agent(", "
+
+model=init_chat_model(\"deepseek-v4.1-flash\", model_provider=\"deepseek\"),", "
+
+tools=[assess_portfolio_risk, check_compliance],", "
+
+system_prompt=\"\"\"你是FinAssist的风险管理专家。你负责:", "- 投资组合风险评估(VaR、Beta、波动率)", "- 合规检查和监管要求验证", "- 风险预警和建议", "", "你的回答必须严谨,所有结论都要有数据支撑。", "对于不确定的风险,必须标注\"待进一步评估\"。\"\"\",", "
+
+name=\"risk_agent\",", ")", "", "# 交易执行Agent(5个工具)", "trade_agent = create_agent(", "
+
+model=init_chat_model(\"deepseek-v4.1-flash\", model_provider=\"deepseek\"),", "
+
+tools=[calculate_tax, get_portfolio_overview],", "
+
+system_prompt=\"\"\"你是FinAssist的交易执行专家。你负责:", "- 交易税费计算", "- 投资组合查询", "- 资金管理和仓位建议", "", "你必须在执行任何交易前确认风险可控。", "所有计算结果保留两位小数。\"\"\",", "
+
+name=\"trade_agent\",", ")", "", "", "# ============================================", "# 第3步:构建Supervisor编排层", "# ============================================", "", "# Supervisor可用的\"工具\"就是三个子Agent", "# create_agent返回的对象可以直接作为工具使用", "", "supervisor_agent = None", "try:", "
+
+supervisor_agent = create_agent(", "
+
+model=init_chat_model(\"deepseek-v4.1-flash\", model_provider=\"deepseek\"),  # Supervisor用更强模型", "
+
+tools=[market_agent, risk_agent, trade_agent],  # 子Agent作为工具", "
+
+system_prompt=\"\"\"你是FinAssist的财务主管(Supervisor)。你的职责:", "", "
+
+1. **理解用户意图**:分析用户请求,判断需要哪些专业领域的能力", "
+
+2. **路由分发**:将任务委派给合适的专业Agent(行情、风控、交易)", "
+
+3. **结果综合**:收集各Agent的结果,综合成连贯的回答", "
+
+4. **质量把关**:检查结果是否完整、准确、有无矛盾", "", "
+
+你可以同时调用多个Agent来处理复合请求。", "
+
+例如\"分析AAPL并评估风险\"应该同时调用行情Agent和风控Agent。", "", "
+
+你的输出格式:", "
+
+- 先简要回应用户的问题", "
+
+- 然后呈现各专家的分析结果(用分隔线区分)", "
+
+- 最后给出综合建议", "", "
+
+重要:如果某个Agent的返回结果看起来不合理,你有权质疑并要求重新评估。\"\"\",", "
+
+name=\"supervisor\",", "
+
+)", "except Exception as _e:", "
+
+print(f\"[degraded] 子Agent需转换为工具(如 .as_tool())且需要可用模型环境: {type(_e).__name__}: {_e}\")", "", "", "# ============================================", "# 第4步:运行和测试", "# ============================================", "", "if __name__ == \"__main__\":", "
+
+if supervisor_agent is None:", "
+
+print(\"[degraded] Supervisor 未创建，跳过 FinAssist 实跑演示（专业子Agent已构建）\")", "
+
+raise SystemExit(0)", "
+
+# 测试用例1:简单查询(单Agent路由)", "
+
+print(\"=\" * 60)", "
+
+print(\"测试1:简单行情查询\")", "
+
+print(\"=\" * 60)", "
+
+result = supervisor_agent.invoke({", "
+
+\"messages\": [", "
+
+HumanMessage(content=\"帮我查一下苹果(AAPL)的股价\")", "
+
+]", "
+
+})", "
+
+for msg in result[\"messages\"]:", "
+
+if hasattr(msg, \"content\") and msg.content:", "
+
+print(f\"[{msg.__class__.__name__}] {msg.content[:200]}\")", "", "
+
+# 测试用例2:复合请求(多Agent并行)", "
+
+print(\"\\n\" + \"=\" * 60)", "
+
+print(\"测试2:复合请求 - 行情+风险\")", "
+
+print(\"=\" * 60)", "
+
+result = supervisor_agent.invoke({", "
+
+\"messages\": [", "
+
+HumanMessage(content=\"帮我分析一下AAPL的行情,同时评估我的投资组合(port_001)的风险\")", "
+
+]", "
+
+})", "
+
+for msg in result[\"messages\"]:", "
+
+if hasattr(msg, \"content\") and msg.content:", "
+
+print(f\"[{msg.__class__.__name__}] {msg.content[:200]}\")", "", "
+
+# 测试用例3:跨领域请求", "
+
+print(\"\\n\" + \"=\" * 60)", "
+
+print(\"测试3:跨领域请求 - 卖出+税算\")", "
+
+print(\"=\" * 60)", "
+
+result = supervisor_agent.invoke({", "
+
+\"messages\": [", "
+
+HumanMessage(content=\"如果我以182.5卖出200股AAPL(买入价145),需要交多少税?\")", "
+
+]", "
+
+})", "
+
+for msg in result[\"messages\"]:", "
+
+if hasattr(msg, \"content\") and msg.content:", "
+
+print(f\"[{msg.__class__.__name__}] {msg.content[:200]}\")", "# === fix-applied ==="], "steps": [{"title": "逻辑块 1", "desc": "执行数据处理操作。", "lineRange": [0, 10]}, {"title": "定义函数 query_stock_price(ticker)", "desc": "实际项目中对接行情API。", "lineRange": [19, 34]}, {"title": "定义函数 get_market_news(topic, limit)", "desc": "定义函数 get_market_news(topic, limit)，封装可复用的计算逻辑，具体操作：返回计算结果，参数 topic、limit 分别表示对应的输入数据。", "lineRange": [38, 48]}, {"title": "定义函数 analyze_financial_report(company, quarter)", "desc": "定义函数 analyze_financial_report(company, quarter)，封装可复用的计算逻辑，具体操作：返回计算结果，参数 company、quarter 分别表示对应的输入数据。", "lineRange": [52, 62]}, {"title": "定义函数 assess_portfolio_risk(portfolio_id)", "desc": "定义函数 assess_portfolio_risk(portfolio_id)，封装可复用的计算逻辑，具体操作：返回计算结果，参数 portfolio_id 分别表示对应的输入数据。", "lineRange": [67, 76]}, {"title": "定义函数 check_compliance(action, details)", "desc": "定义函数 check_compliance(action, details)，封装可复用的计算逻辑，具体操作：返回计算结果，参数 action、details 分别表示对应的输入数据。", "lineRange": [80, 90]}, {"title": "定义函数 calculate_tax(sell_price, buy_price, quantity)", "desc": "长期资本利得税。", "lineRange": [95, 109]}, {"title": "定义函数 get_portfolio_overview()", "desc": "定义函数 get_portfolio_overview()，封装可复用的计算逻辑，具体操作：返回计算结果。", "lineRange": [113, 119]}, {"title": "计算：market_agent", "desc": "风险管理Agent(4个工具)；交易执行Agent(5个工具)；第3步:构建Supervisor编排层；Supervisor可用的\"工具\"就是三个子Agent。", "lineRange": [127, 176]}, {"title": "条件判断", "desc": "测试用例1:简单查询(单Agent路由)；测试用例2:复合请求(多Agent并行)；测试用例3:跨领域请求。", "lineRange": [203, 241]}]}</script>
+</div>
+
+<div class="box info">
+
+<p class="box-title">📦 代码结构说明</p>
+
+<p>上面的代码遵循了 <strong>"工具→子Agent→Supervisor"</strong> 的三层构建顺序。这是 LangGraph 1.x 推荐的模块化构建方式:<code>create_agent</code> 返回的 Agent 对象可以直接作为另一个 Agent 的工具使用--这就是 Supervisor 模式的核心实现机制。Supervisor 的 LLM 会像选择普通工具一样选择合适的子 Agent 进行委派。</p>
+
+</div>
+
+<h3>3.3 添加验证层和错误处理</h3>
+
+<p>基于 MAST 失败分类法的分析,我们需要为系统添加防御措施。以下是验证层和错误处理的实现:</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["\"\"\"","FinAssist 多Agent系统 - 验证层与错误处理","接上文代码,此处展示如何为Supervisor添加安全网","\"\"\"","import time","from langchain_core.messages import HumanMessage, AIMessage","from langgraph.graph import StateGraph, MessagesState, START, END","","","# ============================================","# 验证模块:检查子Agent输出质量","# ============================================","","class AgentOutputValidator:","
+
+\"\"\"验证子Agent输出,防止MAST分类中的三类失败\"\"\"","","
+
+# 支柱1防御:规约检查","
+
+REQUIRED_FIELDS = {","
+
+\"market_agent\": [\"数据来源\", \"时间戳\"],","
+
+\"risk_agent\": [\"风险等级\", \"评估方法\"],","
+
+\"trade_agent\": [\"计算过程\", \"金额\"],","
+
+}","","
+
+# 支柱3防御:验证标准","
+
+QUALITY_KEYWORDS = [\"不确定\", \"无法确定\", \"数据不足\", \"需要更多信息\"]","","
+
+def validate(self, agent_name: str, output: str) -> dict:","
+
+\"\"\"","
+
+验证Agent输出,返回验证结果","","
+
+Returns:","
+
+{\"valid\": bool, \"issues\": list[str], \"confidence\": float}","
+
+\"\"\"","
+
+issues = []","","
+
+# 检查1:输出是否包含必需字段","
+
+required = self.REQUIRED_FIELDS.get(agent_name, [])","
+
+for field in required:","
+
+if field not in output:","
+
+issues.append(f\"缺失必需字段: {field}\")","","
+
+# 检查2:是否包含低质量信号","
+
+for keyword in self.QUALITY_KEYWORDS:","
+
+if keyword in output:","
+
+issues.append(f\"低质量信号: 包含'{keyword}'\")","","
+
+# 检查3:输出长度异常(过短可能信息不全,过长可能幻觉)","
+
+if len(output) > 2000:","
+
+issues.append(\"输出过长,可能包含冗余信息\")","","
+
+# 检查4:数值合理性(简单的正则提取和范围检查)","
+
+import re","
+
+numbers = re.findall(r'\\$?([\\d,]+\\.?\\d*)', output)","
+
+for n in numbers:","
+
+try:","
+
+val = float(n.replace(',', ''))","
+
+if val > 1e9:  # 超过10亿的数值需要警惕","
+
+issues.append(f\"异常大数值: {n},请核实\")","
+
+except ValueError:","
+
+pass","","
+
+confidence = max(0.0, 1.0 - len(issues) * 0.2)","
+
+return {","
+
+\"valid\": len(issues) == 0,","
+
+\"issues\": issues,","
+
+\"confidence\": confidence,","
+
+}","","","# ============================================","# 安全Supervisor包装器:带超时和降级","# ============================================","","class SafeSupervisor:","
+
+\"\"\"包装Supervisor Agent,添加超时、重试和降级机制\"\"\"","","
+
+def __init__(self, supervisor_agent, validator: AgentOutputValidator):","
+
+self.supervisor = supervisor_agent","
+
+self.validator = validator","
+
+self.max_retries = 2","
+
+self.timeout_seconds = 30","","
+
+def invoke(self, messages: list) -> dict:","
+
+\"\"\"安全调用Supervisor\"\"\"","
+
+start_time = time.time()","","
+
+try:","
+
+# 设置超时","
+
+result = self._invoke_with_timeout(messages)","","
+
+# 验证总耗时","
+
+elapsed = time.time() - start_time","
+
+if elapsed > self.timeout_seconds:","
+
+print(f\"⚠ 超时警告: 请求耗时 {elapsed:.1f}s\")","","
+
+# 支柱2防御:检查是否有Agent间冲突","
+
+self._check_agent_conflicts(result)","","
+
+return result","","
+
+except TimeoutError:","
+
+# 降级:返回基础信息","
+
+return {","
+
+\"messages\": [AIMessage(content=(","
+
+\"⚠ 由于响应超时,系统已降级运行。\"","
+
+\"以下是基础信息:\\n\\n\"","
+
+\"如需详细分析,请稍后重试或将问题拆分为更具体的子问题。\"","
+
+))]","
+
+}","
+
+except Exception as e:","
+
+return {","
+
+\"messages\": [AIMessage(content=f\"系统遇到错误: {str(e)}。请重试。\")]","
+
+}","","
+
+def _invoke_with_timeout(self, messages: list) -> dict:","
+
+\"\"\"带超时的调用。","","
+
+注意:当前为简化实现,直接同步调用,没有真正的超时机制。","
+
+方法名保留 _with_timeout 后缀以提醒生产环境必须替换。","
+
+生产环境应使用 asyncio.wait_for 或 signal.alarm 实现真正的超时控制。","
+
+\"\"\"","
+
+return self.supervisor.invoke({\"messages\": messages})","","
+
+def _check_agent_conflicts(self, result: dict):","
+
+\"\"\"检查多Agent结果冲突(支柱2防御)\"\"\"","
+
+messages = result.get(\"messages\", [])","
+
+# 提取所有数值性结论,检查是否矛盾","
+
+# 这里简化实现,生产环境需要更复杂的冲突检测","
+
+pass","","","# ============================================","# 使用示例","# ============================================","","if __name__ == \"__main__\":","
+
+validator = AgentOutputValidator()","","
+
+# 测试验证器","
+
+test_output = \"苹果(AAPL) 当前价格: $182.50 | 涨跌: +1.2%\"","
+
+validation = validator.validate(\"market_agent\", test_output)","
+
+print(f\"验证结果: {validation}\")","
+
+# 输出: {'valid': False, 'issues': [\"缺失必需字段: 数据来源\", \"缺失必需字段: 时间戳\"], 'confidence': 0.6}","","
+
+# 包装Supervisor","
+
+safe_supervisor = SafeSupervisor(supervisor_agent, validator)","","
+
+# 安全调用","
+
+result = safe_supervisor.invoke([","
+
+HumanMessage(content=\"分析TSLA最近的表现\")","
+
+])","
+
+print(f\"\\n响应: {result['messages'][-1].content[:300]}\")"],"steps":[{"title":"\"\"\" / FinAssist / 接上文代码,此处展示如何为Supervisor添加安全网","desc":"执行命令：\"\"\"；执行命令：FinAssist 多Agent系统 - 验证层与错误处理；执行命令：接上文代码,此处展示如何为Supervisor添加安全网；执行命令：import time；执行命令：from langchain_core.messages import HumanMessage, AIMessage；执行命令：from langgraph.graph import StateGraph, MessagesState, START。","lineRange":[0,6]},{"title":"命令组（第 10 行起）","desc":"============================================；验证模块:检查子Agent输出质量。","lineRange":[9,11]},{"title":"class / \"\"\"验证子Agent输出,防止MAST分类中的三类失败\"\"\"","desc":"执行命令：class AgentOutputValidator:；执行命令：\"\"\"验证子Agent输出,防止MAST分类中的三类失败\"\"\"。","lineRange":[13,14]},{"title":"REQUIRED_FIELDS / \"market_agent\": / \"risk_agent\":","desc":"支柱1防御:规约检查；执行命令：REQUIRED_FIELDS = {；执行命令：\"market_agent\": [\"数据来源\", \"时间戳\"],；执行命令：\"risk_agent\": [\"风险等级\", \"评估方法\"],；执行命令：\"trade_agent\": [\"计算过程\", \"金额\"],；执行命令：}。","lineRange":[16,21]},{"title":"QUALITY_KEYWORDS","desc":"支柱3防御:验证标准；执行命令：QUALITY_KEYWORDS = [\"不确定\", \"无法确定\", \"数据不足\", \"需要更多信息\"]。","lineRange":[23,24]},{"title":"def / \"\"\" / 验证Agent输出,返回验证结果","desc":"执行命令：def validate(self, agent_name: str, output: str) -> dict:；执行命令：\"\"\"；执行命令：验证Agent输出,返回验证结果。","lineRange":[26,28]},{"title":"Returns: / {\"valid\": / \"\"\"","desc":"执行命令：Returns:；执行命令：{\"valid\": bool, \"issues\": list[str], \"confidence\": float}；执行命令：\"\"\"；执行命令：issues = []。","lineRange":[30,33]},{"title":"required / for / if","desc":"检查1:输出是否包含必需字段；执行命令：required = self.REQUIRED_FIELDS.get(agent_name, [])；执行命令：for field in required:；执行命令：if field not in output:；执行命令：issues.append(f\"缺失必需字段: {field}\")。","lineRange":[35,39]},{"title":"for / if / issues.append(f\"低质量信号:","desc":"检查2:是否包含低质量信号；执行命令：for keyword in self.QUALITY_KEYWORDS:；执行命令：if keyword in output:；执行命令：issues.append(f\"低质量信号: 包含'{keyword}'\")。","lineRange":[41,44]},{"title":"if / issues.append(\"输出过长,可能包含冗余信息\")","desc":"检查3:输出长度异常(过短可能信息不全,过长可能幻觉)；执行命令：if len(output) > 2000:；执行命令：issues.append(\"输出过长,可能包含冗余信息\")。","lineRange":[46,48]},{"title":"import / numbers / for","desc":"检查4:数值合理性(简单的正则提取和范围检查)；执行命令：import re；执行命令：numbers = re.findall(r'\\$?([\\d,]+\\.?\\d*)', output)；执行命令：for n in numbers:；执行命令：try:；执行命令：val = float(n.replace(',', ''))；执行命令：if val > 1e9:  # 超过10亿的数值需要警惕；执行命令：issues.append(f\"异常大数值: {n},请核实\")；执行命令：except ValueError:；执行命令：pass。","lineRange":[50,59]},{"title":"confidence / return / \"valid\":","desc":"执行命令：confidence = max(0.0, 1.0 - len(issues) * 0.2)；执行命令：return {；执行命令：\"valid\": len(issues) == 0,；执行命令：\"issues\": issues,；执行命令：\"confidence\": confidence,；执行命令：}。","lineRange":[61,66]},{"title":"命令组（第 70 行起）","desc":"============================================；安全Supervisor包装器:带超时和降级。","lineRange":[69,71]},{"title":"class / \"\"\"包装Supervisor","desc":"执行命令：class SafeSupervisor:；执行命令：\"\"\"包装Supervisor Agent,添加超时、重试和降级机制\"\"\"。","lineRange":[73,74]},{"title":"def / self.supervisor / self.validator","desc":"执行命令：def __init__(self, supervisor_agent, validator: AgentOutputV；执行命令：self.supervisor = supervisor_agent；执行命令：self.validator = validator；执行命令：self.max_retries = 2；执行命令：self.timeout_seconds = 30。","lineRange":[76,80]},{"title":"def / \"\"\"安全调用Supervisor\"\"\" / start_time","desc":"执行命令：def invoke(self, messages: list) -> dict:；执行命令：\"\"\"安全调用Supervisor\"\"\"；执行命令：start_time = time.time()。","lineRange":[82,84]},{"title":"try: / result","desc":"执行命令：try:；设置超时；执行命令：result = self._invoke_with_timeout(messages)。","lineRange":[86,88]},{"title":"elapsed / if / print(f\"⚠","desc":"验证总耗时；执行命令：elapsed = time.time() - start_time；执行命令：if elapsed > self.timeout_seconds:；执行命令：print(f\"⚠ 超时警告: 请求耗时 {elapsed:.1f}s\")。","lineRange":[90,93]},{"title":"self._check_agent_conflicts(result)","desc":"支柱2防御:检查是否有Agent间冲突；执行命令：self._check_agent_conflicts(result)。","lineRange":[95,96]},{"title":"return","desc":"执行命令：return result。","lineRange":[98,98]},{"title":"except / return / \"messages\":","desc":"执行命令：except TimeoutError:；降级:返回基础信息；执行命令：return {；执行命令：\"messages\": [AIMessage(content=(；执行命令：\"⚠ 由于响应超时,系统已降级运行。\"；执行命令：\"以下是基础信息:\\n\\n\"；执行命令：\"如需详细分析,请稍后重试或将问题拆分为更具体的子问题。\"；执行命令：))]；执行命令：}；执行命令：except Exception as e:；执行命令：\"messages\": [AIMessage(content=f\"系统遇到错误: {str(e)}。请重试。\")]。","lineRange":[100,112]},{"title":"def / \"\"\"带超时的调用。","desc":"执行命令：def _invoke_with_timeout(self, messages: list) -> dict:；执行命令：\"\"\"带超时的调用。","lineRange":[114,115]},{"title":"注意:当前为简化实现,直接同步调用,没有真正的超时机制。 / 方法名保留 / 生产环境应使用","desc":"执行命令：注意:当前为简化实现,直接同步调用,没有真正的超时机制。；执行命令：方法名保留 _with_timeout 后缀以提醒生产环境必须替换。；执行命令：生产环境应使用 asyncio.wait_for 或 signal.alarm 实现真正的超时控制。；执行命令：\"\"\"；执行命令：return self.supervisor.invoke({\"messages\": messages})。","lineRange":[117,121]},{"title":"def / \"\"\"检查多Agent结果冲突(支柱2防御)\"\"\" / messages","desc":"执行命令：def _check_agent_conflicts(self, result: dict):；执行命令：\"\"\"检查多Agent结果冲突(支柱2防御)\"\"\"；执行命令：messages = result.get(\"messages\", [])；提取所有数值性结论,检查是否矛盾；这里简化实现,生产环境需要更复杂的冲突检测；执行命令：pass。","lineRange":[123,128]},{"title":"命令组（第 132 行起）","desc":"============================================；使用示例。","lineRange":[131,133]},{"title":"if / validator","desc":"执行命令：if __name__ == \"__main__\":；执行命令：validator = AgentOutputValidator()。","lineRange":[135,136]},{"title":"test_output / validation / print(f\"验证结果:","desc":"测试验证器；执行命令：test_output = \"苹果(AAPL) 当前价格: $182.50 | 涨跌: +1.2%\"；执行命令：validation = validator.validate(\"market_agent\", test_output)；执行命令：print(f\"验证结果: {validation}\")；输出: {'valid': False, 'issues': [\"缺失必需字段: 数据来源\", \"缺失必需字段: 时间戳\"], 'confidence': 0.6}。","lineRange":[138,142]},{"title":"safe_supervisor","desc":"包装Supervisor；执行命令：safe_supervisor = SafeSupervisor(supervisor_agent, validator。","lineRange":[144,145]},{"title":"result / HumanMessage(content=\"分析TSLA最近的表现\") / ])","desc":"安全调用；执行命令：result = safe_supervisor.invoke([；执行命令：HumanMessage(content=\"分析TSLA最近的表现\")；执行命令：])；执行命令：print(f\"\\n响应: {result['messages'][-1].content[:300]}\")。","lineRange":[147,151]}]}
+
+</script>
+</div>
+
+<h3>3.4 CrewAI 对照实现(简化版)</h3>
+
+<p>作为对比,下面展示用 CrewAI 1.x 实现相同架构的代码。CrewAI 的哲学是"团队角色化"--每个 Agent 有明确的角色(Role)、目标(Goal)和背景故事(Backstory),更像在组建一个虚拟团队。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode": "walkthrough", "lang": "python", "lines": ["\"\"\"", "FinAssist 多Agent系统 - CrewAI 1.x 实现", "依赖: crewai>=1.15.21, crewai-tools", "\"\"\"", "# CrewAI 内部默认会探测 Redis 缓存后端,验证环境无 Redis 时需先关掉,", "# 避免模块级初始化即触发 localhost:6379 连接失败", "import os", "os.environ.setdefault(\"CREWAI_DISABLE_REDIS_CACHE\", \"1\")", "# CrewAI 1.x 内部可能在导入期探测 redis.Redis.from_url(...);验证环境无 Redis 时会超时", "# 在导入 crewai 之前用惰性哨兵包一层 redis 客户端,让任何连接尝试安全降级", "try:", "
+
+import redis as _redis_mod", "
+
+_OrigRedis = _redis_mod.Redis", "
+
+class _NoRedis(_OrigRedis):", "
+
+def __init__(self, *a, **kw): pass", "
+
+def ping(self, *a, **kw): return False", "
+
+def get(self, *a, **kw): return None", "
+
+def set(self, *a, **kw): return True", "
+
+_redis_mod.Redis = _NoRedis", "except Exception:", "
+
+pass", "try:", "
+
+from crewai import Agent, Task, Crew, Process", "
+
+from crewai.llm import LLM", "except Exception as _crewai_imp_err:", "
+
+# crewai 不可用时给出诚实失败而非静默降级", "
+
+raise RuntimeError(f\"crewai 模块不可用: {_crewai_imp_err}\") from _crewai_imp_err", "", "", "# 使用国内模型", "llm = LLM(", "
+
+model=\"deepseek-v4.1-flash\",", "
+
+provider=\"openai\",  # 显式声明 provider，走智谱 OpenAI 兼容端点", "
+
+base_url=\"https://open.bigmodel.cn/api/paas/v4/\",", "
+
+api_key=__import__(\"os\").environ.get(\"DEEPSEEK_API_KEY\", \"your-api-key\"),  # 从环境变量读取,默认占位", "
+
+temperature=0.3,", ")", "# ============================================", "# 定义团队成员(角色化Agent)", "# ============================================", "", "market_analyst = Agent(", "
+
+role=\"行情分析师\",", "
+
+goal=\"提供准确的市场行情数据和专业的行情解读\",", "
+
+backstory=\"\"\"你是一位有10年经验的专业行情分析师,", "
+
+擅长股票分析、财报解读和市场趋势判断。", "
+
+你的分析以数据驱动,从不做没有依据的预测。\"\"\",", "
+
+llm=llm,", "
+
+verbose=True,", ")", "", "risk_manager = Agent(", "
+
+role=\"风险管理师\",", "
+
+goal=\"确保所有投资决策的风险可控且符合合规要求\",", "
+
+backstory=\"\"\"你是一位严谨的风险管理师,拥有CFA和FRM双证。", "
+
+你的评估标准严格但公正,从不容许没有数据支撑的结论。\"\"\",", "
+
+llm=llm,", "
+
+verbose=True,", ")", "", "trade_specialist = Agent(", "
+
+role=\"交易执行专员\",", "
+
+goal=\"高效准确地处理交易请求和资金管理\",", "
+
+backstory=\"\"\"你是一位资深的交易执行专员,熟悉各种交易规则和税务政策。", "
+
+你的计算精确到位,对每一笔交易都严格把关。\"\"\",", "
+
+llm=llm,", "
+
+verbose=True,", ")", "", "# ============================================", "# 定义任务", "# ============================================", "", "market_analysis_task = Task(", "
+
+description=\"\"\"分析 {stock_code} 的当前行情和近期表现。", "
+
+包括:当前价格、涨跌幅、成交量、近期趋势。", "
+
+如果有财报数据,提取关键指标。\"\"\",", "
+
+expected_output=\"包含具体数据的行情分析报告\",", "
+
+agent=market_analyst,", ")", "", "risk_assessment_task = Task(", "
+
+description=\"\"\"评估投资组合 {portfolio_id} 的整体风险。", "
+
+包括:VaR、Beta、波动率、最大回撤、合规状态。\"\"\",", "
+
+expected_output=\"结构化的风险评估报告,包含风险等级和建议\",", "
+
+agent=risk_manager,", ")", "", "# ============================================", "# 组建团队并执行", "# ============================================", "", "finassist_crew = Crew(", "
+
+agents=[market_analyst, risk_manager, trade_specialist],", "
+
+tasks=[market_analysis_task, risk_assessment_task],", "
+
+process=Process.sequential,  # 顺序执行(CrewAI 1.x 也支持 hierarchical)", "
+
+verbose=True,", ")", "", "# 执行", "if __name__ == \"__main__\":", "
+
+try:", "
+
+result = finassist_crew.kickoff(inputs={", "
+
+\"stock_code\": \"AAPL\",", "
+
+\"portfolio_id\": \"port_001\"", "
+
+})", "
+
+print(f\"\\n最终结果:\\n{result}\")", "
+
+except Exception as _e:", "
+
+# 未配置有效 API Key 或无网络时如实降级：Crew 定义与组建已完成，", "
+
+# 实际执行需要可用的大模型服务", "
+
+print(f\"[degraded] Crew 执行需要有效的大模型 API Key 与网络环境: {type(_e).__name__}: {_e}\")"], "steps": [{"title": "逻辑块 1", "desc": "使用国内模型；定义团队成员(角色化Agent)；定义任务；组建团队并执行。", "lineRange": [0, 66]}, {"title": "条件判断", "desc": "判断条件 __name__==..., 根据结果选择执行路径，可能修改变量：result，分支内操作：格式化输出结果。", "lineRange": [74, 79]}]}
+
+</script>
+</div>
+
+<div class="box compare-box">
+
+<p class="box-title">LangGraph vs CrewAI 对照</p>
+
+<p>两个框架的核心差异在于抽象层次:</p>
+
+<ul>
+
+<li><strong>LangGraph</strong>更底层,你直接操作图节点和边,对数据流有完全控制。适合需要精细控制编排逻辑的场景</li>
+
+<li><strong>CrewAI</strong>更高层,你定义角色和任务,框架自动编排。适合快速原型和角色明确的团队协作场景</li>
+
+<li>对于 FinAssist 这种需要自定义验证层的场景,<strong>LangGraph 更合适</strong>--你可以精确地在编排流程中插入验证节点</li>
+
+<li>如果只是快速验证想法,CrewAI 的代码量大约少 40%。CrewAI 的 YAML 配置方式也更接近"声明式",便于非工程师参与设计</li>
+
+<li>两个框架并非互斥:可以用 CrewAI 做原型验证,确认架构方向后再用 LangGraph 重写生产版本。这种渐进策略在硅谷创业公司中非常普遍</li>
+
+</ul>
+
+</div>
+
+<h3>3.5 关键设计决策回顾</h3>
+
+<div class="box key">
+
+<p class="box-title">本题架构设计要点</p>
+
+<ol>
+
+<li><strong>为什么选 Supervisor 模式而非 Swarm?</strong>因为 FinAssist 需要可审计的交易记录和明确的责任链。Supervisor 模式的集中控制特性使得每笔分析都可以追溯。</li>
+
+<li><strong>为什么 Supervisor 用 deepseek-v4.1-flash 而子 Agent 用 deepseek-v4.1-flash?</strong>模型分层策略--Supervisor 需要更强的意图理解和路由能力,而子 Agent 的任务更聚焦,中等模型就够用。这样可以降低 40-60% 的 Token 成本。</li>
+
+<li><strong>为什么添加独立验证层?</strong>MAST 数据显示 21% 的失败与验证缺失有关。一个轻量级的验证模块(即使只是字段检查和数值范围检查)就能拦截大量低级错误。</li>
+
+<li><strong>为什么用结构化 JSON 通信?</strong>MAST 支柱1(规约问题)占失败的 26%。结构化通信格式可以大幅减少 Agent 间的理解歧义。</li>
+
+</ol>
+
+</div>
+
+</div>
+
+<!-- ==================== Section 4: 举一反三 ==================== -->
+
+<div class="problem">
+
+<h2 id="section4">四、举一反三</h2>
+
+<p>掌握了单 Agent vs 多 Agent 的架构选择框架后,以下三个变体题帮助你将这套思维模型应用到不同场景中。每个变体题聚焦不同的能力维度。这三个变体分别对应 Swarm、Handoff 和 Pipeline 三种编排拓扑,加上本题的 Supervisor 模式,你就完整覆盖了所有主流的多 Agent 架构模式。</p>
+
+<!-- Variation 1 -->
+
+<h3>变体题 A:研究聚合系统--Swarm 模式设计</h3>
+
+<p><strong>学习目标</strong>:训练对<strong>去中心化协作模式</strong>的设计能力。与本题的 Supervisor(集中式)模式形成对照,理解何时该用集中控制、何时该让 Agent 自主涌现。</p>
+
+<p><strong>场景</strong>:你的公司需要构建一个<strong>竞争情报分析系统</strong>。每天早上,系统需要自动收集 20+ 家竞争对手的最新动态(产品发布、融资新闻、人事变动、专利申请、社交媒体舆情),并生成一份综合简报。</p>
+
+<p><strong>与原题的差异</strong>:</p>
+
+<ul>
+
+<li>任务从"交互式问答"变为"批量数据收集+综合"--更适合并行处理</li>
+
+<li>不需要实时响应(可以离线处理)--延迟不再是约束</li>
+
+<li>每个信息源的收集方式差异很大--Agent 需要更高的自主性</li>
+
+<li>信息量可能非常大--上下文管理更关键</li>
+
+</ul>
+
+<p><strong>考察的核心能力</strong>:并行调度设计 / 终止条件设计(Swarm 模式中最容易出问题的就是 Agent 无限循环--MAST 分类中的"循环依赖"失败模式)/ 结果聚合策略。提示:设计时必须定义明确的最大迭代次数、质量阈值和超时收敛机制,否则 Agent 可能陷入无限循环。</p>
+
+<p><strong>输入输出示例</strong>:</p>
+
+<ul>
+
+<li>输入:竞争对手列表 <code>["company_a", "company_b", ...]</code>,简报主题 <code>"AI芯片行业"</code></li>
+
+<li>输出:结构化情报简报(JSON 格式,包含每家公司的动态摘要 + 行业趋势分析 + 关键预警)</li>
+
+</ul>
+
+<!-- Variation 2 -->
+
+<h3>变体题 B:多阶段客服--Handoff 模式实现</h3>
+
+<p><strong>学习目标</strong>:训练对<strong>状态驱动转换</strong>的设计能力。Handoff 模式是多 Agent 系统中最难掌握的模式之一,因为它需要在保持对话连贯性的同时切换控制权。</p>
+
+<p><strong>场景</strong>:一家电商公司需要升级客服系统。当前流程是:用户先描述问题 → 信息收集 → 技术诊断 → 解决方案 → 满意度调查。每个阶段需要不同的专业能力和工具集。</p>
+
+<p><strong>与原题的差异</strong>:</p>
+
+<ul>
+
+<li>Agent 之间是<strong>串行交接</strong>而非并行--前一个 Agent 的输出是后一个 Agent 的输入</li>
+
+<li>需要维护<strong>跨 Agent 的对话状态</strong>--用户不需要对每个新 Agent 重新描述问题</li>
+
+<li>有明确的<strong>终止条件</strong>(满意度达标或升级人工)--可以学习终止条件设计</li>
+
+<li>Agent 切换时机需要自主判断--这是 Handoff 模式的核心挑战</li>
+
+</ul>
+
+<p><strong>考察的核心能力</strong>:状态传递设计 / Agent 切换条件定义 / 上下文连续性保障 / 对话历史压缩策略。提示:关键是设计一个 <code>ConversationState</code> 数据结构,包含用户画像、问题描述、已收集信息、处理进度等字段,每个 Agent 读取和更新这个共享状态而非维护独立的对话历史。</p>
+
+<p><strong>输入输出示例</strong>:</p>
+
+<ul>
+
+<li>输入:用户消息 <code>"我昨天买的手机壳颜色不对,而且尺寸也偏小"</code></li>
+
+<li>输出:多阶段处理后的完整客服记录(信息收集Agent→退换货Agent→满意度Agent的交接日志 + 最终处理结果)</li>
+
+</ul>
+
+<!-- Variation 3 -->
+
+<h3>变体题 C:文档处理流水线--Pipeline 模式与工具数量优化</h3>
+
+<p><strong>学习目标</strong>:训练对<strong>顺序编排和工具边界设计</strong>的能力。Pipeline 是最简单的多 Agent 模式,但"简单"不意味着"容易做对"--正确的阶段划分和工具分配需要深入思考。</p>
+
+<p><strong>场景</strong>:一家律所需要自动化处理合同审查流程。流程为:文档解析 → 条款提取 → 风险识别 → 合规检查 → 修改建议 → 报告生成。整个流程涉及 30+ 种工具(OCR、NLP、知识库查询、规则引擎等)。</p>
+
+<p><strong>与原题的差异</strong>:</p>
+
+<ul>
+
+<li>流程是<strong>严格顺序</strong>的--不需要并行或路由</li>
+
+<li>每个阶段的输入输出<strong>类型固定</strong>--可以严格定义数据契约</li>
+
+<li>工具数量更多(30+)--需要更精细的阶段划分</li>
+
+<li>对<strong>可审计性</strong>要求极高--每个决策都需要可追溯</li>
+
+</ul>
+
+<p><strong>考察的核心能力</strong>:Pipeline 阶段划分原则 / 阶段间数据契约设计 / 工具按阶段分配策略 / 可审计性实现。提示:阶段划分的核心原则是"每个阶段只做一件事",阶段间的数据契约用 Pydantic 模型定义。可审计性可以通过为每个阶段的输出附加元数据(时间戳、Agent名称、置信度)来实现,最终拼接为完整的审计日志。</p>
+
+<p><strong>输入输出示例</strong>:</p>
+
+<ul>
+
+<li>输入:PDF合同文件路径 <code>"contracts/vendor_agreement_v3.pdf"</code></li>
+
+<li>输出:结构化审查报告(包含每个阶段的处理结果 + 风险等级 + 修改建议 + 完整审计日志)</li>
+
+</ul>
+
+<div class="box tip">
+
+<p class="box-title">💡 变体题练习建议</p>
+
+<p>三个变体题分别对应<strong>并行模式(Swarm)</strong>、<strong>串行模式(Handoff)</strong>和<strong>流水线模式(Pipeline)</strong>--加上本题的 Supervisor 模式,你就完整覆盖了所有主流的多 Agent 编排拓扑。建议至少完成一个变体题的完整实现,包括架构设计文档和可运行的原型代码。完成全部三个变体后,你将具备在任何场景下选择和设计多 Agent 架构的系统性能力--这正是 Agent 架构师最核心的竞争力。</p>
+
+</div>
+
+</div>
+
+<!-- 要点回顾 -->
+
+<div class="problem">
+
+<div class="box key">
+
+<p class="box-title">🔑 核心知识点回顾</p>
+
+<ul>
+
+<li><strong>15工具天花板</strong>:单 Agent 工具超过 ~15 个后,选择准确率显著下降。但这不是硬限制--工具描述质量、语义距离和模型能力都会影响实际拐点</li>
+
+<li><strong>四种基础模式</strong>:Subagents(集中编排)、Skills(渐进披露)、Handoffs(状态交接)、Router(并行调度)--LangChain 分类法</li>
+
+<li><strong>五种生产拓扑</strong>:Orchestrator-Worker(最常用)、Pipeline、Hierarchical、Handoff、Swarm(多见于研究)</li>
+
+<li><strong>六大分解信号</strong>:工具数量、领域多样性、并行需求、安全边界、团队结构、独立扩展--≥2 个信号即建议拆分</li>
+
+<li><strong>通信开销</strong>:多 Agent 的 Token 总量不一定更高,但 LLM 调用次数翻倍,延迟 ×1.8-2.2,编排器吞吐上限 ~6.7 tasks/s</li>
+
+<li><strong>MAST 失败分类</strong>:3 大支柱 14 种模式--规约问题(26%)、Agent 间错位(53%)、任务验证(21%)。生产失败率 41-86.7%</li>
+
+<li><strong>基准数据</strong>:多 Agent 在复杂任务上比单 Agent 高 90.2%(Anthropic),复杂规划任务 42.68% vs 2.92%(Cornell)</li>
+
+<li><strong>渐进迁移路径</strong>:单 Agent → Skills 分组 → Subagents 隔离--低风险的分步升级策略</li>
+
+</ul>
+
+</div>
+
+</div>
+
+</strong></div>
+<div class="footer">
+  <p>Agent架构师试炼 · 开源资料 · GitHub</p>
+</div>
+</div>
+</body>
+</html>

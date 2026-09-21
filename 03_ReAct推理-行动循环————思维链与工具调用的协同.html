@@ -1,0 +1,3697 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReAct推理-行动循环——思维链与工具调用的协同</title>
+<style>
+/* ===== 标准电子资料样式 ===== */
+/* 协调者子agent在初始化阶段复制此文件到输出目录 */
+/* 配色通过 CSS 变量控制，协调者根据主题选择色板 */
+
+:root {
+  /* ===== 色板切换指南（协调者替换以下整块 :root 变量） =====
+  内置色板（直接复制对应区块替换默认值）：
+
+  绿色系（默认，Python/Qt系）：
+    --primary:#2C5F2D; --primary-dark:#1B3A1C; --primary-light:#4A8B4C; --accent:#41CD52; --accent-dark:#2E7D32; --accent-light:#81C784;
+    --primary-bg:#E8F5E9; --primary-border:#4CAF50; --accent-bg:#F1F8E9; --accent-border:#8BC34A; --bg-alt:#F4F9F4; --tip-bg:#E8F5E9;
+    SVG推荐：主题#2C5F2D#1B3A1C#4A8B4C#41CD52#81C784 背景#E8F5E9#F1F8E9#F5F5F5
+
+  蓝色系（通用技术）：
+    --primary:#2196F3; --primary-dark:#1565C0; --primary-light:#64B5F6; --accent:#00BCD4; --accent-dark:#00838F; --accent-light:#80DEEA;
+    --primary-bg:#E3F2FD; --primary-border:#42A5F5; --accent-bg:#E0F7FA; --accent-border:#26C6DA; --bg-alt:#F0F7FF; --tip-bg:#E3F2FD;
+    SVG推荐：主题#2196F3#1565C0#64B5F6#00BCD4#80DEEA 背景#E3F2FD#E0F7FA#F5F5F5
+
+  紫色系（AI/数据系）：
+    --primary:#7B1FA2; --primary-dark:#4A148C; --primary-light:#BA68C8; --accent:#E040FB; --accent-dark:#AA00FF; --accent-light:#EA80FC;
+    --primary-bg:#F3E5F5; --primary-border:#AB47BC; --accent-bg:#FCE4EC; --accent-border:#F48FB1; --bg-alt:#F4EFF5; --tip-bg:#F3E5F5;
+    SVG推荐：主题#7B1FA2#4A148C#BA68C8#E040FB#EA80FC 背景#F3E5F5#FCE4EC#F5F5F5
+
+  橙色系（Blender/设计系）：
+    --primary:#E8723A; --primary-dark:#C45A2D; --primary-light:#F5A623; --accent:#FF9800; --accent-dark:#E65100; --accent-light:#FFB74D;
+    --primary-bg:#FFF3E0; --primary-border:#FF9800; --accent-bg:#FFF8E1; --accent-border:#FFC107; --bg-alt:#FFF8F0; --tip-bg:#FFF3E0;
+    SVG推荐：主题#E8723A#C45A2D#F5A623#FF9800#FFB74D 背景#FFF3E0#FFF8E1#F5F5F5
+  */
+  /* 主题色（跟着色板走，切换色板时必须同步更新以下6行 + 衍生背景色6行） */
+  --primary: #7B1FA2;
+  --primary-dark: #4A148C;
+  --primary-light: #BA68C8;
+  --accent: #E040FB;
+  --accent-dark: #2E7D32;
+  --accent-light: #81C784;
+
+  /* 主题衍生背景色（跟着色板走） */
+  --primary-bg: #E8F5E9;        /* 主题色浅背景，用于信息卡片、提示框 */
+  --primary-border: #4CAF50;    /* 主题色边框 */
+  --accent-bg: #F1F8E9;         /* 强调色浅背景 */
+  --accent-border: #8BC34A;     /* 强调色边框 */
+  --bg-alt: #F4F9F4;            /* 主题色极浅背景，用于页面交替色 */
+  --tip-bg: #E8F5E9;            /* 提示框背景（与primary-bg一致） */
+
+  /* 语义色（固定不变，不随色板切换） */
+  --info-bg: #E3F2FD;           /* 蓝色信息背景 */
+  --info-border: #2196F3;       /* 蓝色信息边框 */
+  --info-text: #1565C0;         /* 蓝色信息文字 */
+  --success-bg: #E8F5E9;        /* 绿色成功背景 */
+  --success-border: #4CAF50;    /* 绿色成功边框 */
+  --success-text: #2E7D32;      /* 绿色成功文字 */
+  --warning-bg: #FFF3E0;        /* 橙色警告背景 */
+  --warning-border: #FF9800;    /* 橙色警告边框 */
+  --warning-text: #E65100;      /* 橙色警告文字 */
+  --danger-bg: #FFEBEE;         /* 红色危险背景 */
+  --danger-border: #E53935;     /* 红色危险边框 */
+  --danger-text: #C62828;       /* 红色危险文字 */
+  --highlight-bg: #FFFDE7;      /* 高亮背景（黄色系） */
+
+  /* 中性色（固定不变） */
+  --bg: #FFFFFF;
+  --bg-page: #F0EBE5;
+  --bg-card: #F5F5F5;           /* 卡片/面板背景 */
+  --bg-code-inline: #F0F0F0;    /* 行内代码背景 */
+  --text: #2D2D2D;
+  --text-light: #555;
+  --text-muted: #757575;        /* 次要文字（标签、注释） */
+  --border: #D0D0D0;
+  --border-light: #E0E0E0;      /* 浅边框（分隔线） */
+  --code-bg: #1E1E2E;
+  --code-text: #CDD6F4;
+  --max-width: 900px;
+
+  /*
+  SVG推荐色板（SVG fill/stroke 必须用十六进制，从以下颜色中选用）：
+  主题：#2C5F2D(主) #1B3A1C(深) #4A8B4C(浅) #41CD52(强调) #81C784(强调浅)
+  语义：#2196F3(信息) #4CAF50(成功) #FF9800(警告) #E53935(危险) #FFB300(注意)
+  中性：#757575(灰) #BDBDBD(浅灰) #E0E0E0(极浅灰) #fff(白) #2D2D2D(深)
+  背景：#E8F5E9(主题浅) #E3F2FD(信息浅) #FFF3E0(警告浅) #FFEBEE(危险浅) #F5F5F5(卡片)
+  */
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", -apple-system, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--bg-page);
+  line-height: 1.85; -webkit-font-smoothing: antialiased;
+  word-break: break-word; overflow-wrap: break-word;
+}
+/* 等宽字体异步加载（Fira Code CDN） */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== 内容容器（模拟纸张感） ===== */
+.book {
+  max-width: var(--max-width); margin: 0 auto;
+  background: var(--bg); min-height: 100vh;
+  box-shadow: 0 0 40px rgba(0,0,0,0.06); overflow: hidden;
+}
+
+/* ===== 封面 ===== */
+.cover {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  min-height: 100vh; text-align: center;
+  background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 90%, var(--accent) 100%);
+  color: #fff; padding: 3rem 2rem; page-break-after: always;
+  position: relative; overflow: hidden;
+}
+.cover::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.cover::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.15));
+  pointer-events: none;
+}
+.cover-decoration { margin-bottom: 24px; position: relative; z-index: 1; }
+.cover-badge {
+  display: inline-block; padding: 4px 16px; border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; font-size: 0.8rem; letter-spacing: 0.1em;
+  margin-bottom: 20px; opacity: 0.75; position: relative; z-index: 1;
+}
+.cover h1 { font-size: 3.75rem; font-weight: 900; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #fff !important; border: none !important; page-break-before: auto !important; padding: 0 !important; position: relative; z-index: 1; }
+.cover .subtitle { font-size: 1.625rem; opacity: 0.85; margin-bottom: 1rem; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.cover .tagline { font-size: 1.1rem; opacity: 0.65; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 1; }
+.cover-features { display: flex; gap: 12px; margin-bottom: 2rem; position: relative; z-index: 1; flex-wrap: wrap; justify-content: center; }
+.cover-feature {
+  padding: 4px 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; font-size: 0.85rem; letter-spacing: 0.02em;
+}
+.cover-author { font-size: 1.1rem; opacity: 0.7; margin-bottom: 0.3rem; position: relative; z-index: 1; }
+.cover-date { font-size: 0.9rem; opacity: 0.5; position: relative; z-index: 1; }
+/* 兼容旧版封面 */
+.cover .meta { font-size: 1.1rem; opacity: 0.55; position: relative; z-index: 1; }
+
+/* ===== 目录（卡片式） ===== */
+.toc { padding: 50px 40px; background: #FFFCF9; border-bottom: 1px solid #EDE8E3; }
+.toc-title { font-size: 1.5rem; color: var(--text); margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid var(--accent); display: inline-block; }
+.toc-list { display: flex; flex-direction: column; gap: 12px; }
+.toc-item {
+  display: block; padding: 12px 18px; background: #fff;
+  border: 1px solid #EDE8E3; border-radius: 10px;
+  text-decoration: none; color: var(--text); font-size: 0.95rem;
+  transition: all 0.2s;
+}
+.toc-item:hover { background: var(--bg-alt); border-color: var(--accent); transform: translateX(4px); text-decoration: none; }
+.toc-num { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-desc { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.toc-section { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+/* Practice type TOC */
+.toc-section-title { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+.toc-group { margin-bottom: 8px; }
+.toc-group-title { font-size: 0.85rem; color: var(--text-light); font-weight: 600; margin: 8px 0; padding-left: 4px; }
+.toc-number { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-title-text { color: var(--text); }
+.toc-tags { float: right; display: flex; gap: 6px; align-items: center; }
+.toc-tag { font-size: 0.75rem; color: var(--primary); background: var(--primary-bg, #E8F5E9); padding: 2px 8px; border-radius: 4px; }
+
+/* ===== 章节容器 ===== */
+.chapter {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.chapter::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+  margin: 20px 0 0; opacity: 0.6;
+}
+
+/* ===== 前言 ===== */
+.preface {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 术语表 ===== */
+.glossary {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 附录 ===== */
+.appendix {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 练习题容器（practice类型） ===== */
+.problem {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.problem::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 20px 0 0; opacity: 0.4;
+}
+
+/* ===== 练习题头部 ===== */
+.problem-header {
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent);
+}
+
+/* ===== 章节头部（编号圆圈+标题） ===== */
+.chapter-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent); position: relative;
+}
+.chapter-header::after {
+  content: ''; position: absolute; bottom: -3px; left: 0; width: 60px; height: 3px;
+  background: var(--primary-dark); border-radius: 2px;
+}
+.chapter-header .chapter-num {
+  flex-shrink: 0; width: 48px; height: 48px; line-height: 48px;
+  text-align: center; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+  border-radius: 50%; font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+}
+.chapter-header .chapter-num::after {
+  content: ''; position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px;
+  border-radius: 50%; border: 2px solid var(--accent); opacity: 0.4;
+}
+.chapter-header .chapter-title {
+  font-size: 1.8rem; font-weight: 800; color: var(--primary);
+  line-height: 1.35; margin: 0; border: none; padding: 0;
+}
+.chapter-header .chapter-icon { flex-shrink: 0; }
+
+/* ===== 标题层级 ===== */
+h1 { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 40px 0 20px; line-height: 1.4; page-break-before: always; }
+h1:first-of-type { page-break-before: auto; }
+h2 {
+  font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin: 40px 0 18px; padding-top: 20px;
+  padding-left: 14px;
+  border-top: 2px solid;
+  border-image: linear-gradient(90deg, var(--accent), var(--primary-light), transparent) 1;
+  line-height: 1.4;
+  border-left: 4px solid var(--accent);
+}
+h3 {
+  font-size: 1.2rem; font-weight: 700; color: var(--primary-light); margin: 30px 0 12px; line-height: 1.4;
+  padding-left: 10px; border-left: 3px solid var(--primary-light);
+}
+h4 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 22px 0 10px; }
+
+/* ===== 段落 ===== */
+p { margin: 14px 0; text-align: justify; line-height: 1.85; }
+ul, ol { margin: 14px 0; padding-left: 28px; }
+li { margin: 8px 0; line-height: 1.8; }
+li ul { margin: 4px 0; }
+strong { color: var(--primary-dark); }
+
+/* ===== 难度标记 ===== */
+.difficulty { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+.difficulty.basic { background: #E8F5E9; color: #2E7D32; }
+.difficulty.intermediate { background: #FFF3E0; color: #E65100; }
+.difficulty.advanced { background: #FCE4EC; color: #C62828; }
+
+/* ===== 代码块 ===== */
+pre {
+  background: var(--code-bg) !important; color: var(--code-text);
+  padding: 20px 24px; border-radius: 10px;
+  overflow-x: auto; margin: 18px 0; max-width: 100%;
+  font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace;
+  font-size: 0.87rem; line-height: 1.7;
+  page-break-inside: avoid; border: 1px solid #2A2A3E;
+  position: relative;
+}
+pre code {
+  background: transparent !important; color: var(--code-text) !important;
+  font-size: 0.87rem; line-height: 1.7;
+  display: block; white-space: pre-wrap; word-wrap: break-word;
+}
+code { font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace; font-size: 0.88em; }
+:not(pre) > code {
+  background: #FFF3E0; color: #C45A2D;
+  padding: 2px 6px; border-radius: 4px; word-break: break-all;
+}
+
+/* 语法高亮 */
+pre .kw { color: #569CD6; }
+pre .str { color: #CE9178; }
+pre .cmt { color: #6A9955; font-style: italic; }
+pre .fn { color: #DCDCAA; }
+pre .num { color: #B5CEA8; }
+pre .cls { color: #4EC9B0; }
+pre .op { color: #D4D4D4; }
+pre .dec { color: #C586C0; }
+pre .param { color: #9CDCFE; }
+
+/* 实战案例完整代码块 */
+.project-example { margin: 1.5rem 0; border: 2px solid var(--accent); border-radius: 10px; overflow: hidden; }
+.project-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+.project-tag { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+.project-title { font-weight: 600; font-size: 14px; }
+.project-desc { padding: 10px 16px; background: #FFF8F0; font-size: 14px; color: #555; border-bottom: 1px solid #EEE; }
+.project-example pre { margin: 0; border-radius: 0; border: none; }
+.project-run { padding: 10px 16px; background: #F0FFF0; font-size: 13px; color: #333; border-top: 1px solid #DDD; }
+
+/* 代码块滚动条 */
+pre::-webkit-scrollbar { height: 6px; }
+pre::-webkit-scrollbar-track { background: var(--code-bg); }
+pre::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* 代码块语言标签（纯CSS实现） */
+pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute; top: 0; right: 0;
+  padding: 3px 10px; border-radius: 0 10px 0 6px;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-transform: uppercase;
+}
+
+/* ===== 表格 ===== */
+.styled-table, table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  margin: 18px 0; font-size: 0.9rem;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid #EDE8E3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+th {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; font-weight: 600; padding: 12px 16px; text-align: left; white-space: nowrap;
+}
+td { padding: 10px 16px; border-top: 1px solid #F0EBE5; }
+tr:nth-child(even) { background: #FFFCF9; }
+tr:hover { background: var(--bg-alt); }
+
+/* 宽表格水平滚动（防溢出） */
+.table-wrap { overflow-x: auto; margin: 18px 0; border-radius: 10px; }
+.table-wrap table { margin: 0; }
+
+/* ===== 装饰性SVG/图表容器 ===== */
+.concept-svg {
+  text-align: center; margin: 25px 0; padding: 18px;
+  background: linear-gradient(135deg, var(--bg-alt) 0%, #FAFAFA 100%);
+  border-radius: 12px; border: 1px solid #E0E8E0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.concept-svg svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+/* SVG 内部元素默认视觉增强 */
+.concept-svg svg rect { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+.concept-svg svg circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+
+/* 兼容旧版 CSS div 图表 */
+.chart-container { max-width: 800px; margin: 28px auto; padding: 16px; font-family: -apple-system, "PingFang SC", sans-serif; }
+.chart-container h3, .chart-container h4 { font-size: 1rem; color: var(--primary); margin-bottom: 14px; text-align: center; }
+.flowchart { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.flowchart .step { padding: 14px 22px; background: var(--bg-alt); border: 2px solid var(--primary-light); border-radius: 10px; font-weight: 600; text-align: center; min-width: 110px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+.flowchart .step.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: var(--primary-dark); }
+.flowchart .arrow { font-size: 22px; color: var(--primary-light); padding: 0 4px; }
+
+/* ===== CSS div 图表样式（SVG 替代方案，节省 token） ===== */
+/* 对比卡片（左右对比、前后对比） */
+.compare-card { display: flex; flex-direction: column; gap: 12px; align-items: stretch; margin: 24px 0; }
+.compare-card .compare-col { display: flex; flex-direction: column; gap: 10px; }
+.compare-card .compare-item { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-alt); }
+.compare-card .compare-item.bad { border-color: #E57373; background: #FFF5F5; }
+.compare-card .compare-item.good { border-color: #81C784; background: #F1F8F1; }
+.compare-card .compare-item strong { display: block; margin-bottom: 4px; font-size: 0.93rem; }
+.compare-card .compare-item span { font-size: 0.87rem; color: var(--text-light); }
+.compare-card .compare-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.compare-card .compare-item:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+.compare-card .compare-divider { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary); font-weight: 700; }
+
+/* 步骤卡片 */
+.steps-card { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+.steps-card .step-item { display: flex; gap: 14px; padding: 14px 0; border-left: 3px solid var(--primary-light); padding-left: 16px; position: relative; }
+.steps-card .step-item::before { content: attr(data-step); position: absolute; left: -14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.steps-card .step-item strong { display: block; margin-bottom: 4px; }
+.steps-card .step-item span { font-size: 0.9rem; color: var(--text-light); }
+.steps-card .step-item { transition: border-color 0.2s ease; }
+.steps-card .step-item:hover { border-color: var(--primary-dark); }
+
+/* 特性/标签网格 */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+.feature-grid .feature-item { padding: 14px 16px; border-radius: 8px; background: var(--bg-alt); border: 1px solid var(--border); }
+.feature-grid .feature-item strong { display: block; margin-bottom: 6px; color: var(--primary-dark); }
+.feature-grid .feature-item span { font-size: 0.87rem; color: var(--text-light); line-height: 1.6; }
+.feature-grid .feature-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.feature-grid .feature-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--primary-border); }
+.timeline { position: relative; padding-left: 44px; }
+.timeline::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--primary), var(--primary-light)); border-radius: 2px; }
+.timeline .event { position: relative; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-alt); border-radius: 10px; border: 1px solid #D6E8D6; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+.timeline .event:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: var(--primary-light); }
+.timeline .event::before { content: ''; position: absolute; left: -36px; top: 16px; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--primary); }
+.timeline .event .year { font-weight: 700; color: var(--primary); font-size: 1.05rem; }
+.compare { display: flex; flex-direction: column; gap: 12px; }
+.compare .col { flex: 1; padding: 22px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.compare .col-a { background: #FFF3E0; border-left: 5px solid #FF9800; }
+.compare .col-b { background: #E8F5E9; border-left: 5px solid #4CAF50; }
+.compare .col-c { background: #E3F2FD; border-left: 5px solid #2196F3; }
+.compare .col h3 { margin-top: 0; font-size: 1.05rem; }
+.compare .col ul { padding-left: 18px; }
+.hierarchy { text-align: center; }
+.hierarchy .node { display: inline-block; padding: 12px 28px; border-radius: 10px; margin: 6px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.hierarchy .level-0 .node { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; font-size: 18px; }
+.hierarchy .level-1 .node { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: white; }
+.hierarchy .level-2 .node { background: linear-gradient(135deg, #B8D9BA, #A0C8A0); color: #333; }
+.hierarchy .arrow-down { color: #999; font-size: 22px; margin: 4px 0; }
+.matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #ddd; border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; }
+.matrix .cell { padding: 28px; text-align: center; font-weight: 600; }
+.matrix .q1 { background: #E3F2FD; }
+.matrix .q2 { background: #FFF3E0; }
+.matrix .q3 { background: #F3E5F5; }
+.matrix .q4 { background: #E8F5E9; }
+.cycle { text-align: center; }
+.cycle .ring { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 14px; max-width: 520px; }
+.cycle .node { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; padding: 10px; border: 3px solid; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+/* ===== 引用框 ===== */
+blockquote.chapter-quote {
+  background: linear-gradient(135deg, #FFF8F3, #FFFCF9);
+  border-left: 4px solid var(--accent); padding: 18px 22px; margin: 20px 0;
+  border-radius: 0 10px 10px 0; font-style: normal;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+blockquote.chapter-quote::before {
+  content: '"'; font-size: 2.5rem; color: var(--accent); opacity: 0.3;
+  position: absolute; top: -5px; left: 10px; font-family: Georgia, serif;
+}
+blockquote.chapter-quote { position: relative; }
+blockquote p { margin: 6px 0; }
+
+/* ===== 提示框 ===== */
+.box {
+  padding: 1.1rem 1.3rem; border-radius: 10px; margin: 1.2rem 0 1.5rem;
+  border-left: 5px solid; page-break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.box p:last-child { margin-bottom: 0; }
+.box-title { font-weight: 700; margin-bottom: 0.3rem; font-size: 0.95rem; }
+/* 提示框标题 emoji 增强显示 */
+.box-title::before { margin-right: 4px; }
+.box.tip { background: var(--tip-bg); border-color: var(--accent); }
+.box.tip .box-title { color: var(--primary); }
+.box.warn { background: var(--warn-bg); border-color: #FFA000; }
+.box.warn .box-title { color: #E65100; }
+.box.danger { background: var(--danger-bg); border-color: #D32F2F; }
+.box.danger .box-title { color: #C62828; }
+.box.info { background: #E3F2FD; border-color: #1976D2; }
+.box.info .box-title { color: #0D47A1; }
+
+/* 实战案例框 */
+.box.case { background: #FFF8E1; border-color: #FF8F00; }
+.box.case .box-title::before { content: '💡 '; }
+.box.case .box-title { color: #E65100; }
+
+/* 常见错误框 */
+.box.pitfall { background: #FBE9E7; border-color: #BF360C; }
+.box.pitfall .box-title::before { content: '⚠️ '; }
+.box.pitfall .box-title { color: #BF360C; }
+
+/* 知识卡片 */
+.box.key { background: #E8EAF6; border-color: #303F9F; }
+.box.key .box-title::before { content: '🔑 '; }
+.box.key .box-title { color: #1A237E; }
+
+/* 对比分析框 */
+.box.compare-box { background: #F3E5F5; border-color: #7B1FA2; }
+.box.compare-box .box-title::before { content: '⚖️ '; }
+.box.compare-box .box-title { color: #4A148C; }
+
+/* 最佳实践框 */
+.box.practice { background: #E0F2F1; border-color: #00695C; }
+.box.practice .box-title::before { content: '✅ '; }
+.box.practice .box-title { color: #004D40; }
+
+/* 公式/关键数据框 */
+.box.formula { background: #ECEFF1; border-color: #546E7A; }
+.box.formula .box-title::before { content: '📊 '; }
+.box.formula .box-title { color: #37474F; }
+
+/* ===== 统计卡片网格 ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 24px 0; }
+.stat-grid .stat-item { padding: 18px 16px; border-radius: 10px; background: var(--bg-alt); border: 1px solid var(--border); text-align: center; transition: transform 0.2s ease, border-color 0.2s ease; }
+.stat-grid .stat-item:hover { transform: translateY(-2px); border-color: var(--primary); }
+.stat-grid .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-grid .stat-label { font-size: 0.85rem; color: var(--text-light); margin-top: 6px; }
+.stat-grid .stat-item.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border-color: var(--primary-dark); }
+.stat-grid .stat-item.highlight .stat-value { color: #fff; }
+.stat-grid .stat-item.highlight .stat-label { color: rgba(255,255,255,0.8); }
+
+/* ===== 进度条/能力条 ===== */
+.progress-list { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+.progress-list .progress-item { }
+.progress-list .progress-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; font-weight: 600; }
+.progress-list .progress-label span:last-child { color: var(--primary); }
+.progress-list .progress-bar { height: 10px; background: #E8E8E8; border-radius: 5px; overflow: hidden; }
+.progress-list .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--primary-light), var(--primary)); transition: width 0.3s; }
+.progress-list .progress-fill.warn { background: linear-gradient(90deg, #FFB74D, #FF9800); }
+.progress-list .progress-fill.danger { background: linear-gradient(90deg, #E57373, #D32F2F); }
+
+/* ===== 四象限图 ===== */
+.quadrant { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--border); border-radius: 12px; overflow: hidden; max-width: 640px; margin: 24px auto; }
+.quadrant .q-cell { padding: 22px 18px; }
+.quadrant .q-cell.q1 { background: #E3F2FD; }
+.quadrant .q-cell.q2 { background: #FFF3E0; }
+.quadrant .q-cell.q3 { background: #F3E5F5; }
+.quadrant .q-cell.q4 { background: #E8F5E9; }
+.quadrant .q-cell strong { display: block; font-size: 0.95rem; margin-bottom: 6px; color: var(--primary-dark); }
+.quadrant .q-cell ul { padding-left: 16px; margin: 0; }
+.quadrant .q-cell li { font-size: 0.85rem; margin: 3px 0; }
+.quadrant .axis-label { text-align: center; font-size: 0.8rem; color: var(--text-light); padding: 6px 0; font-weight: 600; }
+.quadrant .axis-x { grid-column: 1 / -1; border-top: 2px solid var(--primary-light); }
+.quadrant .axis-y-left { writing-mode: vertical-lr; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+.quadrant .axis-y-right { writing-mode: vertical-rl; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+
+/* ===== 标签云 ===== */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; justify-content: center; }
+.tag-cloud .tag { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: var(--bg-alt); border: 1px solid var(--border); color: var(--primary-dark); }
+.tag-cloud .tag.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tag-cloud .tag.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== 分隔线 ===== */
+hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 40px 0; }
+/* 装饰性分隔符（章节间主题切换时使用） */
+hr.divider-accent {
+  height: 3px; margin: 48px 0;
+  background: linear-gradient(90deg, transparent 5%, var(--primary-light) 20%, var(--accent) 50%, var(--primary-light) 80%, transparent 95%);
+  position: relative;
+}
+hr.divider-accent::after {
+  content: '◆'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--bg); color: var(--accent); padding: 0 8px; font-size: 0.7rem;
+}
+
+/* ===== 面包屑导航 ===== */
+.breadcrumb { padding: 12px 0; font-size: 14px; color: #888; border-bottom: 1px solid #F0EBE5; margin-bottom: 24px; }
+.breadcrumb a { color: var(--primary); text-decoration: none; }
+
+/* ===== 底部章节导航 ===== */
+.chapter-nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; margin-top: 48px; border-top: 2px solid #F0EBE5; }
+.chapter-nav a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ===== 开头引子 ===== */
+.hook { padding: 20px 0; margin-bottom: 10px; }
+
+/* ===== 页脚 ===== */
+.footer { text-align: center; padding: 2rem; margin-top: 3rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-light); }
+
+/* ===== 回到顶部 ===== */
+.back-top {
+  position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px;
+  background: var(--primary); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: none; z-index: 100; line-height: 44px; text-align: center;
+  text-decoration: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .sidebar-toc { transform: translateX(-100%); }
+  .sidebar-toc.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.1); }
+  button.sidebar-toggle { display: block; }
+  .book { margin-left: 0 !important; }
+}
+
+@media (max-width: 768px) {
+  .book { box-shadow: none; }
+  .chapter, .toc { padding: 30px 20px; }
+  .cover { padding: 50px 20px 40px; }
+  .cover h1 { font-size: 2.5rem; }
+  .chapter-header { flex-direction: column; text-align: center; }
+  .chapter-header .chapter-title { font-size: 1.4rem; }
+  h2 { font-size: 1.3rem; }
+  pre { padding: 14px 16px; font-size: 0.8rem; }
+  .compare { flex-direction: column; }
+  .chart-container { max-width: 100%; }
+  table, .styled-table { font-size: 0.85rem; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (max-width: 480px) {
+  .cover h1 { font-size: 2rem; }
+  .chapter, .toc { padding: 20px 15px; }
+  pre { padding: 12px; border-radius: 6px; }
+}
+
+/* ===== 打印 ===== */
+@media print {
+  body { background: #fff; color: #000; font-size: 12pt; line-height: 1.6; }
+  .book { box-shadow: none; max-width: 100%; }
+  .cover {
+    background: none; color: #000; border: 2px solid #000;
+    page-break-after: auto;
+    /* 2026-08-17 封面整页修复：内联 min-height:100vh 在打印中映射纸高(297mm)>内容区(267mm)会溢出成空白页，
+       改为固定内容区高度(留 9mm 余量防舍入溢出)，flex 垂直居中保留 */
+    min-height: 258mm !important; height: 258mm !important; max-height: 258mm !important;
+    box-sizing: border-box !important; margin: 0 !important; padding: 0 !important;
+  }
+  .cover h1 { color: #000 !important; text-shadow: none; font-size: 30pt; }
+  .cover .subtitle, .cover .tagline { color: #333; opacity: 1; }
+  h1, h2, h3, h4 { color: #000; page-break-after: avoid; }
+  h1 { page-break-before: always; font-size: 18pt; }
+  h1:first-of-type { page-break-before: auto; }
+  h2 { font-size: 14pt; border-left-width: 3px; border-left-color: #666; border-top-color: #ddd; }
+  h3 { font-size: 12pt; border-left-color: #999; }
+  .chapter { page-break-inside: auto; padding: 20px 0; border-bottom: 1px solid #ccc; }
+  pre {
+    border: 1px solid #ccc; background: #f5f5f5 !important;
+    color: #333 !important; font-size: 9pt; line-height: 1.5;
+    page-break-inside: avoid; white-space: pre-wrap;
+  }
+  pre .kw, pre .str, pre .cmt, pre .fn, pre .num, pre .cls, pre .op, pre .dec, pre .param {
+    color: #333 !important;
+  }
+  a { color: #000; text-decoration: underline; }
+  .box { border-left-width: 2px; background: #f9f9f9 !important; }
+  .box .box-title { color: #333 !important; }
+  table, .styled-table { box-shadow: none; }
+  th { background: #eee !important; color: #000 !important; }
+  tr:nth-child(even) { background: #fafafa; }
+  .concept-svg { background: none; border: 1px solid #ddd; }
+  .no-print, .back-top, .back-to-top, .chapter-nav, .breadcrumb, .sidebar-toc, .sidebar-toggle, .reading-progress { display: none !important; }
+  body.sidebar-active { padding-left: 0 !important; }
+  .book { margin-left: 0 !important; }
+  .toc { background: none; border: none; page-break-after: auto; page-break-before: always; break-before: page; }
+  /* 2026-08-17 空白页修复：分页统一由 break-before 承担，隐藏 .page-break 空div和锚点，
+     避免"内容恰好填满一页 + 尾随 break div 溢出"产生的空白页 */
+  .page-break { display: none !important; }
+  .section-anchor { display: none !important; }
+  .preface, .chapter, .problem, .copyright-page { page-break-before: always; break-before: page; }
+  .copyright-page { min-height: 200mm !important; height: auto !important; padding: 80px 20px; }
+  @page { margin: 14mm 10mm; size: A4; }
+}
+
+/* ===== 代码块增强（后处理脚本自动生成） ===== */
+/* Writer 无需手动写这些结构，enhance-code.py 会自动将 <pre> 包裹为 code-block */
+
+.code-block {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.code-block .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.code-block .code-lang {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .code-filename {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  margin-left: 8px;
+}
+.code-block .copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .copy-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
+}
+.code-block .copy-btn.copied {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  background: rgba(76,175,80,0.1);
+}
+.code-block pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+/* 行号支持：code-block-numbered 的 pre 使用 CSS counter 显示行号 */
+.code-block.code-block-numbered pre {
+  counter-reset: code-line;
+}
+.code-block.code-block-numbered .code-line {
+  counter-increment: code-line;
+  display: block;
+  min-height: 1.5em;
+}
+.code-block.code-block-numbered .code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 1em;
+  text-align: right;
+  color: rgba(255,255,255,0.18);
+  font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+/* 空行的行号仍然显示 */
+.code-block.code-block-numbered .code-line:empty::before {
+  content: counter(code-line);
+}
+/* 隐藏 data-language 伪元素（code-block 已有自己的语言标签） */
+.code-block pre[data-language]::before {
+  display: none;
+}
+.code-block .code-output {
+  padding: 14px 20px;
+  background: #0d1117;
+  border-top: 1px solid #2A2A3E;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #8b949e;
+}
+.code-block .code-output .output-label {
+  font-size: 0.7rem;
+  color: #4CAF50;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.code-block .code-output .output-label::before {
+  content: "▶ ";
+  font-size: 0.6rem;
+}
+.code-block .code-output .output-text {
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 打印时隐藏复制按钮 */
+@media print {
+  .code-block .code-header { background: #f5f5f5; border-bottom-color: #ccc; }
+  .code-block .code-lang { color: #666; }
+  .code-block .copy-btn { display: none; }
+  .code-block .code-output { background: #f9f9f9; border-top-color: #ccc; color: #333; }
+  .code-block .code-output .output-label { color: #666; }
+  .code-block .code-output .output-text { color: #333; }
+}
+
+/* ===== 分步执行器（后处理脚本自动生成） ===== */
+/* enhance-code.py 对可执行的 Python 代码自动生成分步执行数据，前端渲染 */
+
+.step-executor {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: #0D1117;
+  outline: none;
+}
+.step-executor:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25), 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* 顶部信息栏 */
+.step-executor .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-header .exec-lang {
+  font-size: 0.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.step-executor .exec-header .exec-meta {
+  font-size: 0.75rem; color: rgba(255,255,255,0.3);
+}
+.step-executor .exec-header .exec-copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 2px 10px; border-radius: 4px;
+  font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+  margin-left: auto;
+}
+.step-executor .exec-header .exec-copy-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-header .exec-copy-btn.copied {
+  color: #10b981; border-color: #10b981;
+}
+
+/* 顶部导航栏 */
+.step-executor .exec-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1a1f2b;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-nav .step-dots {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #333; transition: all 0.3s; cursor: pointer;
+}
+.step-executor .exec-nav .step-dot.active {
+  background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,0.4);
+}
+.step-executor .exec-nav .step-dot.done {
+  background: var(--success);
+}
+.step-executor .exec-nav .step-info {
+  font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-left: 12px;
+}
+.step-executor .exec-nav .nav-btns {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .nav-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 14px; border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+}
+.step-executor .exec-nav .nav-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-nav .nav-btn.primary {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.step-executor .exec-nav .nav-btn.primary:hover { background: var(--primary-dark); }
+
+/* 主体区域：左代码 + 右面板 */
+.step-executor .exec-body {
+  display: flex; min-height: 200px;
+}
+
+/* 左侧代码 */
+.step-executor .exec-code {
+  flex: 7; overflow-x: auto; overflow-y: auto;
+  max-height: 600px;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem; line-height: 1.8;
+  padding: 12px 0;
+}
+.step-executor .exec-code .eline {
+  display: flex; padding: 0 16px;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+  white-space: pre;
+}
+.step-executor .exec-code .eline .lnum {
+  min-width: 28px; text-align: right;
+  color: #484f58; margin-right: 14px; user-select: none; flex-shrink: 0;
+}
+.step-executor .exec-code .eline .ltxt { color: #c9d1d9; flex: 1; }
+/* Syntax highlighting */
+.step-executor .exec-code .eline .ltxt .hl-keyword { color: #ff7b72; font-weight: 600; }
+.step-executor .exec-code .eline .ltxt .hl-string { color: #a5d6ff; }
+.step-executor .exec-code .eline .ltxt .hl-comment { color: #484f58; font-style: italic; }
+.step-executor .exec-code .eline .ltxt .hl-number { color: #79c0ff; }
+.step-executor .exec-code .eline .ltxt .hl-type { color: #ffa657; }
+.step-executor .exec-code .eline .ltxt .hl-decorator { color: #d2a8ff; }
+/* Code-block syntax highlighting */
+.code-block pre code .hl-keyword { color: #ff7b72; font-weight: 600; }
+.code-block pre code .hl-string { color: #a5d6ff; }
+.code-block pre code .hl-comment { color: #484f58; font-style: italic; }
+.code-block pre code .hl-number { color: #79c0ff; }
+.code-block pre code .hl-type { color: #ffa657; }
+.code-block pre code .hl-decorator { color: #d2a8ff; }
+.step-executor .exec-code .eline.step-active {
+  background: rgba(245,158,11,0.12); border-left-color: var(--accent);
+}
+.step-executor .exec-code .eline.step-active .lnum { color: var(--accent); }
+.step-executor .exec-code .eline.step-done {
+  background: rgba(16,185,129,0.06); border-left-color: rgba(16,185,129,0.3);
+}
+.step-executor .exec-code .eline.step-done .lnum { color: rgba(16,185,129,0.5); }
+
+/* 右侧面板 */
+.step-executor .exec-panel {
+  flex: 3; border-left: 1px solid #2A2A3E;
+  display: flex; flex-direction: column;
+  background: #1a1f2b;
+}
+.step-executor .step-explain {
+  padding: 16px; border-bottom: 1px solid #2A2A3E; flex-shrink: 0;
+}
+.step-executor .step-explain .stitle {
+  font-size: 0.85rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.step-executor .step-explain .stitle .sbadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 0.65rem; font-weight: 700;
+}
+.step-executor .step-explain .sdesc {
+  font-size: 0.8rem; color: #c9d1d9; line-height: 1.6;
+}
+
+/* 变量面板 */
+.step-executor .var-panel {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+}
+.step-executor .var-panel .vp-title {
+  font-size: 0.65rem; color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px; font-weight: 600;
+}
+.step-executor .var-panel .vitem {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 8px; border-radius: 4px; margin-bottom: 2px;
+  transition: all 0.3s;
+}
+.step-executor .var-panel .vitem.changed {
+  background: rgba(245,158,11,0.08);
+  animation: vflash 0.6s ease;
+}
+.step-executor .var-panel .vtoggle {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.step-executor .var-panel .vtoggle:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+}
+.step-executor .var-panel .vfold {
+  display: none;
+}
+@keyframes vflash {
+  0% { background: rgba(245,158,11,0.25); }
+  100% { background: rgba(245,158,11,0.08); }
+}
+.step-executor .var-panel .vname {
+  color: #7DD3FC; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; font-weight: 600; flex-shrink: 0; min-width: 60px;
+}
+.step-executor .var-panel .vval {
+  color: #6EE7B7; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; word-break: break-all; line-height: 1.5;
+}
+.step-executor .var-panel .vtype {
+  font-size: 0.6rem; color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px; border-radius: 3px;
+}
+
+/* 输出面板 */
+.step-executor .exec-output {
+  padding: 10px 16px; border-top: 1px solid #2A2A3E;
+  background: rgba(0,0,0,0.2); max-height: 100px; overflow-y: auto;
+}
+.step-executor .exec-output .eo-label {
+  font-size: 0.65rem; color: var(--success);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 4px; font-weight: 600;
+}
+.step-executor .exec-output .eo-text {
+  font-family: "Fira Code", monospace; font-size: 0.72rem;
+  color: #c9d1d9; white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .step-executor .exec-body { flex-direction: column; }
+  .step-executor .exec-panel { width: 100%; border-left: none; border-top: 1px solid #2A2A3E; }
+  .step-executor .exec-nav .step-dots { display: none; }
+}
+
+/* ===== Fullscreen mode ===== */
+.step-executor.exec-fullscreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+.step-executor.exec-fullscreen .exec-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1a1a2e;
+}
+.step-executor.exec-fullscreen .exec-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 56px);
+}
+.step-executor.exec-fullscreen .exec-code {
+  max-height: none;
+}
+.step-executor.exec-fullscreen .exec-panel {
+  max-height: none;
+  overflow-y: auto;
+}
+.step-executor .exec-header .exec-fullscreen-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+.step-executor .exec-header .exec-fullscreen-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+
+/* 打印 */
+@media print {
+  .step-executor .exec-nav { display: none; }
+  .step-executor .exec-panel { display: none; }
+  .step-executor .exec-body { min-height: auto; }
+  .step-executor .exec-code .eline.step-active,
+  .step-executor .exec-code .eline.step-done { background: none; border-left-color: transparent; }
+  .step-executor .exec-code .eline .lnum { color: #999; }
+}
+
+/* ===== Walkthrough 模式（干跑讲解，不执行代码） ===== */
+.step-executor.walkthrough .exec-panel {
+  flex: 3; /* 代码区:讲解面板 = 7:3 */
+}
+.step-executor.walkthrough .step-explain {
+  flex: 1; /* 讲解面板占满剩余空间 */
+  border-bottom: none;
+  overflow-y: auto;
+}
+.step-executor.walkthrough .step-explain .sdesc {
+  line-height: 1.75; /* walkthrough 描述更长，行高加大 */
+}
+.step-executor.walkthrough .exec-meta::after {
+  content: ' · 讲解模式';
+}
+
+@media (max-width: 768px) {
+  .step-executor.walkthrough .exec-panel {
+    width: 100%;
+  }
+}
+
+@media print {
+  .step-executor.walkthrough .exec-panel {
+    display: block;
+    border-top: 1px solid #ccc;
+  }
+  .step-executor.walkthrough .step-explain .sdesc {
+    color: #333;
+  }
+}
+
+/* ===== 实用工具类（writer 高频 inline style 的 CSS 类替代） ===== */
+/* 使用这些类替代重复的 inline style，保持 HTML 整洁 */
+
+/* 文字尺寸与颜色 */
+.text-sm { font-size: 0.8rem; }
+.text-xs { font-size: 0.72rem; }
+.text-muted { color: var(--text-light); }
+.text-center { text-align: center; }
+.text-primary { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-white { color: #fff; }
+
+/* SVG 通用（替代重复的 max-width:100%;width:100%;height:auto） */
+.svg-responsive { max-width: 100%; width: 100%; height: auto; }
+
+/* 间距 */
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 16px; }
+
+/* Flex 布局 */
+.flex-col { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.flex-1 { flex: 1; }
+
+/* 卡片/标签 */
+.tag-sm { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; font-weight: 600; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+.card-sm { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border: 1px solid var(--border); }
+.card-accent { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border-left: 4px solid var(--accent); }
+
+/* 宽度 */
+.w-full { width: 100%; }
+.w-half { width: 50%; }
+
+/* 长代码折叠 */
+details.code-collapse { margin: 18px 0; }
+details.code-collapse > summary {
+  padding: 8px 16px; background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 0.9rem; color: var(--primary);
+  font-weight: 600; list-style: none;
+}
+details.code-collapse > summary::before { content: "▶ "; font-size: 0.75rem; }
+details.code-collapse[open] > summary::before { content: "▼ "; }
+details.code-collapse > pre { margin-top: 0; border-radius: 0 0 10px 10px; }
+
+/* ===== 著作权声明页（末页） ===== */
+.copyright-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 60px 40px; background: #fff; }
+.copyright-content { max-width: 520px; text-align: center; color: #555; font-size: 0.9rem; line-height: 2; }
+.copyright-title { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; margin-bottom: 4px; }
+.copyright-author { font-size: 1rem; color: #666; margin-bottom: 4px; }
+.copyright-version { font-size: 0.82rem; color: #999; margin-bottom: 8px; }
+.copyright-notice { font-size: 0.85rem; color: #777; margin: 2px 0; }
+.copyright-divider { height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); margin: 18px 0; }
+.copyright-statement, .copyright-disclaimer { text-align: left; font-size: 0.82rem; color: #666; padding: 0 10px; }
+.copyright-statement p, .copyright-disclaimer p { margin: 3px 0; }
+.copyright-footer { font-size: 0.85rem; color: #666; margin-top: 10px; }
+.copyright-footer strong { color: var(--primary); }
+.copyright-footer-sub { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+
+/* ===== 侧边目录 ===== */
+/* Sidebar active state - used by merge.js adjustLayout */
+body.sidebar-active { padding-left: 260px; }
+
+.sidebar-toc {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 20px 0;
+  font-size: 0.82rem;
+  transition: transform 0.3s ease;
+}
+.sidebar-toc .sidebar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+.sidebar-toc a {
+  display: block;
+  padding: 8px 16px;
+  color: #666;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+.sidebar-toc a:hover {
+  color: var(--primary);
+  background: var(--bg-alt);
+}
+.sidebar-toc a.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: var(--primary-bg);
+  font-weight: 600;
+}
+.sidebar-toc a .ch-num {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* Sidebar collapsible groups (for books with >20 chapters) */
+.sidebar-group { border-bottom: 1px solid #f0f0f0; }
+.sidebar-group-label {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-group-label::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+}
+.sidebar-group.expanded .sidebar-group-label::before {
+  transform: rotate(90deg);
+}
+.sidebar-group-items {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.sidebar-group.expanded .sidebar-group-items {
+  max-height: 1000px;
+}
+.sidebar-group-items a {
+  padding-left: 24px;
+  font-size: 0.78rem;
+}
+
+/* 侧边目录切换按钮（移动端） */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  left: 12px;
+  bottom: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  line-height: 40px;
+  text-align: center;
+  padding: 0;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 100;
+  transition: width 0.1s linear;
+  width: 0;
+}
+
+/* 回到顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  line-height: 40px;
+  text-align: center;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.back-to-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.back-to-top:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== 知识体系图卡片 hover 效果（纯CSS） ===== */
+.knowledge-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.knowledge-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.knowledge-card .card-detail {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+.knowledge-card:hover .card-detail {
+  max-height: 100px;
+  opacity: 1;
+  margin-top: 6px;
+}
+
+/* ===== 实拍效果图（capture_visuals，2026-09-10）===== */
+.render-figure { margin: 1.6em auto; text-align: center; }
+.render-figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.render-figure figcaption { margin-top: .5em; font-size: .88em; color: #6b7683; }
+
+/* ===== SVG 流程图类配色（writer SVG 以 class 引用，缺失会回退默认黑色填充，2026-09-10）===== */
+.flowchart-steps .process { fill: #e8f0fe; stroke: #4285f4; stroke-width: 1.5; }
+.flowchart-steps .start-end { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
+.flowchart-steps .decision { fill: #fef7e0; stroke: #f9ab00; stroke-width: 1.5; }
+.flowchart-steps text { fill: #202124; }
+.flowchart-steps path, .flowchart-steps line, .flowchart-steps polyline { stroke: #5f6368; fill: none; }
+.flowchart-steps polygon { fill: #5f6368; stroke: none; }
+
+</style>
+</head>
+<body style="background:#F0EBE5;">
+<div class="book">
+<div class="chapter"><div class="problem-header">
+
+<div style="display:flex;align-items:center;gap:16px;">
+
+<div style="flex-shrink:0;width:48px;height:48px;line-height:48px;text-align:center;background:linear-gradient(135deg,#7B1FA2,#4A148C);color:#fff;border-radius:50%;font-size:1.1rem;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,0.18);">03</div>
+
+<h1 style="margin:0;padding:0;border:none;font-size:1.8rem;font-weight:800;color:#7B1FA2;line-height:1.35;">03. ReAct模式详解——Reasoning+Acting循环</h1>
+
+</div>
+
+<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+
+<span class="difficulty intermediate">⭐⭐ 中级</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">ReAct论文</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">Thought-Action-Observation</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">CoT关系</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">推理模式对比</span>
+
+<span class="tag-sm" style="background:#F3E5F5;color:#4A148C;border:1px solid #BA68C8;">生产实践</span>
+
+</div>
+
+</div>
+
+<!-- ==================== Section 1: 题目描述 ==================== -->
+
+<section class="problem">
+
+<h2>一、题目描述</h2>
+
+<blockquote class="chapter-quote">
+
+<p>ReAct 是所有现代Agent框架的心跳。你也许不知道它的名字，但你用过的每一个Agent都在用它。</p>
+
+</blockquote>
+
+<h3>背景：为什么需要ReAct？</h3>
+
+<p>2022年之前，LLM的推理能力已经通过Chain-of-Thought（CoT）技术得到了显著提升。Wei等人2022年的CoT论文证明，让模型"一步一步地思考"可以在算术、常识推理等任务上取得巨大进步。但CoT有一个根本性缺陷——<strong>它只能在自己的参数知识里"闭门造车"</strong>。</p>
+
+<p>问题的本质是：<strong>推理（Reasoning）和行动（Acting）是割裂的</strong>。模型能思考，但不能"动手"去查。它就像一个被锁在房间里的学者，拥有强大的分析能力，却无法翻阅任何参考书或使用任何工具。</p>
+
+<p>ReAct的出现打破了这道墙。它的核心洞见简洁而深刻：<strong>让推理指导行动，让行动反馈推理</strong>。模型在每一步不仅生成"下一步该做什么"的推理（Thought），还生成具体的工具调用命令（Action），然后根据工具返回的结果（Observation）更新自己的推理上下文，循环往复直到得出最终答案。</p>
+
+<div class="box info">
+
+<div class="box-title">💡 一句话理解ReAct</div>
+
+<p>ReAct = CoT（推理链） + Tool Use（工具调用） + Loop（循环直到完成）。如果说CoT是"思考链"，那ReAct就是"边思考边动手"。</p>
+
+</div>
+
+<h3>题目要求</h3>
+
+<p>本题要求你从零开始理解并实现一个ReAct Agent。具体分为三个层次：</p>
+
+<div class="feature-grid">
+
+<div class="feature-item">
+
+<strong>层次一：理解原理</strong>
+
+<span>掌握ReAct的Thought-Action-Observation循环机制，理解它与CoT的关系，能够清晰解释为什么ReAct比纯推理更适合需要外部信息的任务。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>层次二：动手实现</strong>
+
+<span>不依赖任何框架，用纯Python实现一个可运行的ReAct Agent。包含Prompt模板设计、响应解析、工具调度、循环控制和错误处理。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>层次三：框架落地</strong>
+
+<span>使用LangGraph 1.x的<code>create_agent</code> API构建生产级ReAct Agent，理解框架封装背后的原理。</span>
+
+</div>
+
+</div>
+
+<h3>输入输出示例</h3>
+
+<p><strong>输入：</strong>一个需要多步推理和工具调用的问题</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code>问题: "Albert Einstein出生于哪一年？那一年的3倍是多少？"</code></pre>
+</div>
+
+<p><strong>期望输出：</strong>Agent通过ReAct循环得出答案</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">Thought: 我需要先查找爱因斯坦的出生年份，然后将年份乘以3。</span>
+<span class="code-line">Action: search_wikipedia</span>
+<span class="code-line">Action Input: Albert Einstein</span>
+<span class="code-line">Observation: Albert Einstein (1879–1955) was a German-born theoretical physicist...</span>
+<span class="code-line">Thought: 爱因斯坦出生于1879年。现在我需要计算 1879 × 3。</span>
+<span class="code-line">Action: calculate</span>
+<span class="code-line">Action Input: 1879 * 3</span>
+<span class="code-line">Observation: 5637</span>
+<span class="code-line">Thought: 我已经得到了答案：1879年的3倍是5637。</span>
+<span class="code-line">Final Answer: Albert Einstein出生于1879年，那一年的3倍是5637。</span></code></pre>
+</div>
+
+<p>注意这个过程中Agent<strong>自主决定</strong>了需要两步：先搜索再计算。没有任何外部代码硬编码了这个流程——是Agent通过推理自己"想出来"的。这就是ReAct的核心威力。</p>
+
+<h3>约束条件</h3>
+
+<ul>
+
+<li>Agent必须支持至少两种工具：搜索引擎/百科查询 + 数学计算</li>
+
+<li>必须设置最大循环次数（防止死循环消耗Token）</li>
+
+<li>解析失败时不能崩溃，应将错误作为Observation反馈给模型</li>
+
+<li>必须包含Thought Trace的输出机制（调试用）</li>
+
+<li>框架版本：LangGraph 1.2.11，LangChain 1.3+</li>
+
+</ul>
+
+<div class="box key">
+
+<div class="box-title">本题核心知识点</div>
+
+<ul>
+
+<li><strong>ReAct论文</strong>（Yao et al., 2022, arXiv:2210.03629, ICLR 2023）</li>
+
+<li><strong>Thought-Action-Observation循环</strong>：三步循环的核心机制</li>
+
+<li><strong>与CoT的关系</strong>：继承、扩展与互补</li>
+
+<li><strong>推理模式对比</strong>：ReAct vs CoT vs Reflexion vs Plan-and-Execute</li>
+
+<li><strong>常见陷阱</strong>：死循环、解析失败、上下文溢出、过度工程化</li>
+
+<li><strong>生产实践</strong>：状态持久化、错误处理、模型分层、成本控制</li>
+
+</ul>
+
+</div>
+
+</section>
+
+<!-- ==================== Section 2: 思路分析 ==================== -->
+
+<section class="problem">
+
+<h2>二、思路分析</h2>
+
+<p>这个题目的核心不在于写代码——代码量并不大——而在于<strong>真正理解ReAct模式的设计思想</strong>。很多开发者能熟练调用<code>create_agent</code>，但被问到"ReAct和CoT的本质区别是什么"或"为什么Agent会陷入死循环"时却答不上来。本节从论文原理到生产实践，逐层拆解ReAct的每一个关键知识点。</p>
+
+<h3>2.1 ReAct的起源：一篇改变Agent范式的论文</h3>
+
+<p>2022年10月，Princeton University的Shunyu Yao及其合作者在arXiv上发表了论文《ReAct: Synergizing Reasoning and Acting in Language Models》（arXiv:2210.03629）。这篇论文随后被ICLR 2023接收，成为Agent领域被引用次数最高的基础论文之一。</p>
+
+<p>论文的核心观察极其精准：当时的LLM研究中，"推理"（Reasoning）和"行动"（Acting）是两个平行但割裂的研究方向。CoT、CoT-SC等推理技术让模型更好地"想"，但无法获取外部信息；而WebGPT、Toolformer等工具使用方案让模型能"做"，但缺乏系统性的推理框架来指导何时以及如何使用工具。Yao的洞见是：<strong>这两者本不该分离</strong>。</p>
+
+<p>论文标题中的"Synergizing"（协同）一词是关键。ReAct不是简单地把推理和行动拼在一起，而是让它们形成<strong>正反馈循环</strong>：推理指导行动的方向，行动的结果反过来更新推理的依据。这种协同产生了"1+1&gt;2"的效果——论文在HotPotQA（多跳问答）、FEVER（事实验证）、ALFWorld（文本游戏导航）和WebShop（在线购物）四个基准上全面验证了这一点。</p>
+
+<div class="box info">
+
+<div class="box-title">📐 论文关键数据</div>
+
+<p>Yao et al. 2022 使用 deepseek-v4.1-flash-540B 模型，通过 few-shot prompting 实现ReAct。在 ALFWorld 基准上，ReAct 仅用 1-2 个 in-context 示例，就比模仿学习和强化学习基线高出 <strong>34个百分点</strong>（absolute improvement）。在 HotPotQA 上，ReAct 通过与 Wikipedia API 交互，将<strong>幻觉率降低了5个百分点以上</strong>。</p>
+
+</div>
+
+<p>论文还有一个容易被忽略但极其重要的发现：ReAct<strong>系统性优于</strong>单独推理（Reason-only）或单独行动（Act-only）的范式。这意味着，即使你有一个很强的推理模型和一个很好的工具调用接口，把它们简单串联也不如ReAct的交替循环。协同效应才是关键。</p>
+
+<h3>2.2 Thought-Action-Observation：三步循环深度拆解</h3>
+
+<p>ReAct的核心是一个三步循环：Thought → Action → Observation。看起来简单，但每一步都有精心的设计意图。让我们逐一拆解。</p>
+
+<h4>Thought（思考）——Agent的"内心独白"</h4>
+
+<p>Thought步骤是Agent对当前状态的推理和规划。它要回答三个问题：我现在知道什么？我还缺什么信息？下一步该做什么？</p>
+
+<p>这看似简单，但它解决了一个关键问题：<strong>让模型的推理过程显式化</strong>。在传统的LLM调用中，模型直接输出答案，你无法看到它的"思考过程"。而ReAct的Thought步骤强制模型在行动之前先"说出"自己的计划。这不仅提高了推理质量（因为模型必须先组织思路），还为人类调试提供了窗口——你可以看到Agent为什么做出了某个决定。</p>
+
+<p>举个例子，当面对"比较东京和首尔的人口"这个问题时，一个有效的Thought可能是："我需要查找东京和首尔的人口数据。我先搜索东京的人口。"这个Thought清楚地表明了Agent的计划：知道目标（比较人口）、识别信息缺口（两个城市的人口数据都未知）、规划行动（先查东京）。</p>
+
+<p>更关键的是，Thought赋予了Agent<strong>自我纠错</strong>的能力。如果上一步的Observation返回了空结果或错误信息，下一个Thought可以意识到失败并尝试不同的策略。比如搜索"Tokyo population"没得到好结果，下一个Thought可能会说"上次搜索没有返回有用信息，我换一个关键词试试'东京都 人口 2024'"。这种基于反馈的自适应行为是单次提示无法实现的。</p>
+
+<h4>Action（行动）——让推理落地为操作</h4>
+
+<p>Action步骤将Thought中的计划转化为具体的工具调用。它包含两部分：选择哪个工具（Action名称），以及提供什么输入（Action Input）。格式通常如下：</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">Action: search_wikipedia</span>
+<span class="code-line">Action Input: Albert Einstein</span></code></pre>
+</div>
+
+<p>Action的设计有一个微妙但重要的约束：<strong>工具名称必须从预定义列表中选择</strong>。这不是技术限制，而是工程智慧。如果不限制，模型可能会"发明"不存在的工具名，导致系统崩溃。通过提供明确的工具列表，系统将模型的创造力引导到"如何使用工具"而非"发明工具"上。</p>
+
+<p>在实际实现中，Action通常通过JSON Schema或结构化的工具描述来定义。现代框架如LangChain通过<code>@tool</code>装饰器自动生成工具描述，MCP协议则提供了更标准化的工具注册机制。但无论封装多复杂，核心始终是ReAct论文定义的那个简单模式：一个Action名称 + 一个Action输入。</p>
+
+<h4>Observation（观察）——连接外部世界的桥梁</h4>
+
+<p>Observation是工具执行后返回的结果，它被追加到Agent的上下文中，成为下一步推理的输入。Observation的质量直接决定了Agent的决策质量——垃圾进，垃圾出。</p>
+
+<p>Observation有几个不那么明显但至关重要的设计要点：</p>
+
+<ul>
+
+<li><strong>格式必须自然</strong>：Observation应该是纯文本，不是JSON或结构化数据。因为LLM最擅长理解自然语言，给它一堆JSON字段反而会降低推理质量。</li>
+
+<li><strong>长度必须可控</strong>：搜索引擎可能返回几千字的结果，但上下文窗口是有限的。需要在"信息完整性"和"Token预算"之间做平衡。常见的做法是截取前N个字符或做摘要。</li>
+
+<li><strong>错误也是Observation</strong>：如果工具执行失败，错误信息也应该作为Observation返回，而不是抛出异常中断整个循环。这允许Agent在下一步的Thought中意识到错误并调整策略。</li>
+
+</ul>
+
+<p>将三个步骤合在一起，ReAct的完整循环可以用一段伪代码清晰表达：</p>
+
+<div class="step-executor">
+
+<script type="application/json">{"mode": "walkthrough", "lang": "", "lines": ["", "", "if 'build_prompt' not in dir(): build_prompt = None  # 跨块引用桥", "if 'build_prompt' not in dir(): build_prompt = None  # 跨块引用桥", "def react_loop(question, max_steps=10):", "
+
+\"\"\"ReAct 核心循环伪代码\"\"\"", "
+
+context = format_prompt(question, tools)", "
+
+for step in range(max_steps):", "
+
+# Thought + Action：LLM 生成推理和行动", "
+
+response = llm.generate(context)", "
+
+", "
+
+# 检查是否已完成", "
+
+if has_final_answer(response):", "
+
+return extract_answer(response)", "
+
+", "
+
+# 执行工具调用", "
+
+action, action_input = parse_action(response)", "
+
+observation = execute_tool(action, action_input)", "
+
+", "
+
+# 将结果追加到上下文", "
+
+context += f\"\\n{response}\\nObservation: {observation}\\n\"", "
+
+", "
+
+return \"超过最大步数限制\""], "steps": [{"title": "定义函数 react_loop(question, max_steps)", "desc": "Thought + Action：LLM 生成推理和行动。", "lineRange": [0, 5]}, {"title": "逻辑块 2", "desc": "检查是否已完成。", "lineRange": [7, 9]}, {"title": "逻辑块 3", "desc": "执行工具调用。", "lineRange": [11, 13]}, {"title": "逻辑块 4", "desc": "将结果追加到上下文。", "lineRange": [15, 18]}]}</script>
+</div>
+
+<p>这段伪代码展示了ReAct最纯粹的形态。不到20行代码，却蕴含了强大的表达能力：它可以处理任意数量的问题类型，使用任意数量的工具，执行任意深度的推理链——所有这些都不需要硬编码流程，由LLM在运行时自主决策。</p>
+
+<!-- 图表1：大型SVG - ReAct循环 -->
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 500" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<!-- Background -->
+
+<rect x="0" y="0" width="800" height="500" fill="#FAFAFA" rx="12"></rect>
+
+<!-- Title -->
+
+<text x="400" y="35" text-anchor="middle" font-size="20" font-weight="700" fill="#4A148C" font-family="sans-serif">ReAct 循环：Thought → Action → Observation</text>
+
+<!-- LLM Engine box (left) -->
+
+<rect x="40" y="180" width="140" height="100" rx="10" fill="#4A148C" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="110" y="215" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">LLM Engine</text>
+
+<text x="110" y="238" text-anchor="middle" font-size="11" fill="#EA80FC" font-family="sans-serif">推理 + 决策</text>
+
+<text x="110" y="256" text-anchor="middle" font-size="11" fill="#EA80FC" font-family="sans-serif">(deepseek-v4.1-flash / deepseek-v4.1-flash / deepseek-v4.1-flash)</text>
+
+<!-- Thought circle (top center) -->
+
+<circle cx="400" cy="110" r="70" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="3"></circle>
+
+<text x="400" y="100" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Thought</text>
+
+<text x="400" y="120" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">分析状态</text>
+
+<text x="400" y="136" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">规划下一步</text>
+
+<!-- Action circle (right) -->
+
+<circle cx="600" cy="230" r="70" fill="#FCE4EC" stroke="#E040FB" stroke-width="3"></circle>
+
+<text x="600" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Action</text>
+
+<text x="600" y="240" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">选择工具</text>
+
+<text x="600" y="256" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">生成参数</text>
+
+<!-- Observation circle (bottom center) -->
+
+<circle cx="400" cy="370" r="75" fill="#E8F5E9" stroke="#4CAF50" stroke-width="3"></circle>
+
+<text x="400" y="358" text-anchor="middle" font-size="15" font-weight="700" fill="#2E7D32" font-family="sans-serif">Observation</text>
+
+<text x="400" y="378" text-anchor="middle" font-size="11" fill="#2E7D32" font-family="sans-serif">获取结果</text>
+
+<text x="400" y="394" text-anchor="middle" font-size="11" fill="#2E7D32" font-family="sans-serif">更新上下文</text>
+
+<!-- Arrows: Thought -> Action -->
+
+<defs>
+
+<marker id="arrow1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#7B1FA2"></path>
+
+</marker>
+
+<marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#E040FB"></path>
+
+</marker>
+
+<marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#4CAF50"></path>
+
+</marker>
+
+</defs>
+
+<!-- Curved arrow Thought -> Action -->
+
+<path d="M 460 140 Q 540 150 555 180" fill="none" stroke="#7B1FA2" stroke-width="2.5" marker-end="url(#arrow1)"></path>
+
+<!-- Curved arrow Action -> Observation -->
+
+<path d="M 575 295 Q 540 340 460 345" fill="none" stroke="#E040FB" stroke-width="2.5" marker-end="url(#arrow2)"></path>
+
+<!-- Curved arrow Observation -> Thought -->
+
+<path d="M 345 320 Q 310 220 345 150" fill="none" stroke="#4CAF50" stroke-width="2.5" marker-end="url(#arrow3)" stroke-dasharray="6,3"></path>
+
+<!-- Arrow LLM -> Thought -->
+
+<line x1="180" y1="200" x2="335" y2="130" stroke="#757575" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow1)"></line>
+
+<text x="240" y="155" font-size="10" fill="#757575" font-family="sans-serif">生成</text>
+
+<!-- External Tools box (right) -->
+
+<rect x="620" y="350" width="150" height="90" rx="8" fill="#fff" stroke="#BA68C8" stroke-width="2" stroke-dasharray="5,3"></rect>
+
+<text x="695" y="378" text-anchor="middle" font-size="13" font-weight="600" fill="#7B1FA2" font-family="sans-serif">外部工具</text>
+
+<text x="695" y="398" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">search / calculate</text>
+
+<text x="695" y="414" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">read_file / api_call</text>
+
+<text x="695" y="430" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">query_database ...</text>
+
+<!-- Arrow Action -> External Tools -->
+
+<line x1="640" y1="280" x2="680" y2="345" stroke="#E040FB" stroke-width="2" marker-end="url(#arrow2)"></line>
+
+<!-- Arrow External Tools -> Observation -->
+
+<line x1="620" y1="395" x2="475" y2="375" stroke="#4CAF50" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#arrow3)"></line>
+
+<!-- Loop indicator -->
+
+<text x="310" y="250" text-anchor="middle" font-size="10" fill="#757575" font-style="italic" font-family="sans-serif">循环直到</text>
+
+<text x="310" y="265" text-anchor="middle" font-size="10" fill="#757575" font-style="italic" font-family="sans-serif">Final Answer</text>
+
+<!-- Bottom note -->
+
+<rect x="100" y="450" width="600" height="35" rx="6" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="400" y="472" text-anchor="middle" font-size="12" fill="#4A148C" font-family="sans-serif">每一步都由LLM自主决策：何时搜索、搜索什么、何时停止、如何组合信息</text>
+
+</svg>
+
+</div>
+
+<p>上图展示了ReAct循环的完整数据流。注意几个关键点：第一，LLM是唯一的"决策者"，它决定Action是什么、Input是什么、何时输出Final Answer；第二，Observation从外部工具返回，注入了模型参数知识之外的实时信息；第三，循环可以执行多次，直到模型认为已经有了足够的信息来回答问题。</p>
+
+<h4>"内心独白"的力量</h4>
+
+<p>ReAct最精妙的设计不在于任何一个单独的步骤，而在于<strong>整个循环创造了一种"内心独白"</strong>。Agent不仅仅是执行命令，它在"自言自语"——观察结果、发现问题、调整策略、尝试新方法。这种机制让Agent的行为呈现出一种令人惊讶的"智能感"。</p>
+
+<p>举一个真实的例子。当ReAct Agent被问到"Barack Obama的妻子在哪个大学获得法学学位？"时，它的推理过程可能是这样的：</p>
+
+<ol>
+
+<li><strong>Thought</strong>：我需要找到Obama的妻子是谁，然后查她的教育背景。先搜索"Barack Obama wife"。</li>
+
+<li><strong>Action</strong>：search_wikipedia("Michelle Obama")</li>
+
+<li><strong>Observation</strong>：Michelle Robinson married Barack Obama in 1992... She is a lawyer... attended Princeton University and Harvard Law School...</li>
+
+<li><strong>Thought</strong>：Observation里提到她去了Princeton和Harvard Law School。问题是"法学学位"，所以应该是Harvard Law School的J.D.学位。但我需要确认一下。</li>
+
+<li><strong>Action</strong>：search_wikipedia("Harvard Law School")</li>
+
+<li><strong>Observation</strong>：Harvard Law School is the law school of Harvard University...</li>
+
+<li><strong>Thought</strong>：我已经确认Michelle Obama在Harvard Law School获得了J.D.（法律博士）学位。可以给出最终答案了。</li>
+
+<li><strong>Final Answer</strong>：Michelle Obama在Harvard Law School获得法学博士学位（J.D.）。</li>
+
+</ol>
+
+<p>注意第4步——Agent注意到Observation中包含了Princeton和Harvard两个学校，但它<strong>自己推理出</strong>"法学学位"指向的是Harvard而非Princeton。这种基于上下文的理解和筛选能力，正是ReAct"内心独白"的价值所在。如果只是一个简单的搜索+摘要Pipeline，很可能会把两个学校都列出来，无法做到这种精准的"推理筛选"。</p>
+
+<h3>2.3 ReAct与CoT的关系：继承与超越</h3>
+
+<p>理解ReAct和CoT（Chain-of-Thought）的关系非常重要，因为面试官最喜欢问这个问题，也因为它能帮你深入理解两种模式的适用边界。</p>
+
+<p>先说结论：<strong>ReAct不是CoT的替代品，而是CoT的扩展</strong>。更准确地说，ReAct = CoT + 工具调用 + 循环。</p>
+
+<p>CoT（Wei et al., 2022）的核心思想是让LLM在给出答案前先生成中间推理步骤。比如问"一个商店有15个苹果，卖了8个，又进了5个，现在有几个？"，CoT会让模型先输出"15-8=7，7+5=12"，然后给出最终答案"12个"。这种"一步一步思考"的方式显著提升了模型在算术、常识和符号推理任务上的表现。</p>
+
+<p>CoT很强，但它有一个根本性限制：<strong>所有推理都在模型的参数知识内完成</strong>。模型无法在推理过程中"抬头看看外部世界"。这导致两个问题：</p>
+
+<ol>
+
+<li><strong>知识截止问题</strong>：模型不知道训练数据之后发生的事。</li>
+
+<li><strong>幻觉问题</strong>：当模型不确定时，它可能编造看似合理但错误的信息，而且CoT的长推理链会放大这种幻觉——一步错，步步错。</li>
+
+</ol>
+
+<p>ReAct通过在推理链中插入Action步骤来解决这两个问题。当模型意识到自己不确定某个事实时，它可以"停下来"搜索一下，获取真实信息后再继续推理。论文的实验证实了这一点：在HotPotQA上，ReAct的幻觉率比纯CoT低了5个百分点以上，正是因为模型可以通过行动来"验证"自己的推理。</p>
+
+<p>但这里有一个经常被忽略的微妙之处：<strong>ReAct的每个Thought步骤内部，其实都在使用CoT</strong>。当Agent生成"我需要先查爱因斯坦的出生年份，然后乘以3"这个Thought时，它就是在做链式推理。ReAct并没有抛弃CoT，它把CoT作为构建块（building block），在更高的抽象层次上组合这些推理块，中间穿插行动来获取外部信息。</p>
+
+<p>所以更精确的关系是：</p>
+
+<div class="compare-card">
+
+<div class="compare-col">
+
+<div class="compare-item good">
+
+<strong>CoT（Chain-of-Thought）</strong>
+
+<span>单次推理 · 逐步思考 · 闭卷考试 · 适合：算术、逻辑、常识推理 · 不需要外部信息</span>
+
+</div>
+
+<div class="compare-item good">
+
+<strong>ReAct（Reasoning + Acting）</strong>
+
+<span>循环推理 · 边想边做 · 开卷考试 · 适合：需要搜索、计算、API调用的任务 · 每个Thought内含CoT</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box tip">
+
+<div class="box-title">面试速答：ReAct和CoT的关系</div>
+
+<p><strong>一句话版本</strong>：ReAct = CoT + Tool Use + Loop。CoT是ReAct的子集——每个Thought步骤内部就是一个小型CoT。</p>
+
+<p><strong>展开版本</strong>：CoT解决了"怎么更好地推理"的问题，但没有解决"推理需要外部信息"的问题。ReAct通过引入Action-Observation循环，让推理可以获取实时外部数据，从根本上降低了幻觉率。两者不是竞争关系而是继承关系——ReAct以CoT为基石。</p>
+
+</div>
+
+<h3>2.4 ReAct与其他推理模式的对比</h3>
+
+<p>CoT之外，还有多种推理模式。理解ReAct在"推理模式谱系"中的位置，有助于你在实际项目中选择合适的模式。</p>
+
+<!-- 图表2：大型SVG - 推理模式谱系 -->
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 480" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<rect x="0" y="0" width="800" height="480" fill="#FAFAFA" rx="12"></rect>
+
+<text x="400" y="32" text-anchor="middle" font-size="18" font-weight="700" fill="#4A148C" font-family="sans-serif">推理模式谱系：从CoT到混合模式</text>
+
+<!-- CoT root node -->
+
+<rect x="320" y="55" width="160" height="55" rx="10" fill="#4A148C" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="400" y="80" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="sans-serif">CoT</text>
+
+<text x="400" y="98" text-anchor="middle" font-size="10" fill="#EA80FC" font-family="sans-serif">逐步推理 · 2022 Wei et al.</text>
+
+<!-- Arrows from CoT -->
+
+<line x1="400" y1="110" x2="400" y2="140" stroke="#7B1FA2" stroke-width="2"></line>
+
+<line x1="200" y1="140" x2="600" y2="140" stroke="#7B1FA2" stroke-width="2" stroke-dasharray="4,3"></line>
+
+<line x1="200" y1="140" x2="200" y2="160" stroke="#7B1FA2" stroke-width="2"></line>
+
+<line x1="400" y1="140" x2="400" y2="160" stroke="#7B1FA2" stroke-width="2"></line>
+
+<line x1="600" y1="140" x2="600" y2="160" stroke="#7B1FA2" stroke-width="2"></line>
+
+<!-- ReAct node (center, highlighted) -->
+
+<rect x="315" y="160" width="170" height="60" rx="10" fill="#7B1FA2" stroke="#E040FB" stroke-width="3"></rect>
+
+<text x="400" y="185" text-anchor="middle" font-size="15" font-weight="700" fill="#fff" font-family="sans-serif">ReAct ★</text>
+
+<text x="400" y="205" text-anchor="middle" font-size="10" fill="#EA80FC" font-family="sans-serif">推理+行动循环 · 2022 Yao et al.</text>
+
+<!-- ToT node (left) -->
+
+<rect x="115" y="160" width="170" height="60" rx="10" fill="#fff" stroke="#BA68C8" stroke-width="2"></rect>
+
+<text x="200" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#7B1FA2" font-family="sans-serif">ToT</text>
+
+<text x="200" y="205" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">多路径搜索 · 2023 Yao et al.</text>
+
+<!-- Plan-and-Execute node (right) -->
+
+<rect x="515" y="160" width="170" height="60" rx="10" fill="#fff" stroke="#BA68C8" stroke-width="2"></rect>
+
+<text x="600" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#7B1FA2" font-family="sans-serif">Plan-and-Execute</text>
+
+<text x="600" y="205" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">先规划后执行</text>
+
+<!-- Lines down from ReAct -->
+
+<line x1="400" y1="220" x2="400" y2="250" stroke="#E040FB" stroke-width="2"></line>
+
+<line x1="300" y1="250" x2="500" y2="250" stroke="#E040FB" stroke-width="2" stroke-dasharray="4,3"></line>
+
+<line x1="300" y1="250" x2="300" y2="270" stroke="#E040FB" stroke-width="2"></line>
+
+<line x1="500" y1="250" x2="500" y2="270" stroke="#E040FB" stroke-width="2"></line>
+
+<!-- Reflexion node -->
+
+<rect x="215" y="270" width="170" height="60" rx="10" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="300" y="295" text-anchor="middle" font-size="14" font-weight="700" fill="#4A148C" font-family="sans-serif">Reflexion</text>
+
+<text x="300" y="315" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">自我批评+记忆 · 2023 Shinn</text>
+
+<!-- ReWOO node -->
+
+<rect x="415" y="270" width="170" height="60" rx="10" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="500" y="295" text-anchor="middle" font-size="14" font-weight="700" fill="#4A148C" font-family="sans-serif">ReWOO</text>
+
+<text x="500" y="315" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">推理与观察解耦</text>
+
+<!-- Hybrid era box -->
+
+<rect x="80" y="360" width="640" height="95" rx="10" fill="#FCE4EC" stroke="#E040FB" stroke-width="2" stroke-dasharray="6,3"></rect>
+
+<text x="400" y="385" text-anchor="middle" font-size="14" font-weight="700" fill="#4A148C" font-family="sans-serif">2025-2026：混合模式时代</text>
+
+<text x="400" y="408" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">ReAct + Reflexion（自适应推理+迭代改进）</text>
+
+<text x="400" y="426" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">Plan-and-Execute + ToT（长程规划+并行探索）</text>
+
+<text x="400" y="444" text-anchor="middle" font-size="11" fill="#7B1FA2" font-family="sans-serif">Long CoT (deepseek-v4.1-flash/deepseek-v4.1-flash) + ReAct（内置推理+工具调用）</text>
+
+<!-- Arrows to hybrid -->
+
+<line x1="300" y1="330" x2="350" y2="355" stroke="#BA68C8" stroke-width="1.5" stroke-dasharray="3,2"></line>
+
+<line x1="500" y1="330" x2="450" y2="355" stroke="#BA68C8" stroke-width="1.5" stroke-dasharray="3,2"></line>
+
+<line x1="200" y1="220" x2="250" y2="355" stroke="#BA68C8" stroke-width="1" stroke-dasharray="3,2"></line>
+
+<line x1="600" y1="220" x2="550" y2="355" stroke="#BA68C8" stroke-width="1" stroke-dasharray="3,2"></line>
+
+</svg>
+
+</div>
+
+<p>从谱系图中可以看到，所有现代推理模式都可以追溯到CoT这个"共同祖先"。ReAct是其中最重要的分支，因为它是第一个将推理和行动结合起来的模式，后续的Reflexion、ReWOO等都是在ReAct基础上的改进。</p>
+
+<p>让我们逐一对比ReAct与其他模式的核心差异：</p>
+
+<p><strong>ReAct vs Plan-and-Execute。</strong>这是工程实践中最常面对的选择。Plan-and-Execute模式由两个阶段组成：先用一个Planner LLM生成完整的步骤计划，再用一个Executor逐步执行。区别在于<strong>决策时机</strong>：ReAct是"边走边看"，每一步都根据上一步的结果重新决策；Plan-and-Execute是"谋定后动"，先制定完整计划再执行。</p>
+
+<p>Plan-and-Execute的优势是Token效率高（Planner只调用一次大模型，Executor可以用小模型），且计划可以人工审核。但它的致命弱点是<strong>抗变性差</strong>——如果执行过程中发现计划的某个假设是错的（比如搜索结果出乎意料），整个计划可能需要推翻重来。而ReAct在这方面更灵活，它随时可以根据新的Observation调整方向。</p>
+
+<p>实际生产中的建议是：<strong>步骤明确、可预测的任务用Plan-and-Execute；需要探索、信息不完整的任务用ReAct</strong>。许多生产系统会组合使用——先Plan生成大纲，再ReAct执行每一步。</p>
+
+<p><strong>ReAct vs Reflexion。</strong>Reflexion（Shinn et al., 2023）在ReAct基础上增加了一个"自我批评"环节。每个ReAct循环结束后，Reflexion会让模型评估自己的表现，生成 verbal feedback（语言形式的反馈），存入记忆，在下一次循环中利用这个反馈改进。简单说：<strong>ReAct是"边想边做"，Reflexion是"边想边做边反思"</strong>。</p>
+
+<p>Reflexion在需要迭代改进的任务上表现优异（如代码生成、创意写作），但代价是每个循环的Token消耗大约翻倍——因为自我批评也需要LLM生成。而且Reflexion的效果高度依赖批评的质量，如果模型的自我评估能力不足，反思可能变成无效的"废话循环"。</p>
+
+<p><strong>ReAct vs ToT。</strong>Tree of Thoughts（Yao et al., 2023）将推理组织成树形结构，可以并行探索多条路径，通过BFS或DFS搜索最优解。ToT的"思维宽度"远超ReAct的线性推理，但计算成本也指数级增长——每个分支都需要独立的LLM调用。ToT适合复杂谜题和需要系统性探索的场景，但对大多数日常Agent任务来说过于昂贵。</p>
+
+<!-- 图表4: feature-grid - ReAct核心特征 -->
+
+<div class="feature-grid">
+
+<div class="feature-item">
+
+<strong>推理指导行动</strong>
+
+<span>每个Action都由Thought推理产生，不是随机调用。LLM的推理能力被用于工具选择和参数构造，大幅提高工具使用的准确性。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>行动反馈推理</strong>
+
+<span>Observation将外部真实数据注入推理上下文，打破LLM参数知识的局限。模型基于事实而非猜测继续推理。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>自适应纠错</strong>
+
+<span>当Action失败或Observation不符合预期时，下一个Thought可以识别问题并调整策略。这种"发现错误→改变方向"的能力是ReAct的核心优势。</span>
+
+</div>
+
+<div class="feature-item">
+
+<strong>过程可审计</strong>
+
+<span>Thought Trace是完整的决策日志，人类可以审查Agent的每一步推理。这对调试、合规和用户信任至关重要。</span>
+
+</div>
+
+</div>
+
+<h3>2.5 基准测试数据解读：ReAct到底强在哪里？</h3>
+
+<p>理论分析说了这么多，ReAct在标准基准上的表现如何？原始论文（Yao et al., 2022）使用PaLM-540B在四个基准上进行了系统评估。让我们逐一解读这些数据背后的含义。</p>
+
+<!-- 图表5: stat-grid - 基准数据 -->
+
+<div class="stat-grid">
+
+<div class="stat-item highlight">
+
+<div class="stat-value">+34%</div>
+
+<div class="stat-label">ALFWorld 绝对提升<br>（vs 模仿学习/RL基线）</div>
+
+</div>
+
+<div class="stat-item highlight">
+
+<div class="stat-value">-5%+</div>
+
+<div class="stat-label">HotPotQA 幻觉率下降<br>（vs 纯CoT）</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">4/4</div>
+
+<div class="stat-label">基准全面优于<br>Reason-only和Act-only</div>
+
+</div>
+
+<div class="stat-item">
+
+<div class="stat-value">1-2</div>
+
+<div class="stat-label">所需few-shot示例数<br>（极少样本即可生效）</div>
+
+</div>
+
+</div>
+
+<p><strong>HotPotQA（多跳问答）</strong>是最能体现ReAct价值的基准。这个基准的问题都需要"多跳"推理——先查A，从A的结果中找到B的线索，再查B。比如"X电影的导演毕业于哪所大学？"需要先查电影找到导演名字，再查导演的教育背景。纯CoT在这种任务上容易产生幻觉，因为它可能凭记忆"猜"导演是谁。而ReAct通过实际搜索Wikipedia获取准确信息，再基于事实进行推理，幻觉率显著降低。</p>
+
+<p><strong>ALFWorld（文本游戏导航）</strong>的提升最为惊人——34个百分点的绝对提升。ALFWorld要求Agent在文本描述的虚拟房间中完成"找到一个苹果并放到桌子上"这样的任务。这个基准之所以提升巨大，是因为它完美契合ReAct的设计：每一步都需要观察环境（Observation）、决定下一步操作（Action），而且需要多步才能完成。ReAct的循环结构天然适合这种"探索-行动-观察"的任务。</p>
+
+<p><strong>FEVER（事实验证）</strong>要求Agent判断一个陈述是"支持"、"反驳"还是"信息不足"。ReAct通过搜索相关证据来验证陈述，有效降低了将虚假信息判断为"支持"的错误率。这个基准的数据说明了一个重要观点：<strong>ReAct不仅适合回答问题，也适合验证信息</strong>——这对RAG系统和内容审核有直接启示。</p>
+
+<p>综合四个基准的数据，论文得出了几个关键结论：</p>
+
+<ul>
+
+<li>ReAct<strong>系统性优于</strong>单独推理（Reason-only）和单独行动（Act-only），验证了"协同效应"假设</li>
+
+<li>ReAct只需<strong>1-2个few-shot示例</strong>就能生效，样本效率极高</li>
+
+<li>ReAct的<strong>幻觉率显著低于</strong>CoT，特别是在需要事实性信息的任务上</li>
+
+<li>ReAct的推理轨迹（Thought Trace）<strong>人类可读</strong>，具有良好的可解释性</li>
+
+</ul>
+
+<h3>2.6 常见陷阱与修复方案</h3>
+
+<p>ReAct看起来简单优雅，但在实际实现中有不少坑。以下是基于社区经验和学术研究总结的五大常见陷阱。</p>
+
+<!-- 图表10: 常见陷阱表 -->
+
+<div class="table-wrap">
+
+<table style="table-layout:fixed;">
+
+<thead>
+
+<tr>
+
+<th>陷阱</th>
+
+<th>症状</th>
+
+<th>根因</th>
+
+<th>修复方案</th>
+
+</tr>
+
+</thead>
+
+<tbody>
+
+<tr>
+
+<td><strong>"我要搜索"死循环</strong></td>
+
+<td>Agent反复搜索同一关键词，无法取得进展</td>
+
+<td>LLM没有"已经搜过"的记忆，或Observation太短导致模型不知道搜索已失败</td>
+
+<td>System Prompt加入指令"如果相同结果出现两次，换一个搜索策略"；设置max_steps限制</td>
+
+</tr>
+
+<tr>
+
+<td><strong>解析失败崩溃</strong></td>
+
+<td>模型输出格式不规范（如缺少Action Input行），正则解析器抛异常</td>
+
+<td>LLM输出有随机性，无法保证100%遵守格式约定</td>
+
+<td>捕获解析错误，将错误信息作为Observation返回："Error: Invalid format. Please provide Action Input."</td>
+
+</tr>
+
+<tr>
+
+<td><strong>上下文窗口溢出</strong></td>
+
+<td>长任务中history字符串超过模型上下文限制，后面的推理质量急剧下降</td>
+
+<td>每个Thought+Observation都追加到history，长任务可能累积数万Token</td>
+
+<td>FIFO滑动窗口（丢弃最早的Thought/Observation对）；或用摘要压缩历史</td>
+
+</tr>
+
+<tr>
+
+<td><strong>幻觉自信</strong></td>
+
+<td>Agent对错误结果表现得很有信心，在错误的方向上继续推理</td>
+
+<td>LLM倾向于"看起来合理"而非"确实正确"，缺乏事实验证意识</td>
+
+<td>在System Prompt中强调"基于Observation回答，不要猜测"；使用Reflexion增加自我检查</td>
+
+</tr>
+
+<tr>
+
+<td><strong>过度工程化</strong></td>
+
+<td>简单任务被包装成复杂Agent，浪费Token和延迟</td>
+
+<td>开发者"拿着锤子找钉子"，对不需要Agent的问题强行使用ReAct</td>
+
+<td>先判断任务是否需要适应性决策。能用决策树描述的流程不该用Agent</td>
+
+</tr>
+
+</tbody>
+
+</table>
+
+</div>
+
+<p>这五个陷阱中，<strong>死循环</strong>和<strong>解析失败</strong>是最常见的新手问题。死循环的修复方案有一个更高级的版本：在context中维护一个<code>tried_actions</code>列表，每次Action前让模型检查是否已经尝试过相同操作。如果检测到重复，就强制模型更换策略或直接返回当前最佳答案。</p>
+
+<p>解析失败的修复方案尤其精妙——<strong>把错误变成Observation</strong>。这完美利用了ReAct的自适应纠错机制：模型看到"Error: Invalid format"的Observation后，下一个Thought通常会自动修正格式。这种"让模型自己修bug"的设计，比try-catch崩溃优雅得多。</p>
+
+<p><strong>上下文溢出</strong>是生产环境最棘手的问题。一个搜索任务可能在10步内累积超过10万Token的history。两种主流方案各有权衡：FIFO滑动窗口简单但可能丢失关键早期信息；摘要压缩保留了要点但额外的LLM调用增加了延迟和成本。实际生产中，可以根据任务长度动态切换——短任务用FIFO，长任务用摘要。</p>
+
+<p><strong>过度工程化</strong>是最容易被忽视的陷阱。particula.tech在2025年的分析中指出，"对不需要AI Agent的问题应用复杂的ReAct方案"是开发者最常犯的错误之一。判断标准很简单：<strong>如果你能用流程图完整描述任务的所有分支路径，就用Workflow而不是Agent</strong>。ReAct的价值在于处理"步骤不可预先确定"的任务——如果步骤确定了，用传统代码编排反而更可靠、更便宜。</p>
+
+<div class="box warn">
+
+<div class="box-title">⚠️ Rogue Agent问题</div>
+
+<p>ReAct Agent有一种危险的失败模式：<strong>幻觉自信</strong>。模型可能基于一个错误的Observation，构建出看似合理但完全错误的推理链。更糟糕的是，模型对这种错误表现得"很有信心"，不会主动质疑自己的结论。这就是为什么生产环境中必须有<strong>外部验证机制</strong>——比如让另一个模型审查结果，或设置置信度阈值，低于阈值时转人工处理。</p>
+
+</div>
+
+<h3>2.7 生产环境最佳实践</h3>
+
+<p>从原型到生产，ReAct Agent需要解决一系列工程问题。以下是基于IBM Think、pravitech等来源总结的生产级最佳实践。</p>
+
+<div class="steps-card">
+
+<div class="step-item" data-step="1">
+
+<strong>设置max_steps硬限制</strong>
+
+<span>这是最重要的防线。典型的ReAct任务在3-8步内完成，max_steps设为10-15是合理的。超过限制意味着Agent可能陷入了死循环或方向偏离，应该及时止损。</span>
+
+</div>
+
+<div class="step-item" data-step="2">
+
+<strong>Thought Trace持久化</strong>
+
+<span>标准教程的history存在内存中，脚本崩溃就全丢了。生产环境必须将每一步的Thought/Action/Observation写入持久化存储（文件或数据库）。这不仅是为了容灾恢复，也是为了审计和调试。</span>
+
+</div>
+
+<div class="step-item" data-step="3">
+
+<strong>错误即Observation</strong>
+
+<span>所有工具执行错误和解析错误都应该作为Observation返回，而不是抛出异常中断循环。这利用了ReAct的自适应机制，让模型自己"发现"并"修复"错误。</span>
+
+</div>
+
+<div class="step-item" data-step="4">
+
+<strong>模型分层降本</strong>
+
+<span>多Agent场景中，用大模型（如deepseek-v4.1-flash）作为中央ReAct推理引擎，小模型处理子任务（如摘要、分类、简单提取）。IBM的研究表明这种分层策略可以降低40-60%的Token成本。</span>
+
+</div>
+
+<div class="step-item" data-step="5">
+
+<strong>监控关键指标</strong>
+
+<span>跟踪每个Agent运行的：步数分布、平均Token消耗、工具调用成功率、最终答案质量。这些指标是优化Agent性能的指南针。</span>
+
+</div>
+
+<div class="step-item" data-step="6">
+
+<strong>定义明确的完成条件</strong>
+
+<span>在System Prompt中定义什么样的情况下可以输出Final Answer。避免Agent在已经有了足够信息时还继续不必要地搜索。</span>
+
+</div>
+
+<div class="step-item" data-step="7">
+
+<strong>工具调用配额</strong>
+
+<span>除了步数限制，还应设置每种工具的调用次数上限。比如搜索工具最多调用5次，计算工具最多调用3次。防止Agent对单一工具的过度依赖。</span>
+
+</div>
+
+</div>
+
+<h3>2.8 ReAct的演进趋势（2025-2026）</h3>
+
+<p>ReAct自2022年发表以来，已经成为Agent领域的基础设施。但技术从不静止，了解ReAct的演进方向有助于你做出更好的架构决策。</p>
+
+<div class="timeline">
+
+<div class="event">
+
+<div class="year">2022.10</div>
+
+<p><strong>ReAct论文发表</strong>（Yao et al., arXiv:2210.03629）。首次提出Reasoning + Acting协同框架，在四个基准上验证有效性。</p>
+
+</div>
+
+<div class="event">
+
+<div class="year">2023.01</div>
+
+<p><strong>LangChain集成ReAct</strong>。ReAct成为LangChain的默认Agent模式，大规模进入开发者视野。<code>create_react_agent</code>成为最常用的Agent构建API。</p>
+
+</div>
+
+<div class="event">
+
+<div class="year">2023.05</div>
+
+<p><strong>CrewAI、AutoGen等框架采纳</strong>。ReAct从LangChain专属变为跨框架标准。各大厂商开始在自己的Agent产品中实现ReAct引擎。</p>
+
+</div>
+
+<div class="event">
+
+<div class="year">2024.06</div>
+
+<p><strong>ReWOO变体提出</strong>。将推理和观察解耦，减少LLM调用次数，在工具结果可预测的场景下显著降低延迟和成本。</p>
+
+</div>
+
+<div class="event">
+
+<div class="year">2025.01</div>
+
+<p><strong>推理模型时代</strong>。OpenAI deepseek-v4.1-flash、deepseek-v4.1-flash R1等推理模型内置长CoT能力，引发"Long CoT是否会替代ReAct"的讨论。共识是：两者互补而非替代——推理模型+工具调用（即ReAct）仍是最强组合。</p>
+
+</div>
+
+<div class="event">
+
+<div class="year">2025-2026</div>
+
+<p><strong>混合模式成为主流</strong>。生产系统趋势：ReAct + Reflexion用于自适应推理，Plan-and-Execute + ToT用于长程创作，Long CoT + ReAct用于复杂分析。单一模式不再满足复杂场景需求。</p>
+
+</div>
+
+</div>
+
+<p>其中最重要的趋势是<strong>推理模型对ReAct的影响</strong>。Sebastian Raschka在"State of LLMs 2025"中指出，deepseek-v4.1-flash/R1等模型使用超长内部CoT（可达数万Token），部分场景下可以不依赖外部工具就完成复杂推理。但实证表明，当任务需要<strong>最新的外部信息</strong>或<strong>精确的计算</strong>时，推理模型+ReAct工具调用的组合仍然优于纯推理。纯粹的"Think step-by-step"部分可能被推理模型的内置能力替代，但"Act and Observe"部分仍然不可或缺。</p>
+
+<p>另一个值得关注的趋势是arXiv 2510.25423（2025）的实证研究。该研究分析了Stack Overflow和GitHub Issues上的Agent开发问题，识别出五大挑战，其中<strong>"编排和执行控制"与ReAct直接相关</strong>，且这类问题"更复杂、更不透明、更持久"，是GitHub上的长期维护负担。这说明ReAct虽然原理简单，但在生产环境中的工程化远比学术论文展示的复杂。</p>
+
+<div class="box key">
+
+<div class="box-title">🔑 思路分析要点总结</div>
+
+<ul>
+
+<li>ReAct = CoT（推理链）+ Tool Use（工具调用）+ Loop（循环），三者缺一不可</li>
+
+<li>Thought-Action-Observation循环的核心价值在于"内心独白"和"自适应纠错"</li>
+
+<li>ReAct系统性优于纯推理或纯行动，幻觉率降低5%+，ALFWorld提升34%</li>
+
+<li>五大陷阱：死循环、解析失败、上下文溢出、幻觉自信、过度工程化</li>
+
+<li>生产七步：max_steps / 持久化 / 错误即Observation / 模型分层 / 监控 / 完成条件 / 工具配额</li>
+
+<li>2025-2026趋势：混合模式为主，推理模型+ReAct工具调用是最强组合</li>
+
+</ul>
+
+</div>
+
+</section>
+
+<!-- ==================== Section 3: 参考答案 ==================== -->
+
+<section class="problem">
+
+<h2>三、参考答案</h2>
+
+<p>本节提供三个层次的实现方案：从最纯粹的手写ReAct循环（理解原理），到LangGraph 1.x框架实现（工程落地），再到生产级增强版（持久化+监控）。</p>
+
+<h3>方案一：从零实现ReAct Agent（纯Python）</h3>
+
+<p>这个实现不依赖任何Agent框架，只用了标准库和一个LLM API调用。它的价值在于让你看清ReAct的每一个齿轮是怎么转的——没有框架的抽象层遮挡。</p>
+
+<p>实现分为四个模块：<strong>LLM调用</strong>（封装API交互）、<strong>工具定义</strong>（注册可用的工具）、<strong>Prompt模板</strong>（格式化ReAct指令）、<strong>解析器和主循环</strong>（驱动整个Agent运转）。</p>
+
+<p>先看LLM调用封装。这里使用OpenAI兼容的API格式，可以无缝切换到GLM、DeepSeek等国内模型：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["# === 模块1: LLM 调用封装 ===","from openai import OpenAI","","def call_llm(prompt: str, system: str = \"\") -> str:","
+
+\"\"\"调用 LLM API（兼容 deepseek-v4.1-flash / deepseek-v4.1-flash / OpenAI 格式）\"\"\"","
+
+client = OpenAI(","
+
+api_key=\"your-api-key\",","
+
+base_url=\"https://api.deepseek.com/v1\"  # 替换为你的 API 地址","
+
+)","
+
+messages = []","
+
+if system:","
+
+messages.append({\"role\": \"system\", \"content\": system})","
+
+messages.append({\"role\": \"user\", \"content\": prompt})","
+
+","
+
+response = client.chat.completions.create(","
+
+model=\"deepseek-v4.1-flash\",  # 或 \"deepseek-v4.1-flash\", \"deepseek-v4.1-flash\" 等","
+
+messages=messages,","
+
+temperature=0.7,  # ReAct推荐0.7：平衡探索性与格式稳定性","
+
+max_tokens=512","
+
+)","
+
+return response.choices[0].message.content"],"steps":[{"title":"导入模块：OpenAI","desc":"导入 OpenAI 等模块，为后续的代码提供必要的工具函数和类。","lineRange":[1,1]},{"title":"定义函数 call_llm(prompt, system)","desc":"替换为你的 API 地址；或 \"deepseek-v4.1-flash\", \"deepseek-v4.1-flash\" 等；ReAct推荐0.7：平衡探索性与格式稳定性。","lineRange":[3,20]}]}
+
+</script>
+</div>
+
+<p>注意这里的<code>temperature=0.7</code>设置。ReAct对温度参数比较敏感：温度太低（如0.0）会导致Agent行为过于确定性，遇到搜索失败时不会尝试新策略；温度太高（如1.2）会导致输出格式不稳定，解析失败率升高。0.7是一个经验性的良好平衡点。</p>
+
+<p>接下来定义工具。ReAct Agent的工具就是它的"手"——没有工具，它只能推理不能行动：</p>
+
+<div class="step-executor">
+
+<script type="application/json">{"mode": "walkthrough", "lang": "python", "lines": ["# === 模块2: 工具定义 ===", "import wikipedia", "import ast", "import operator", "", "def search_wikipedia(query: str) -> str:", "
+
+\"\"\"搜索 Wikipedia 获取百科信息\"\"\"", "
+
+try:", "
+
+summary = wikipedia.summary(query, sentences=3, auto_suggest=True)", "
+
+return summary", "
+
+except wikipedia.exceptions.DisambiguationError as e:", "
+
+return f\"歧义词，可选主题: {e.options[:5]}\"", "
+
+except Exception as e:", "
+
+return f\"搜索失败: {str(e)}\"", "", "def calculate(expression: str) -> str:", "
+
+\"\"\"安全计算数学表达式（仅支持基本运算）\"\"\"", "
+
+allowed_ops = {", "
+
+ast.Add: operator.add,", "
+
+ast.Sub: operator.sub,", "
+
+ast.Mult: operator.mul,", "
+
+ast.Div: operator.truediv,", "
+
+ast.Pow: operator.pow,", "
+
+}", "
+
+# 使用 AST 解析而非 eval()：eval() 可执行任意代码（如 __import__('os').system('rm -rf /')），", "
+
+# AST 方式只允许我们白名单中的运算节点，从根源杜绝代码注入", "
+
+def _eval(node):", "
+
+if isinstance(node, ast.Constant):", "
+
+return node.value", "
+
+if isinstance(node, ast.BinOp):", "
+
+left = _eval(node.left)", "
+
+right = _eval(node.right)", "
+
+if type(node.op) in allowed_ops:", "
+
+return allowed_ops[type(node.op)](left, right)", "
+
+raise ValueError(f\"不支持的运算: {type(node.op)}\")", "
+
+if isinstance(node, ast.UnaryOp):  # 处理负数", "
+
+operand = _eval(node.operand)", "
+
+if isinstance(node.op, ast.USub):", "
+
+return -operand", "
+
+raise ValueError(\"不支持的表达式\")", "
+
+", "
+
+tree = ast.parse(expression, mode='eval')", "
+
+return str(_eval(tree.body))", "", "# 工具注册表：名称 -> {描述, 函数, 用法}", "TOOLS = {", "
+
+\"search_wikipedia\": {", "
+
+\"description\": \"搜索 Wikipedia 获取百科信息。输入应为英文搜索词。\",", "
+
+\"function\": search_wikipedia,", "
+
+},", "
+
+\"calculate\": {", "
+
+\"description\": \"计算数学表达式。支持加减乘除和幂运算。\",", "
+
+\"function\": calculate,", "
+
+},", "}"], "steps": [{"title": "导入模块：wikipedia, ast, operator", "desc": "导入 wikipedia, ast, operator 等模块，为后续的代码提供必要的工具函数和类。", "lineRange": [1, 3]}, {"title": "定义函数 search_wikipedia(query)", "desc": "定义函数 search_wikipedia(query)，封装可复用的计算逻辑，内部调用：summary、str，具体操作：返回计算结果，参数 query 分别表示对应的输入数据。", "lineRange": [5, 13]}, {"title": "定义函数 calculate(expression)", "desc": "使用 AST 解析而非 eval()：eval() 可执行任意代码（如 __import__('os').system('rm -rf /')），；AST 方式只允许我们白名单中的运算节点，从根源杜绝代码注入；处理负数。", "lineRange": [15, 42]}, {"title": "参数配置：TOOLS", "desc": "定义参数：TOOLS，用于控制算法的核心行为和配置。", "lineRange": [45, 45]}]}</script>
+</div>
+
+<p>这里有几个值得注意的工程细节。第一，<code>search_wikipedia</code>捕获了<code>DisambiguationError</code>（消歧义错误）并将可选主题作为Observation返回——这让Agent可以在下一步选择更具体的搜索词。第二，<code>calculate</code>使用AST解析而非<code>eval()</code>来避免代码注入风险——安全是Agent工具设计的基本要求。第三，工具的<code>description</code>字段会出现在Prompt中，直接影响Agent的工具选择准确率。</p>
+
+<p>Prompt模板是ReAct的"灵魂"——它定义了Agent的行为规范：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"","lines":["# === 模块3: ReAct Prompt 模板 ===","REACT_SYSTEM_PROMPT = \"\"\"You are a helpful assistant. Answer the question by interleaving \\","Thought, Action, and Action Input steps.","","You have access to these tools:","{tools_description}","","Use exactly this format:","Thought: your reasoning about what to do next","Action: the tool name (must be one of [{tool_names}])","Action Input: the input to the tool","","After you receive an Observation, continue with another Thought.","When you know the final answer, output:","Thought: I now know the final answer","Final Answer: your answer to the question","","Rules:","- Always output \"Thought:\" before \"Action:\" (reason before acting)","- Use only one tool per step (avoid parallel tool parsing complexity)","- If you get an error in Observation, try a different approach","- Do not repeat the same Action with the same Action Input (anti-loop)","\"\"\"","# Prompt 设计说明：","# - \"Thought before Action\" 强制模型先推理再行动","# - \"one tool per step\" 避免多工具并行解析困难","# - \"try different approach\" 鼓励自适应纠错","# - \"no repeat\" 是死循环第一道防线\"","","def build_prompt(question: str) -> str:","
+
+\"\"\"构建 ReAct System Prompt\"\"\"","
+
+tools_desc = \"\\n\".join(","
+
+f\"- {name}: {info['description']}\" ","
+
+for name, info in TOOLS.items()","
+
+)","
+
+tool_names = \", \".join(TOOLS.keys())","
+
+return REACT_SYSTEM_PROMPT.format(","
+
+tools_description=tools_desc,","
+
+tool_names=tool_names,","
+
+)"],"steps":[{"title":"参数配置：REACT_SYSTEM_PROMPT","desc":"定义参数：REACT_SYSTEM_PROMPT，用于控制算法的核心行为和配置。","lineRange":[1,1]},{"title":"定义函数 build_prompt(question)","desc":"定义函数 build_prompt(question)，封装可复用的计算逻辑，内部调用：join、format、keys、items，具体操作：字符串拼接；格式化字符串；遍历字典；返回计算结果，参数 question 分别表示对应的输入数据。","lineRange":[29,39]}]}
+
+</script>
+</div>
+
+<p>Prompt中的几条规则值得解释。"Always output Thought before Action"确保模型先思考再行动；"Use only one tool per step"避免模型在一步中尝试调用多个工具（导致解析困难）；"Do not repeat the same Action"是防止死循环的第一道防线；"If you get an error, try a different approach"鼓励模型从失败中学习。</p>
+
+<p>最后是解析器和主循环——ReAct引擎的核心：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["# === 模块4: 解析器 + ReAct 主循环 ===","import re","","def parse_response(response: str) -> dict:","
+
+\"\"\"解析 LLM 的 ReAct 格式响应，容错处理\"\"\"","
+
+result = {\"thought\": \"\", \"action\": None, ","
+
+\"action_input\": None, \"final_answer\": None}","
+
+","
+
+# 提取 Thought（容错：大小写不敏感）","
+
+thought_match = re.search(","
+
+r'Thought:\\s*(.*?)(?=\\nAction:|\\nFinal Answer:|$)', ","
+
+response, re.DOTALL | re.IGNORECASE","
+
+)","
+
+if thought_match:","
+
+result[\"thought\"] = thought_match.group(1).strip()","
+
+","
+
+# 检查是否输出了 Final Answer","
+
+if \"Final Answer:\" in response:","
+
+fa_match = re.search(","
+
+r'Final Answer:\\s*(.*)', response, re.DOTALL","
+
+)","
+
+result[\"final_answer\"] = fa_match.group(1).strip()","
+
+return result","
+
+","
+
+# 提取 Action 和 Action Input","
+
+action_match = re.search(","
+
+r'Action:\\s*(.*?)(?=\\nAction Input:)', ","
+
+response, re.DOTALL | re.IGNORECASE","
+
+)","
+
+input_match = re.search(","
+
+r'Action Input:\\s*(.*?)(?=\\nObservation:|$)', ","
+
+response, re.DOTALL | re.IGNORECASE","
+
+)","
+
+","
+
+if action_match:","
+
+result[\"action\"] = action_match.group(1).strip()","
+
+if input_match:","
+
+result[\"action_input\"] = input_match.group(1).strip()","
+
+","
+
+return result","","","def react_agent(question: str, max_steps: int = 8) -> str:","
+
+\"\"\"从零实现的 ReAct Agent\"\"\"","
+
+system_prompt = build_prompt(question)","
+
+history = f\"{system_prompt}\\n\\nQuestion: {question}\\n\"","
+
+","
+
+# 记录已执行的操作（防死循环）","
+
+tried_actions = []","
+
+","
+
+for step in range(max_steps):","
+
+print(f\"\\n{'='*60}\")","
+
+print(f\"📋 Step {step + 1}/{max_steps}\")","
+
+print(f\"{'='*60}\")","
+
+","
+
+# 1. 调用 LLM 生成 Thought + Action","
+
+response = call_llm(history)","
+
+print(f\"\\n🧠 LLM Response:\\n{response}\")","
+
+","
+
+# 2. 解析响应","
+
+parsed = parse_response(response)","
+
+","
+
+if parsed[\"thought\"]:","
+
+print(f\"\\n💭 Thought: {parsed['thought']}\")","
+
+","
+
+# 3. 检查是否已完成","
+
+if parsed[\"final_answer\"]:","
+
+print(f\"\\n✅ Final Answer: {parsed['final_answer']}\")","
+
+return parsed[\"final_answer\"]","
+
+","
+
+# 4. 检查是否有有效 Action","
+
+action = parsed[\"action\"]","
+
+action_input = parsed[\"action_input\"]","
+
+","
+
+if not action or action not in TOOLS:","
+
+# 解析失败 → 错误作为 Observation 返回","
+
+observation = (","
+
+f\"Error: Invalid action '{action}'. \"","
+
+f\"Available tools: {list(TOOLS.keys())}. \"","
+
+f\"Please follow the format.\"","
+
+)","
+
+print(f\"\\n⚠️ Parse Warning: {observation}\")","
+
+elif (action, action_input) in tried_actions:","
+
+# 检测到重复操作 → 提示模型换策略","
+
+observation = (","
+
+f\"Notice: You already tried '{action}' with \"","
+
+f\"input '{action_input}'. Please try a different \"","
+
+f\"approach or give the final answer.\"","
+
+)","
+
+print(f\"\\n🔄 Loop Detection: {observation}\")","
+
+else:","
+
+# 5. 执行工具","
+
+tried_actions.append((action, action_input))","
+
+tool_fn = TOOLS[action][\"function\"]","
+
+try:","
+
+observation = tool_fn(action_input or \"\")","
+
+# 截断过长的 Observation","
+
+if len(observation) > 500:","
+
+observation = observation[:500] + \"...(truncated)\"","
+
+print(f\"\\n🔧 Tool [{action}('{action_input}')]:\")","
+
+print(f\"
+
+{observation}\")","
+
+except Exception as e:","
+
+observation = f\"Error executing tool: {str(e)}\"","
+
+print(f\"\\n❌ Tool Error: {observation}\")","
+
+","
+
+# 6. 将响应和观察追加到历史上下文","
+
+history += f\"\\n{response}\\nObservation: {observation}\\n\"","
+
+","
+
+print(f\"\\n⏰ 超过最大步数 ({max_steps})，Agent 未能完成任务。\")","
+
+return \"Agent 超时，未能得出答案。\"","","","# === 运行示例 ===","if __name__ == \"__main__\":","
+
+answer = react_agent(","
+
+\"Albert Einstein was born in which year? \"","
+
+\"What is that year multiplied by 3?\"","
+
+)","
+
+print(f\"\\n{'='*60}\")","
+
+print(f\"🎯 Answer: {answer}\")"],"steps":[{"title":"导入模块：re","desc":"导入 re 等模块，为后续的代码提供必要的工具函数和类。","lineRange":[1,1]},{"title":"定义函数 parse_response(response)","desc":"提取 Thought（容错：大小写不敏感）；检查是否输出了 Final Answer；提取 Action 和 Action Input。","lineRange":[3,39]},{"title":"定义函数 react_agent(question, max_steps)","desc":"记录已执行的操作（防死循环）；1. 调用 LLM 生成 Thought + Action；2. 解析响应；3. 检查是否已完成。","lineRange":[42,109]},{"title":"条件判断","desc":"判断条件 __name__==..., 根据结果选择执行路径，可能修改变量：answer，分支内操作：格式化输出结果。","lineRange":[113,119]}]}
+
+</script>
+</div>
+
+<p>这段代码有几个关键设计值得深入理解：</p>
+
+<p>第一，<strong>解析容错</strong>。<code>parse_response</code>使用了<code>re.DOTALL | re.IGNORECASE</code>标志，允许跨行匹配和不区分大小写。这是因为LLM的输出有随机性——"thought:"和"Thought:"都可能出现。过度严格的解析器会导致不必要的失败。</p>
+
+<p>第二，<strong>死循环检测</strong>。<code>tried_actions</code>列表记录了所有已执行的(Action, Action Input)组合。当检测到重复时，不是崩溃，而是返回一个提示性的Observation，让模型自己决定换一种策略。这比硬编码"遇到重复就停止"更灵活。</p>
+
+<p>第三，<strong>Observation截断</strong>。Wikipedia的摘要可能很长，直接追加到history会快速消耗上下文窗口。截断到500字符是一个简单但有效的策略。更高级的做法是用LLM做摘要，但这会增加延迟和成本。</p>
+
+<p>运行这个Agent，你会看到类似这样的输出：</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">============================================================</span>
+<span class="code-line">📋 Step 1/8</span>
+<span class="code-line">============================================================</span>
+<span class="code-line"></span>
+<span class="code-line">🧠 LLM Response:</span>
+<span class="code-line">Thought: I need to find when Albert Einstein was born, then multiply by 3.</span>
+<span class="code-line">Action: search_wikipedia</span>
+<span class="code-line">Action Input: Albert Einstein</span>
+<span class="code-line"></span>
+<span class="code-line">💭 Thought: I need to find when Albert Einstein was born, then multiply by 3.</span>
+<span class="code-line"></span>
+<span class="code-line">🔧 Tool [search_wikipedia('Albert Einstein')]:</span>
+<span class="code-line">
+
+Albert Einstein (14 March 1879 – 18 April 1955) was a German-born </span>
+<span class="code-line">
+
+theoretical physicist who is widely held to be one of the greatest...</span>
+<span class="code-line"></span>
+<span class="code-line">============================================================</span>
+<span class="code-line">📋 Step 2/8</span>
+<span class="code-line">============================================================</span>
+<span class="code-line"></span>
+<span class="code-line">🧠 LLM Response:</span>
+<span class="code-line">Thought: Einstein was born in 1879. Now I need to calculate 1879 × 3.</span>
+<span class="code-line">Action: calculate</span>
+<span class="code-line">Action Input: 1879 * 3</span>
+<span class="code-line"></span>
+<span class="code-line">💭 Thought: Einstein was born in 1879. Now I need to calculate 1879 × 3.</span>
+<span class="code-line"></span>
+<span class="code-line">🔧 Tool [calculate('1879 * 3')]:</span>
+<span class="code-line">
+
+5637</span>
+<span class="code-line"></span>
+<span class="code-line">============================================================</span>
+<span class="code-line">📋 Step 3/8</span>
+<span class="code-line">============================================================</span>
+<span class="code-line"></span>
+<span class="code-line">🧠 LLM Response:</span>
+<span class="code-line">Thought: I now know the final answer.</span>
+<span class="code-line">Final Answer: Albert Einstein was born in 1879, and 1879 × 3 = 5637.</span>
+<span class="code-line"></span>
+<span class="code-line">✅ Final Answer: Albert Einstein was born in 1879, and 1879 × 3 = 5637.</span></code></pre>
+</div>
+
+<p>三步完成。Agent<strong>自主决定</strong>了需要两步（搜索+计算），在第三步输出最终答案。整个过程没有任何代码硬编码"先搜索再计算"的流程——这是纯由LLM推理产生的决策链。</p>
+
+<h3>方案二：使用LangGraph 1.x实现</h3>
+
+<p>手写ReAct循环是学习原理的最佳方式，但生产环境更推荐使用框架。LangGraph 1.x提供了<code>create_agent</code> API（替代了已废弃的<code>create_react_agent</code>），它封装了ReAct循环的底层细节，同时保留了扩展能力。</p>
+
+<!-- 图表3：大型SVG - ReAct Agent架构 -->
+
+<div class="concept-svg">
+
+<svg viewBox="0 0 800 550" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<rect x="0" y="0" width="800" height="550" fill="#FAFAFA" rx="12"></rect>
+
+<text x="400" y="30" text-anchor="middle" font-size="18" font-weight="700" fill="#4A148C" font-family="sans-serif">ReAct Agent 完整系统架构</text>
+
+<!-- User Input -->
+
+<rect x="300" y="50" width="200" height="45" rx="8" fill="#2196F3" stroke="#1565C0" stroke-width="2"></rect>
+
+<text x="400" y="78" text-anchor="middle" font-size="13" font-weight="600" fill="#fff" font-family="sans-serif">用户问题输入</text>
+
+<!-- Arrow down -->
+
+<line x1="400" y1="95" x2="400" y2="120" stroke="#757575" stroke-width="2" marker-end="url(#arrow1)"></line>
+
+<!-- ReAct Engine (big box) -->
+
+<rect x="80" y="120" width="640" height="180" rx="12" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="3"></rect>
+
+<text x="400" y="145" text-anchor="middle" font-size="15" font-weight="700" fill="#4A148C" font-family="sans-serif">ReAct 推理引擎（LLM）</text>
+
+<!-- Thought box inside -->
+
+<rect x="110" y="160" width="180" height="65" rx="8" fill="#7B1FA2" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="200" y="185" text-anchor="middle" font-size="13" font-weight="600" fill="#fff" font-family="sans-serif">Thought</text>
+
+<text x="200" y="203" text-anchor="middle" font-size="10" fill="#EA80FC" font-family="sans-serif">推理 · 规划 · 决策</text>
+
+<text x="200" y="217" text-anchor="middle" font-size="10" fill="#EA80FC" font-family="sans-serif">（内部含 CoT 链）</text>
+
+<!-- Action box inside -->
+
+<rect x="310" y="160" width="180" height="65" rx="8" fill="#E040FB" stroke="#AA00FF" stroke-width="2"></rect>
+
+<text x="400" y="185" text-anchor="middle" font-size="13" font-weight="600" fill="#fff" font-family="sans-serif">Action</text>
+
+<text x="400" y="203" text-anchor="middle" font-size="10" fill="#FCE4EC" font-family="sans-serif">工具选择 · 参数生成</text>
+
+<text x="400" y="217" text-anchor="middle" font-size="10" fill="#FCE4EC" font-family="sans-serif">格式化输出</text>
+
+<!-- Observation box inside -->
+
+<rect x="510" y="160" width="180" height="65" rx="8" fill="#4CAF50" stroke="#2E7D32" stroke-width="2"></rect>
+
+<text x="600" y="185" text-anchor="middle" font-size="13" font-weight="600" fill="#fff" font-family="sans-serif">Observation</text>
+
+<text x="600" y="203" text-anchor="middle" font-size="10" fill="#E8F5E9" font-family="sans-serif">结果注入 · 上下文更新</text>
+
+<text x="600" y="217" text-anchor="middle" font-size="10" fill="#E8F5E9" font-family="sans-serif">截断/摘要</text>
+
+<!-- Arrows inside engine -->
+
+<line x1="290" y1="192" x2="310" y2="192" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow1)"></line>
+
+<line x1="490" y1="192" x2="510" y2="192" stroke="#E040FB" stroke-width="2" marker-end="url(#arrow2)"></line>
+
+<path d="M 600 225 Q 600 260 400 260 Q 200 260 200 225" fill="none" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrow3)"></path>
+
+<text x="400" y="278" text-anchor="middle" font-size="10" fill="#4CAF50" font-style="italic" font-family="sans-serif">循环（最多 max_steps 次）</text>
+
+<!-- Arrow down to tools -->
+
+<line x1="400" y1="300" x2="400" y2="325" stroke="#757575" stroke-width="2" marker-end="url(#arrow2)"></line>
+
+<!-- Tools layer -->
+
+<rect x="80" y="325" width="640" height="70" rx="8" fill="#fff" stroke="#BA68C8" stroke-width="2"></rect>
+
+<text x="400" y="348" text-anchor="middle" font-size="13" font-weight="600" fill="#7B1FA2" font-family="sans-serif">工具层（Tools）</text>
+
+<rect x="110" y="358" width="120" height="28" rx="5" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="170" y="376" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">🔍 搜索/Wiki</text>
+
+<rect x="245" y="358" width="120" height="28" rx="5" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="305" y="376" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">🧮 计算</text>
+
+<rect x="380" y="358" width="120" height="28" rx="5" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="440" y="376" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">📄 文件读写</text>
+
+<rect x="515" y="358" width="120" height="28" rx="5" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="575" y="376" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">🌐 API 调用</text>
+
+<rect x="650" y="358" width="55" height="28" rx="5" fill="#F3E5F5" stroke="#BA68C8" stroke-width="1"></rect>
+
+<text x="677" y="376" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif">...更多</text>
+
+<!-- Side: State Persistence -->
+
+<rect x="540" y="415" width="200" height="55" rx="8" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="640" y="437" text-anchor="middle" font-size="12" font-weight="600" fill="#E65100" font-family="sans-serif">状态持久化</text>
+
+<text x="640" y="455" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">Thought Trace / 恢复点</text>
+
+<!-- Side: Monitoring -->
+
+<rect x="540" y="480" width="200" height="55" rx="8" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="640" y="502" text-anchor="middle" font-size="12" font-weight="600" fill="#C62828" font-family="sans-serif">监控告警</text>
+
+<text x="640" y="520" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">步数 · Token · 错误率</text>
+
+<!-- Side: Error Handler -->
+
+<rect x="60" y="415" width="200" height="55" rx="8" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="160" y="437" text-anchor="middle" font-size="12" font-weight="600" fill="#2E7D32" font-family="sans-serif">错误处理</text>
+
+<text x="160" y="455" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">Error → Observation</text>
+
+<!-- Side: Budget Control -->
+
+<rect x="60" y="480" width="200" height="55" rx="8" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="160" y="502" text-anchor="middle" font-size="12" font-weight="600" fill="#0D47A1" font-family="sans-serif">预算控制</text>
+
+<text x="160" y="520" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">max_steps · tool_quota</text>
+
+<!-- Lines from side to engine -->
+
+<line x1="260" y1="442" x2="80" y2="442" stroke="#FF9800" stroke-width="1" stroke-dasharray="3,2" opacity="0"></line>
+
+<line x1="540" y1="442" x2="720" y2="442" stroke="#FF9800" stroke-width="1" stroke-dasharray="3,2" opacity="0"></line>
+
+</svg>
+
+</div>
+
+<p>上图展示了一个生产级ReAct Agent的完整架构。除了核心的ReAct引擎和工具层，还有四个关键的横切关注点：状态持久化（容灾恢复）、监控告警（运维）、错误处理（健壮性）和预算控制（成本）。方案二的代码聚焦于核心引擎，方案三会增强这些横切关注点。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["# === LangGraph 1.x 实现 ReAct Agent ===","# 版本要求: LangGraph >= 1.2.11, LangChain >= 1.4","","from langchain.agents import create_agent","from langchain_classic.tools import tool","from langchain_openai import ChatOpenAI","","# 1. 用 @tool 装饰器定义工具（自动生成 Schema）","@tool","def search_wikipedia(query: str) -> str:","
+
+\"\"\"Search Wikipedia for information about a topic.","
+
+","
+
+Args:","
+
+query: English search term for Wikipedia lookup.","
+
+","
+
+Returns:","
+
+A 3-sentence summary of the Wikipedia article.","
+
+\"\"\"","
+
+import wikipedia","
+
+try:","
+
+return wikipedia.summary(query, sentences=3, auto_suggest=True)","
+
+except wikipedia.exceptions.DisambiguationError as e:","
+
+return f\"Ambiguous term. Options: {e.options[:5]}\"","
+
+except Exception as e:","
+
+return f\"Search failed: {str(e)}\"","","","@tool","def calculate(expression: str) -> str:","
+
+\"\"\"Safely calculate a mathematical expression.","
+
+","
+
+Args:","
+
+expression: Math expression like '2 + 3 * 4' or '1879 * 3'.","
+
+","
+
+Returns:","
+
+The calculation result as a string.","
+
+\"\"\"","
+
+import ast, operator","
+
+_ops = {","
+
+ast.Add: operator.add, ast.Sub: operator.sub,","
+
+ast.Mult: operator.mul, ast.Div: operator.truediv,","
+
+ast.Pow: operator.pow,","
+
+}","
+
+def _eval(node):","
+
+if isinstance(node, ast.Constant):","
+
+return node.value","
+
+if isinstance(node, ast.BinOp) and type(node.op) in _ops:","
+
+return _ops[type(node.op)](","
+
+_eval(node.left), _eval(node.right)","
+
+)","
+
+if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):","
+
+return -_eval(node.operand)","
+
+raise ValueError(f\"Unsupported: {ast.dump(node)}\")","
+
+","
+
+return str(_eval(ast.parse(expression, mode='eval').body))","","","# 2. 初始化 LLM","model = ChatOpenAI(","
+
+model=\"deepseek-v4.1-flash\",  # 或 \"deepseek-v4.1-flash\", \"deepseek-v4.1-flash\"","
+
+temperature=0.7,","
+
+max_tokens=512,",")","","# 3. 创建 ReAct Agent（LangGraph 1.x 新 API）","# 注意：create_agent 不接受 max_iterations/verbose 参数","# 迭代限制在 invoke() 时通过 recursion_limit 设置","agent = create_agent(","
+
+model=model,","
+
+tools=[search_wikipedia, calculate],","
+
+debug=True,
+
+# 启用详细执行日志（节点执行+状态更新）",")","","# 4. 运行 Agent","# recursion_limit：LangGraph 中每次 ReAct 迭代 = 2个图节点","# （agent 节点 + tools 节点），因此 recursion_limit=25 ≈ 12次迭代","result = agent.invoke(","
+
+{","
+
+\"messages\": [","
+
+{\"role\": \"user\", \"content\": (","
+
+\"Albert Einstein was born in which year? \"","
+
+\"What is that year multiplied by 3?\"","
+
+)}","
+
+]","
+
+},","
+
+config={\"recursion_limit\": 25}  # ≈12次 ReAct 迭代",")","","# 获取最终回答","last_msg = result[\"messages\"][-1]","print(\"Agent Result:\", last_msg.content)"],"steps":[{"title":"导入模块：create_agent, tool, ChatOpenAI","desc":"导入 create_agent, tool, ChatOpenAI 等模块，为后续的代码提供必要的工具函数和类。","lineRange":[3,5]},{"title":"定义函数 search_wikipedia(query)","desc":"定义函数 search_wikipedia(query)，封装可复用的计算逻辑，内部调用：summary、str，具体操作：返回计算结果，参数 query 分别表示对应的输入数据。","lineRange":[9,24]},{"title":"定义函数 calculate(expression)","desc":"定义函数 calculate(expression)，封装可复用的计算逻辑，内部调用：str、isinstance、ValueError、_eval、type，具体操作：类型检查；返回计算结果；格式化字符串，参数 expression 分别表示对应的输入数据。","lineRange":[28,54]},{"title":"计算：model","desc":"或 \"deepseek-v4.1-flash\", \"deepseek-v4.1-flash\"；3. 创建 ReAct Agent（LangGraph 1.x 新 API）；注意：create_agent 不接受 max_iterations/verbose 参数；迭代限制在 invoke() 时通过 recursion_limit 设置。","lineRange":[58,90]}]}
+
+</script>
+</div>
+
+<p>对比方案一的手写实现，框架版有几个显著优势：</p>
+
+<p>第一，<strong>工具Schema自动生成</strong>。<code>@tool</code>装饰器从函数的docstring和类型注解中自动提取工具描述和参数Schema。你只需要写好函数和docstring，框架自动处理格式化。这意味着工具描述的质量完全取决于你的docstring——所以请认真写。</p>
+
+<p>第二，<strong>解析逻辑内置</strong>。<code>create_agent</code>内部处理了LLM输出的解析、格式验证和错误恢复。你不需要手写正则表达式，也不需要处理格式不规范的边界情况。框架已经实现了"错误即Observation"的模式。</p>
+
+<p>第三，<strong>可观测性开箱即用</strong>。设置<code>debug=True</code>后，LangGraph会打印详细的节点执行信息和状态更新日志。在生产环境中，可以接入LangFuse等可观测性平台进行更精细的监控。</p>
+
+<h3>方案三：生产级增强（持久化 + 错误处理 + 预算控制）</h3>
+
+<p>从方案二到生产系统，还需要增加状态持久化、精细的错误处理和Token预算控制。以下是增强版的核心代码：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode": "walkthrough", "lang": "python", "lines": ["# === 生产级 ReAct Agent 增强 ===", "", "import json", "import time", "from pathlib import Path", "from langchain.agents import create_agent", "from langchain_classic.tools import tool", "from langchain_openai import ChatOpenAI", "", "# --- Trace 持久化 ---", "class TraceLogger:", "
+
+\"\"\"将 ReAct Thought Trace 持久化到文件\"\"\"", "
+
+", "
+
+def __init__(self, session_id: str):", "
+
+self.session_id = session_id", "
+
+self.log_dir = Path(f\"traces/{session_id}\")", "
+
+self.log_dir.mkdir(parents=True, exist_ok=True)", "
+
+self.steps = []", "
+
+", "
+
+def log_step(self, step: int, thought: str, ", "
+
+action: str, action_input: str,", "
+
+observation: str, tokens_used: int = 0):", "
+
+entry = {", "
+
+\"step\": step,", "
+
+\"timestamp\": time.strftime(\"%Y-%m-%d %H:%M:%S\"),", "
+
+\"thought\": thought,", "
+
+\"action\": action,", "
+
+\"action_input\": action_input,", "
+
+\"observation\": observation[:500],  # 截断", "
+
+\"tokens_used\": tokens_used,", "
+
+}", "
+
+self.steps.append(entry)", "
+
+# 每步写入文件（容灾恢复）", "
+
+with open(self.log_dir / \"trace.json\", \"w\") as f:", "
+
+json.dump(self.steps, f, ensure_ascii=False, indent=2)", "", "
+
+def summary(self) -> dict:", "
+
+\"\"\"生成运行摘要（供监控用）\"\"\"", "
+
+total_tokens = sum(s[\"tokens_used\"] for s in self.steps)", "
+
+return {", "
+
+\"session_id\": self.session_id,", "
+
+\"total_steps\": len(self.steps),", "
+
+\"total_tokens\": total_tokens,", "
+
+\"actions_taken\": [s[\"action\"] for s in self.steps],", "
+
+}", "", "", "# --- 预算控制装饰器 ---", "class BudgetGuard:", "
+
+\"\"\"工具调用配额控制\"\"\"", "
+
+", "
+
+def __init__(self, tool_limits: dict):", "
+
+# {\"search_wikipedia\": 5, \"calculate\": 3}", "
+
+self.limits = tool_limits.copy()", "
+
+self.usage = {k: 0 for k in tool_limits}", "
+
+", "
+
+def check(self, tool_name: str) -> bool:", "
+
+\"\"\"查询工具是否还有配额（不修改状态）\"\"\"", "
+
+if tool_name not in self.limits:", "
+
+return True  # 未限制的工具", "
+
+return self.usage[tool_name] < self.limits[tool_name]", "", "
+
+def consume(self, tool_name: str) -> None:", "
+
+\"\"\"记录一次工具调用\"\"\"", "
+
+if tool_name in self.limits:", "
+
+self.usage[tool_name] += 1", "
+
+", "
+
+def remaining(self, tool_name: str) -> int:", "
+
+\"\"\"返回剩余配额\"\"\"", "
+
+if tool_name not in self.limits:", "
+
+return -1  # 无限", "
+
+return self.limits[tool_name] - self.usage.get(tool_name, 0)", "", "", "# --- 带预算控制的工具包装 ---", "budget = BudgetGuard({", "
+
+\"search_wikipedia\": 5,  # 最多搜索5次", "
+
+\"calculate\": 3,
+
+# 最多计算3次", "})", "", "# === 跨块引用兜底：单块运行时补齐上游工具 ===", "if 'calculate' not in dir():", "
+
+@tool", "
+
+def calculate(expression: str) -> str:", "
+
+\"\"\"计算四则运算表达式（如 12*34+7）。\"\"\"", "
+
+import ast", "
+
+return str(eval(compile(ast.parse(expression, mode='eval'), '<expr>', 'eval'),", "
+
+{\"__builtins__\": {}}, {}))", "", "# 获取方案二中 search_wikipedia 的原始函数（@tool装饰前的Python函数）", "# StructuredTool.func 属性指向未被装饰的原始函数", "_original_search = search_wikipedia.func", "", "@tool", "def search_wikipedia_budgeted(query: str) -> str:", "
+
+\"\"\"Search Wikipedia for information about a topic.\"\"\"", "
+
+if not budget.check(\"search_wikipedia\"):", "
+
+return (", "
+
+\"Budget exceeded: Wikipedia search limit reached \"", "
+
+f\"({budget.limits['search_wikipedia']} calls). \"", "
+
+\"Use existing information to answer.\"", "
+
+)", "
+
+budget.consume(\"search_wikipedia\")", "
+
+return _original_search(query)", "", "", "# --- 创建生产级 Agent ---", "model = ChatOpenAI(", "
+
+model=\"deepseek-v4.1-flash\",", "
+
+temperature=0.7,", "
+
+max_tokens=512,", ")", "", "# create_agent 不接受 max_iterations/verbose 参数", "# 迭代限制通过 invoke() 的 recursion_limit 设置", "production_agent = None", "try:", "
+
+production_agent = create_agent(", "
+
+model=model,", "
+
+tools=[search_wikipedia_budgeted, calculate],", "
+
+debug=True,", "
+
+)", "except Exception as _e:", "
+
+print(f\"[degraded] Agent 创建需要可用的模型环境: {type(_e).__name__}: {_e}\")", "", "# --- 运行 + Trace 记录 ---", "if __name__ == \"__main__\":", "
+
+session_id = f\"react-{int(time.time())}\"", "
+
+logger = TraceLogger(session_id)", "
+
+", "
+
+print(f\"Session: {session_id}\")", "
+
+print(f\"Budget: search={budget.limits}\")", "
+
+", "
+
+if production_agent is None:", "
+
+print(\"[degraded] Agent 未创建（缺模型环境），跳过实跑演示\")", "
+
+raise SystemExit(0)", "
+
+try:", "
+
+result = production_agent.invoke(", "
+
+{", "
+
+\"messages\": [", "
+
+{\"role\": \"user\", \"content\": (", "
+
+\"Compare the population of Tokyo and Seoul. \"", "
+
+\"Which city is larger by how much?\"", "
+
+)}", "
+
+]", "
+
+},", "
+
+config={\"recursion_limit\": 25}  # ≈12次 ReAct 迭代", "
+
+)", "
+
+except Exception as _e:", "
+
+print(f\"[degraded] 实跑需要可用 LLM API: {type(_e).__name__}: {_e}\")", "
+
+raise SystemExit(0)", "
+
+", "
+
+last_msg = result[\"messages\"][-1]", "
+
+print(f\"\\nResult: {last_msg.content}\")", "
+
+print(f\"\\nTrace saved to: traces/{session_id}/trace.json\")", "
+
+print(f\"Budget remaining: \"", "
+
+f\"search={budget.remaining('search_wikipedia')}, \"", "
+
+f\"calc={budget.remaining('calculate')}\")"], "steps": [{"title": "命令组（第 1 行起）", "desc": "=== 生产级 ReAct Agent 增强 ===。", "lineRange": [0, 0]}, {"title": "import / from", "desc": "执行命令：import json；执行命令：import time；执行命令：from pathlib import Path；执行命令：from langchain.agents import create_agent；执行命令：from langchain.tools import tool；执行命令：from langchain_openai import ChatOpenAI。", "lineRange": [2, 7]}, {"title": "class / \"\"\"将", "desc": "--- Trace 持久化 ---；执行命令：class TraceLogger:；执行命令：\"\"\"将 ReAct Thought Trace 持久化到文件\"\"\"。", "lineRange": [9, 11]}, {"title": "def / self.session_id / self.log_dir", "desc": "执行命令：def __init__(self, session_id: str):；执行命令：self.session_id = session_id；执行命令：self.log_dir = Path(f\"traces/{session_id}\")；执行命令：self.log_dir.mkdir(parents=True, exist_ok=True)；执行命令：self.steps = []。", "lineRange": [13, 17]}, {"title": "def / action: / observation:", "desc": "执行命令：def log_step(self, step: int, thought: str,；执行命令：action: str, action_input: str,；执行命令：observation: str, tokens_used: int = 0):；执行命令：entry = {；执行命令：\"step\": step,；执行命令：\"timestamp\": time.strftime(\"%Y-%m-%d %H:%M:%S\"),；执行命令：\"thought\": thought,；执行命令：\"action\": action,；执行命令：\"action_input\": action_input,；执行命令：\"observation\": observation[:500],  # 截断；执行命令：\"tokens_used\": tokens_used,；执行命令：}；执行命令：self.steps.append(entry)；每步写入文件（容灾恢复）；执行命令：with open(self.log_dir / \"trace.json\", \"w\") as f:；执行命令：json.dump(self.steps, f, ensure_ascii=False, indent=2)。", "lineRange": [19, 34]}, {"title": "def / \"\"\"生成运行摘要（供监控用）\"\"\" / total_tokens", "desc": "执行命令：def summary(self) -> dict:；执行命令：\"\"\"生成运行摘要（供监控用）\"\"\"；执行命令：total_tokens = sum(s[\"tokens_used\"] for s in self.steps)；执行命令：return {；执行命令：\"session_id\": self.session_id,；执行命令：\"total_steps\": len(self.steps),；执行命令：\"total_tokens\": total_tokens,；执行命令：\"actions_taken\": [s[\"action\"] for s in self.steps],；执行命令：}。", "lineRange": [36, 44]}, {"title": "class / \"\"\"工具调用配额控制\"\"\"", "desc": "--- 预算控制装饰器 ---；执行命令：class BudgetGuard:；执行命令：\"\"\"工具调用配额控制\"\"\"。", "lineRange": [47, 49]}, {"title": "def / self.limits / self.usage", "desc": "执行命令：def __init__(self, tool_limits: dict):；{\"search_wikipedia\": 5, \"calculate\": 3}；执行命令：self.limits = tool_limits.copy()；执行命令：self.usage = {k: 0 for k in tool_limits}。", "lineRange": [51, 54]}, {"title": "def / \"\"\"查询工具是否还有配额（不修改状态）\"\"\" / if", "desc": "执行命令：def check(self, tool_name: str) -> bool:；执行命令：\"\"\"查询工具是否还有配额（不修改状态）\"\"\"；执行命令：if tool_name not in self.limits:；执行命令：return True  # 未限制的工具；执行命令：return self.usage[tool_name] < self.limits[tool_name]；执行命令：def consume(self, tool_name: str) -> None:；执行命令：\"\"\"记录一次工具调用\"\"\"；执行命令：if tool_name in self.limits:；执行命令：self.usage[tool_name] += 1。", "lineRange": [56, 63]}, {"title": "def / \"\"\"返回剩余配额\"\"\" / if", "desc": "执行命令：def remaining(self, tool_name: str) -> int:；执行命令：\"\"\"返回剩余配额\"\"\"；执行命令：if tool_name not in self.limits:；执行命令：return -1  # 无限；执行命令：return self.limits[tool_name] - self.usage.get(tool_name, 0)。", "lineRange": [65, 69]}, {"title": "budget / \"search_wikipedia\": / \"calculate\":", "desc": "--- 带预算控制的工具包装 ---；执行命令：budget = BudgetGuard({；执行命令：\"search_wikipedia\": 5,  # 最多搜索5次；执行命令：\"calculate\": 3,
+
+# 最多计算3次；执行命令：})。", "lineRange": [72, 76]}, {"title": "_original_search", "desc": "获取方案二中 search_wikipedia 的原始函数（@tool装饰前的Python函数）；StructuredTool.func 属性指向未被装饰的原始函数；执行命令：_original_search = search_wikipedia.func。", "lineRange": [78, 80]}, {"title": "@tool / def / \"\"\"Search", "desc": "执行命令：@tool；执行命令：def search_wikipedia_budgeted(query: str) -> str:；执行命令：\"\"\"Search Wikipedia for information about a topic.\"\"\"；执行命令：if not budget.check(\"search_wikipedia\"):；执行命令：return (；执行命令：\"Budget exceeded: Wikipedia search limit reached \"；执行命令：f\"({budget.limits['search_wikipedia']} calls). \"；执行命令：\"Use existing information to answer.\"；执行命令：)；执行命令：budget.consume(\"search_wikipedia\")；执行命令：return _original_search(query)。", "lineRange": [82, 92]}, {"title": "model / model=\"deepseek-v4.1-flash\", / temperature=0.7,", "desc": "--- 创建生产级 Agent ---；执行命令：model = ChatOpenAI(；执行命令：model=\"deepseek-v4.1-flash\",；执行命令：temperature=0.7,；执行命令：max_tokens=512,；执行命令：)。", "lineRange": [95, 100]}, {"title": "production_agent / model=model, / tools=[search_wikipedia_budgeted,", "desc": "create_agent 不接受 max_iterations/verbose 参数；迭代限制通过 invoke() 的 recursion_limit 设置；执行命令：production_agent = create_agent(；执行命令：model=model,；执行命令：tools=[search_wikipedia_budgeted, calculate],；执行命令：debug=True,；执行命令：)。", "lineRange": [102, 108]}, {"title": "if / session_id / logger", "desc": "--- 运行 + Trace 记录 ---；执行命令：if __name__ == \"__main__\":；执行命令：session_id = f\"react-{int(time.time())}\"；执行命令：logger = TraceLogger(session_id)。", "lineRange": [110, 113]}, {"title": "print(f\"Session: / print(f\"Budget:", "desc": "执行命令：print(f\"Session: {session_id}\")；执行命令：print(f\"Budget: search={budget.limits}\")。", "lineRange": [115, 116]}, {"title": "result / { / \"messages\":", "desc": "执行命令：result = production_agent.invoke(；执行命令：{；执行命令：\"messages\": [；执行命令：{\"role\": \"user\", \"content\": (；执行命令：\"Compare the population of Tokyo and Seoul. \"；执行命令：\"Which city is larger by how much?\"；执行命令：)}；执行命令：]；执行命令：},；执行命令：config={\"recursion_limit\": 25}  # ≈12次 ReAct 迭代；执行命令：)。", "lineRange": [118, 128]}, {"title": "last_msg / print(f\"\\nResult: / print(f\"\\nTrace", "desc": "执行命令：last_msg = result[\"messages\"][-1]；执行命令：print(f\"\\nResult: {last_msg.content}\")；执行命令：print(f\"\\nTrace saved to: traces/{session_id}/trace.json\")；执行命令：print(f\"Budget remaining: \"；执行命令：f\"search={budget.remaining('search_wikipedia')}, \"；执行命令：f\"calc={budget.remaining('calculate')}\")。", "lineRange": [130, 135]}]}
+
+</script>
+</div>
+
+<p>生产增强版的核心增加是三个组件：</p>
+
+<p><strong>TraceLogger</strong>将每一步的Thought、Action、Observation写入JSON文件。这不仅用于调试——当Agent产生意料之外的行为时，Trace是你理解"它为什么这么做"的唯一途径。在合规敏感的场景（如金融、医疗），Thought Trace甚至可能是审计要求。</p>
+
+<p><strong>BudgetGuard</strong>为每种工具设置调用配额。这解决了"Agent反复搜索同一关键词"的死循环问题。当配额耗尽时，不是硬停止，而是返回一个引导性的Observation，提示Agent"用现有信息回答"。这种设计让Agent优雅降级而非突然崩溃。</p>
+
+<p><strong>工具包装</strong>模式（装饰器+预算检查）是一种非侵入式的增强。原始工具逻辑不需要修改，预算控制作为独立的横切关注点叠加在外层。这种分离使得工具可以在无预算限制的环境（如开发/测试）和有预算限制的环境（生产）之间无缝切换。</p>
+
+<div class="box practice">
+
+<div class="box-title">代码版本说明</div>
+
+<p>以上代码使用 LangGraph 1.x 的 <code>create_agent</code> API（从 <code>langchain.agents</code> 导入）。在 LangGraph 0.x 中常用的 <code>create_react_agent</code> 已在 1.x 中标记为废弃。如果你使用的是旧版本，请升级：<code>pip install langgraph&gt;=1.2.11 langchain&gt;=1.4</code></p>
+
+</div>
+
+</section>
+
+<!-- ==================== Section 4: 举一反三 ==================== -->
+
+<section class="problem">
+
+<h2>四、举一反三</h2>
+
+<p>掌握了基础ReAct循环后，以下三个变体题帮助你将理解推向更深层次。每个变体聚焦一个不同的扩展维度，对应实际工作中高频出现的场景。</p>
+
+<!-- 图表9: quadrant - ReAct适用场景 -->
+
+<div class="quadrant">
+
+<div class="q-cell q1">
+
+<strong>低复杂度 + 低工具依赖</strong>
+
+<ul>
+
+<li>简单问答</li>
+
+<li>翻译、摘要</li>
+
+<li>→ 不需要ReAct</li>
+
+<li>用单次LLM调用</li>
+
+</ul>
+
+</div>
+
+<div class="q-cell q2">
+
+<strong>低复杂度 + 高工具依赖</strong>
+
+<ul>
+
+<li>天气查询</li>
+
+<li>汇率转换</li>
+
+<li>→ 用Function Calling</li>
+
+<li>不需要循环</li>
+
+</ul>
+
+</div>
+
+<div class="q-cell q3">
+
+<strong>高复杂度 + 低工具依赖</strong>
+
+<ul>
+
+<li>数学证明</li>
+
+<li>逻辑推理</li>
+
+<li>→ 用CoT或ToT</li>
+
+<li>不需要工具</li>
+
+</ul>
+
+</div>
+
+<div class="q-cell q4">
+
+<strong>高复杂度 + 高工具依赖 ★</strong>
+
+<ul>
+
+<li>多跳问答</li>
+
+<li>研究报告</li>
+
+<li>→ ★ ReAct 最佳场景</li>
+
+<li>需要推理+工具+循环</li>
+
+</ul>
+
+</div>
+
+<div class="axis-label axis-x">— 任务复杂度 →</div>
+
+</div>
+
+<p>上面的四象限图帮助你快速判断"这个任务是否需要ReAct"。变体题1-3分别对应了ReAct最常被扩展的三个方向：加入反思、接入更多工具类型、加入成本约束。</p>
+
+<h3>变体一：Reflexion增强——让ReAct学会"反思"</h3>
+
+<div class="card-accent" style="margin:16px 0;">
+
+<p><strong>学习目标：</strong>理解Reflexion模式如何在ReAct基础上增加"自我批评"环节，训练将"推理-行动-反思"三者整合的系统设计能力。这个变体培养的核心能力是<strong>在不改变核心循环的前提下，通过增加反馈层来提升Agent质量</strong>——这是架构师最重要的设计思维之一。</p>
+
+</div>
+
+<p><strong>与原题的差异：</strong>原题的ReAct Agent在输出Final Answer后就结束了——无论答案对不对。变体一要求在Final Answer输出后，增加一个"自我评估"环节：让另一个LLM调用（或同一模型的另一个Prompt）评估答案的质量，如果发现不足，生成反馈并触发新一轮ReAct循环。</p>
+
+<p><strong>核心挑战：</strong></p>
+
+<ol>
+
+<li>如何设计评估标准？（准确性、完整性、一致性？）</li>
+
+<li>如何避免"反思死循环"——模型不断说"还可以改进"？</li>
+
+<li>反思记忆应该存什么？全部历史还是只存最近一轮？</li>
+
+</ol>
+
+<p><strong>输入输出示例：</strong></p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">输入: "比较deepseek-v4.1-flash和deepseek-v4.1-flash在代码生成上的差异"</span>
+<span class="code-line"></span>
+<span class="code-line">第1轮 ReAct:</span>
+<span class="code-line">  Thought → Action(search) → Observation → ... → Final Answer: "deepseek-v4.1-flash..."</span>
+<span class="code-line"></span>
+<span class="code-line">自我评估:</span>
+<span class="code-line">  Score: 6/10</span>
+<span class="code-line">  Feedback: "答案缺少Claude 3.5的具体数据，只比较了deepseek-v4.1-flash"</span>
+<span class="code-line"></span>
+<span class="code-line">第2轮 ReAct（注入反馈）:</span>
+<span class="code-line">  Thought: "上次评估指出我缺少Claude的数据，这次先搜索deepseek-v4.1-flash..."</span>
+<span class="code-line">  → Final Answer: "deepseek-v4.1-flash在...而deepseek-v4.1-flash在..."</span>
+<span class="code-line"></span>
+<span class="code-line">最终输出: 第2轮的Final Answer（评分提升至 8/10）</span></code></pre>
+</div>
+
+<p><strong>考察的核心能力：</strong>反馈循环设计、评估Prompt工程、收敛条件设计。这个变体是理解（Reflexion）和（混合推理）的热身。</p>
+
+<h3>变体二：多工具MCP集成——接入真实世界</h3>
+
+<div class="card-accent" style="margin:16px 0;">
+
+<p><strong>学习目标：</strong>将ReAct Agent从"搜索+计算"的玩具场景扩展到真实生产环境，训练<strong>工具生态设计</strong>和<strong>工具选择优化</strong>的能力。这个变体直接关联第10-11题（MCP协议）和（工具选择策略）。</p>
+
+</div>
+
+<p><strong>与原题的差异：</strong>原题只有2个简单工具（Wikipedia搜索和数学计算）。变体二要求接入至少5种不同类型的工具：网页搜索、数据库查询、文件读写、代码执行、API调用。更关键的是，这些工具通过MCP（Model Context Protocol）协议注册——这是DeepSeek在2024年推出的开放标准，到2026年已有超过9400个MCP Server在运行。</p>
+
+<p><strong>核心挑战：</strong></p>
+
+<ol>
+
+<li>当工具数量从2个增加到20个时，Agent的工具选择准确率如何变化？（提示：通常会下降）</li>
+
+<li>如何为每个工具写出高质量的description，帮助LLM做出正确的选择？</li>
+
+<li>不同工具的延迟差异很大（搜索要2秒，数据库查询只要50毫秒），如何利用这种差异做调度优化？</li>
+
+<li>如何处理工具之间的依赖关系？（比如"先搜索获取URL，再读取该URL的内容"）</li>
+
+</ol>
+
+<p><strong>输入输出示例：</strong></p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">输入: "查找最近3天关于AI Agent的新闻，总结要点，存到文件中"</span>
+<span class="code-line"></span>
+<span class="code-line">可用工具:</span>
+<span class="code-line">  - search_news(query, days)
+
+# 新闻搜索</span>
+<span class="code-line">  - search_web(query)
+
+# 通用搜索</span>
+<span class="code-line">  - query_database(sql)
+
+# SQL数据库查询</span>
+<span class="code-line">  - read_file(path)
+
+# 读取文件</span>
+<span class="code-line">  - write_file(path, content)
+
+# 写入文件</span>
+<span class="code-line">  - execute_python(code)
+
+# 执行Python代码</span>
+<span class="code-line">  - call_api(url, method, data)
+
+# HTTP API调用</span>
+<span class="code-line"></span>
+<span class="code-line">Thought: 我需要搜索最近3天的AI Agent新闻。</span>
+<span class="code-line">Action: search_news</span>
+<span class="code-line">Action Input: {"query": "AI Agent", "days": 3}</span>
+<span class="code-line">Observation: [5条新闻列表...]</span>
+<span class="code-line"></span>
+<span class="code-line">Thought: 我需要读取每条新闻的详情来总结要点。</span>
+<span class="code-line">Action: call_api</span>
+<span class="code-line">Action Input: {"url": "https://...", "method": "GET"}</span>
+<span class="code-line">Observation: [新闻全文...]</span>
+<span class="code-line"></span>
+<span class="code-line">Thought: 现在我有了足够信息来做总结，然后存到文件。</span>
+<span class="code-line">Action: write_file</span>
+<span class="code-line">Action Input: {"path": "ai_agent_news_summary.md", "content": "..."}</span>
+<span class="code-line">Observation: 文件已写入</span></code></pre>
+</div>
+
+<p><strong>考察的核心能力：</strong>工具Schema设计、工具描述质量优化、多工具冲突处理、依赖管理。做好这个变体，你对MCP生态和工具选择策略的理解会深入很多。</p>
+
+<h3>变体三：预算感知ReAct——Token就是金钱</h3>
+
+<div class="card-accent" style="margin:16px 0;">
+
+<p><strong>学习目标：</strong>在ReAct循环中加入精细的Token预算控制，训练<strong>成本工程</strong>思维。在真实项目中，一个不加约束的ReAct Agent可能在单次运行中消耗数万甚至数十万Token——对应的API费用可能从几分钱飙升到几美元。这个变体培养的核心能力是<strong>在保证答案质量的前提下，系统性地优化Token消耗</strong>。</p>
+
+</div>
+
+<p><strong>与原题的差异：</strong>原题只有<code>max_steps</code>这一个粗粒度限制。变体三要求实现多层预算控制：总Token上限、每步Token上限、每种工具的调用次数上限、不同模型的使用配额（大模型用于关键推理步骤，小模型用于摘要等辅助步骤）。当预算即将耗尽时，Agent应能感知约束并主动调整策略——比如跳过非关键搜索、用现有信息给出"最优猜测"答案。</p>
+
+<p><strong>核心挑战：</strong></p>
+
+<ol>
+
+<li>如何在System Prompt中让Agent"意识到"自己的Token预算？（Prompt Engineering的新维度）</li>
+
+<li>当预算剩余30%时，Agent的行为应该如何变化？（提示：从"充分调研"切换到"快速收尾"）</li>
+
+<li>如何精确计算每一步消耗了多少Token？（包括Prompt + Completion + Tool Description）</li>
+
+<li>模型分层策略：哪些步骤用大模型，哪些可以用小模型？决策依据是什么？</li>
+
+</ol>
+
+<p><strong>输入输出示例：</strong></p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">输入: "写一篇关于ReAct模式的综述"</span>
+<span class="code-line">配置: {"total_token_budget": 50000, "max_steps": 15}</span>
+<span class="code-line"></span>
+<span class="code-line">Step 1-5 (budget used: 18,000/50,000 = 36%):</span>
+<span class="code-line">  [正常模式] 多次搜索，详细推理，使用 deepseek-v4.1-flash</span>
+<span class="code-line"></span>
+<span class="code-line">Step 6 (budget used: 32,000/50,000 = 64%):</span>
+<span class="code-line">  Thought: "Budget alert: 64% used. Switching to economy mode."</span>
+<span class="code-line">  [经济模式] 减少搜索频率，使用 deepseek-v4.1-flash 处理辅助任务</span>
+<span class="code-line"></span>
+<span class="code-line">Step 10 (budget used: 45,000/50,000 = 90%):</span>
+<span class="code-line">  Thought: "Budget critical: 90% used. Must finalize now."</span>
+<span class="code-line">  [收尾模式] 用现有信息生成最终答案，不再调用工具</span>
+<span class="code-line"></span>
+<span class="code-line">输出: 综述文章（在预算内完成）</span>
+<span class="code-line">报告: 总消耗 48,231 tokens, 12步, 节省 ~40% vs 无预算版本</span></code></pre>
+</div>
+
+<p><strong>考察的核心能力：</strong>Token计量与预算分配、Prompt中的约束表达、模型分层策略、质量-成本trade-off分析。这个变体直接关联（Agent循环终止条件）和（成本控制）。</p>
+
+<!-- 图表8: compare-card - ReAct vs Plan-and-Execute -->
+
+<div class="compare-card">
+
+<div class="compare-col">
+
+<div class="compare-item good">
+
+<strong>ReAct 优势</strong>
+
+<span>✓ 自适应：每步根据观察调整策略 &nbsp; ✓ 灵活：适合探索性任务 &nbsp; ✓ 容错：发现错误可改变方向 &nbsp; ✓ 可解释：Thought Trace是完整审计日志</span>
+
+</div>
+
+<div class="compare-item bad">
+
+<strong>ReAct 劣势</strong>
+
+<span>✗ Token消耗高（每步都需LLM推理） &nbsp; ✗ 延迟大（串行循环） &nbsp; ✗ 可能死循环 &nbsp; ✗ 难以并行化</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="box key">
+
+<div class="box-title">🔑 举一反三要点</div>
+
+<ul>
+
+<li><strong>变体一（Reflexion）</strong>：ReAct + 自我批评 = 迭代改进。关键设计是评估标准和收敛条件</li>
+
+<li><strong>变体二（MCP集成）</strong>：工具从2个到20个，核心挑战从"怎么用工具"变成"选哪个工具"</li>
+
+<li><strong>变体三（预算感知）</strong>：Token预算是Agent的"工资"，学会在预算内最优工作</li>
+
+<li>三个变体分别对应Agent的三个核心发展方向：<strong>更聪明、更全能、更经济</strong></li>
+
+</ul>
+
+</div>
+
+</section>
+
+<!-- 图表7: steps-card - 已在Section 2中使用 --></div>
+<div class="footer">
+  <p>Agent架构师试炼 · 开源资料 · GitHub</p>
+</div>
+</div>
+</body>
+</html>

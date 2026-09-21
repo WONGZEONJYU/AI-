@@ -1,0 +1,3181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Function Calling实战——LLM工具调用的工程实现</title>
+<style>
+/* ===== 标准电子资料样式 ===== */
+/* 协调者子agent在初始化阶段复制此文件到输出目录 */
+/* 配色通过 CSS 变量控制，协调者根据主题选择色板 */
+
+:root {
+  /* ===== 色板切换指南（协调者替换以下整块 :root 变量） =====
+  内置色板（直接复制对应区块替换默认值）：
+
+  绿色系（默认，Python/Qt系）：
+    --primary:#2C5F2D; --primary-dark:#1B3A1C; --primary-light:#4A8B4C; --accent:#41CD52; --accent-dark:#2E7D32; --accent-light:#81C784;
+    --primary-bg:#E8F5E9; --primary-border:#4CAF50; --accent-bg:#F1F8E9; --accent-border:#8BC34A; --bg-alt:#F4F9F4; --tip-bg:#E8F5E9;
+    SVG推荐：主题#2C5F2D#1B3A1C#4A8B4C#41CD52#81C784 背景#E8F5E9#F1F8E9#F5F5F5
+
+  蓝色系（通用技术）：
+    --primary:#2196F3; --primary-dark:#1565C0; --primary-light:#64B5F6; --accent:#00BCD4; --accent-dark:#00838F; --accent-light:#80DEEA;
+    --primary-bg:#E3F2FD; --primary-border:#42A5F5; --accent-bg:#E0F7FA; --accent-border:#26C6DA; --bg-alt:#F0F7FF; --tip-bg:#E3F2FD;
+    SVG推荐：主题#2196F3#1565C0#64B5F6#00BCD4#80DEEA 背景#E3F2FD#E0F7FA#F5F5F5
+
+  紫色系（AI/数据系）：
+    --primary:#7B1FA2; --primary-dark:#4A148C; --primary-light:#BA68C8; --accent:#E040FB; --accent-dark:#AA00FF; --accent-light:#EA80FC;
+    --primary-bg:#F3E5F5; --primary-border:#AB47BC; --accent-bg:#FCE4EC; --accent-border:#F48FB1; --bg-alt:#F4EFF5; --tip-bg:#F3E5F5;
+    SVG推荐：主题#7B1FA2#4A148C#BA68C8#E040FB#EA80FC 背景#F3E5F5#FCE4EC#F5F5F5
+
+  橙色系（Blender/设计系）：
+    --primary:#E8723A; --primary-dark:#C45A2D; --primary-light:#F5A623; --accent:#FF9800; --accent-dark:#E65100; --accent-light:#FFB74D;
+    --primary-bg:#FFF3E0; --primary-border:#FF9800; --accent-bg:#FFF8E1; --accent-border:#FFC107; --bg-alt:#FFF8F0; --tip-bg:#FFF3E0;
+    SVG推荐：主题#E8723A#C45A2D#F5A623#FF9800#FFB74D 背景#FFF3E0#FFF8E1#F5F5F5
+  */
+  /* 主题色（跟着色板走，切换色板时必须同步更新以下6行 + 衍生背景色6行） */
+  --primary: #7B1FA2;
+  --primary-dark: #4A148C;
+  --primary-light: #BA68C8;
+  --accent: #E040FB;
+  --accent-dark: #2E7D32;
+  --accent-light: #81C784;
+
+  /* 主题衍生背景色（跟着色板走） */
+  --primary-bg: #E8F5E9;        /* 主题色浅背景，用于信息卡片、提示框 */
+  --primary-border: #4CAF50;    /* 主题色边框 */
+  --accent-bg: #F1F8E9;         /* 强调色浅背景 */
+  --accent-border: #8BC34A;     /* 强调色边框 */
+  --bg-alt: #F4F9F4;            /* 主题色极浅背景，用于页面交替色 */
+  --tip-bg: #E8F5E9;            /* 提示框背景（与primary-bg一致） */
+
+  /* 语义色（固定不变，不随色板切换） */
+  --info-bg: #E3F2FD;           /* 蓝色信息背景 */
+  --info-border: #2196F3;       /* 蓝色信息边框 */
+  --info-text: #1565C0;         /* 蓝色信息文字 */
+  --success-bg: #E8F5E9;        /* 绿色成功背景 */
+  --success-border: #4CAF50;    /* 绿色成功边框 */
+  --success-text: #2E7D32;      /* 绿色成功文字 */
+  --warning-bg: #FFF3E0;        /* 橙色警告背景 */
+  --warning-border: #FF9800;    /* 橙色警告边框 */
+  --warning-text: #E65100;      /* 橙色警告文字 */
+  --danger-bg: #FFEBEE;         /* 红色危险背景 */
+  --danger-border: #E53935;     /* 红色危险边框 */
+  --danger-text: #C62828;       /* 红色危险文字 */
+  --highlight-bg: #FFFDE7;      /* 高亮背景（黄色系） */
+
+  /* 中性色（固定不变） */
+  --bg: #FFFFFF;
+  --bg-page: #F0EBE5;
+  --bg-card: #F5F5F5;           /* 卡片/面板背景 */
+  --bg-code-inline: #F0F0F0;    /* 行内代码背景 */
+  --text: #2D2D2D;
+  --text-light: #555;
+  --text-muted: #757575;        /* 次要文字（标签、注释） */
+  --border: #D0D0D0;
+  --border-light: #E0E0E0;      /* 浅边框（分隔线） */
+  --code-bg: #1E1E2E;
+  --code-text: #CDD6F4;
+  --max-width: 900px;
+
+  /*
+  SVG推荐色板（SVG fill/stroke 必须用十六进制，从以下颜色中选用）：
+  主题：#2C5F2D(主) #1B3A1C(深) #4A8B4C(浅) #41CD52(强调) #81C784(强调浅)
+  语义：#2196F3(信息) #4CAF50(成功) #FF9800(警告) #E53935(危险) #FFB300(注意)
+  中性：#757575(灰) #BDBDBD(浅灰) #E0E0E0(极浅灰) #fff(白) #2D2D2D(深)
+  背景：#E8F5E9(主题浅) #E3F2FD(信息浅) #FFF3E0(警告浅) #FFEBEE(危险浅) #F5F5F5(卡片)
+  */
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", -apple-system, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--bg-page);
+  line-height: 1.85; -webkit-font-smoothing: antialiased;
+  word-break: break-word; overflow-wrap: break-word;
+}
+/* 等宽字体异步加载（Fira Code CDN） */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap');
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== 内容容器（模拟纸张感） ===== */
+.book {
+  max-width: var(--max-width); margin: 0 auto;
+  background: var(--bg); min-height: 100vh;
+  box-shadow: 0 0 40px rgba(0,0,0,0.06); overflow: hidden;
+}
+
+/* ===== 封面 ===== */
+.cover {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  min-height: 100vh; text-align: center;
+  background: linear-gradient(145deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 90%, var(--accent) 100%);
+  color: #fff; padding: 3rem 2rem; page-break-after: always;
+  position: relative; overflow: hidden;
+}
+.cover::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.cover::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.15));
+  pointer-events: none;
+}
+.cover-decoration { margin-bottom: 24px; position: relative; z-index: 1; }
+.cover-badge {
+  display: inline-block; padding: 4px 16px; border: 1px solid rgba(255,255,255,0.4);
+  border-radius: 20px; font-size: 0.8rem; letter-spacing: 0.1em;
+  margin-bottom: 20px; opacity: 0.75; position: relative; z-index: 1;
+}
+.cover h1 { font-size: 3.75rem; font-weight: 900; margin-bottom: 0.5rem; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.3); color: #fff !important; border: none !important; page-break-before: auto !important; padding: 0 !important; position: relative; z-index: 1; }
+.cover .subtitle { font-size: 1.625rem; opacity: 0.85; margin-bottom: 1rem; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.cover .tagline { font-size: 1.1rem; opacity: 0.65; max-width: 500px; margin: 0 auto 1.5rem; position: relative; z-index: 1; }
+.cover-features { display: flex; gap: 12px; margin-bottom: 2rem; position: relative; z-index: 1; flex-wrap: wrap; justify-content: center; }
+.cover-feature {
+  padding: 4px 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px; font-size: 0.85rem; letter-spacing: 0.02em;
+}
+.cover-author { font-size: 1.1rem; opacity: 0.7; margin-bottom: 0.3rem; position: relative; z-index: 1; }
+.cover-date { font-size: 0.9rem; opacity: 0.5; position: relative; z-index: 1; }
+/* 兼容旧版封面 */
+.cover .meta { font-size: 1.1rem; opacity: 0.55; position: relative; z-index: 1; }
+
+/* ===== 目录（卡片式） ===== */
+.toc { padding: 50px 40px; background: #FFFCF9; border-bottom: 1px solid #EDE8E3; }
+.toc-title { font-size: 1.5rem; color: var(--text); margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid var(--accent); display: inline-block; }
+.toc-list { display: flex; flex-direction: column; gap: 12px; }
+.toc-item {
+  display: block; padding: 12px 18px; background: #fff;
+  border: 1px solid #EDE8E3; border-radius: 10px;
+  text-decoration: none; color: var(--text); font-size: 0.95rem;
+  transition: all 0.2s;
+}
+.toc-item:hover { background: var(--bg-alt); border-color: var(--accent); transform: translateX(4px); text-decoration: none; }
+.toc-num { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-desc { display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.toc-section { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+/* Practice type TOC */
+.toc-section-title { margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 700; font-size: 0.95rem; }
+.toc-group { margin-bottom: 8px; }
+.toc-group-title { font-size: 0.85rem; color: var(--text-light); font-weight: 600; margin: 8px 0; padding-left: 4px; }
+.toc-number { display: inline-block; min-width: 60px; color: var(--accent); font-weight: 700; }
+.toc-title-text { color: var(--text); }
+.toc-tags { float: right; display: flex; gap: 6px; align-items: center; }
+.toc-tag { font-size: 0.75rem; color: var(--primary); background: var(--primary-bg, #E8F5E9); padding: 2px 8px; border-radius: 4px; }
+
+/* ===== 章节容器 ===== */
+.chapter {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.chapter::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+  margin: 20px 0 0; opacity: 0.6;
+}
+
+/* ===== 前言 ===== */
+.preface {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 术语表 ===== */
+.glossary {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 附录 ===== */
+.appendix {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden;
+}
+
+/* ===== 练习题容器（practice类型） ===== */
+.problem {
+  padding: 40px 45px; border-bottom: 2px solid #E8E3DD;
+  overflow: hidden; position: relative;
+}
+.problem::after {
+  content: ''; display: block; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 20px 0 0; opacity: 0.4;
+}
+
+/* ===== 练习题头部 ===== */
+.problem-header {
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent);
+}
+
+/* ===== 章节头部（编号圆圈+标题） ===== */
+.chapter-header {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 28px; padding-bottom: 18px;
+  border-bottom: 3px solid var(--accent); position: relative;
+}
+.chapter-header::after {
+  content: ''; position: absolute; bottom: -3px; left: 0; width: 60px; height: 3px;
+  background: var(--primary-dark); border-radius: 2px;
+}
+.chapter-header .chapter-num {
+  flex-shrink: 0; width: 48px; height: 48px; line-height: 48px;
+  text-align: center; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff;
+  border-radius: 50%; font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.2);
+  position: relative;
+}
+.chapter-header .chapter-num::after {
+  content: ''; position: absolute; top: -3px; left: -3px; right: -3px; bottom: -3px;
+  border-radius: 50%; border: 2px solid var(--accent); opacity: 0.4;
+}
+.chapter-header .chapter-title {
+  font-size: 1.8rem; font-weight: 800; color: var(--primary);
+  line-height: 1.35; margin: 0; border: none; padding: 0;
+}
+.chapter-header .chapter-icon { flex-shrink: 0; }
+
+/* ===== 标题层级 ===== */
+h1 { font-size: 2rem; font-weight: 800; color: var(--primary); margin: 40px 0 20px; line-height: 1.4; page-break-before: always; }
+h1:first-of-type { page-break-before: auto; }
+h2 {
+  font-size: 1.5rem; font-weight: 700; color: var(--primary-dark); margin: 40px 0 18px; padding-top: 20px;
+  padding-left: 14px;
+  border-top: 2px solid;
+  border-image: linear-gradient(90deg, var(--accent), var(--primary-light), transparent) 1;
+  line-height: 1.4;
+  border-left: 4px solid var(--accent);
+}
+h3 {
+  font-size: 1.2rem; font-weight: 700; color: var(--primary-light); margin: 30px 0 12px; line-height: 1.4;
+  padding-left: 10px; border-left: 3px solid var(--primary-light);
+}
+h4 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 22px 0 10px; }
+
+/* ===== 段落 ===== */
+p { margin: 14px 0; text-align: justify; line-height: 1.85; }
+ul, ol { margin: 14px 0; padding-left: 28px; }
+li { margin: 8px 0; line-height: 1.8; }
+li ul { margin: 4px 0; }
+strong { color: var(--primary-dark); }
+
+/* ===== 难度标记 ===== */
+.difficulty { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+.difficulty.basic { background: #E8F5E9; color: #2E7D32; }
+.difficulty.intermediate { background: #FFF3E0; color: #E65100; }
+.difficulty.advanced { background: #FCE4EC; color: #C62828; }
+
+/* ===== 代码块 ===== */
+pre {
+  background: var(--code-bg) !important; color: var(--code-text);
+  padding: 20px 24px; border-radius: 10px;
+  overflow-x: auto; margin: 18px 0; max-width: 100%;
+  font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace;
+  font-size: 0.87rem; line-height: 1.7;
+  page-break-inside: avoid; border: 1px solid #2A2A3E;
+  position: relative;
+}
+pre code {
+  background: transparent !important; color: var(--code-text) !important;
+  font-size: 0.87rem; line-height: 1.7;
+  display: block; white-space: pre-wrap; word-wrap: break-word;
+}
+code { font-family: "Fira Code", "JetBrains Mono", "Consolas", "Source Code Pro", monospace; font-size: 0.88em; }
+:not(pre) > code {
+  background: #FFF3E0; color: #C45A2D;
+  padding: 2px 6px; border-radius: 4px; word-break: break-all;
+}
+
+/* 语法高亮 */
+pre .kw { color: #569CD6; }
+pre .str { color: #CE9178; }
+pre .cmt { color: #6A9955; font-style: italic; }
+pre .fn { color: #DCDCAA; }
+pre .num { color: #B5CEA8; }
+pre .cls { color: #4EC9B0; }
+pre .op { color: #D4D4D4; }
+pre .dec { color: #C586C0; }
+pre .param { color: #9CDCFE; }
+
+/* 实战案例完整代码块 */
+.project-example { margin: 1.5rem 0; border: 2px solid var(--accent); border-radius: 10px; overflow: hidden; }
+.project-header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+.project-tag { display: inline-block; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; }
+.project-title { font-weight: 600; font-size: 14px; }
+.project-desc { padding: 10px 16px; background: #FFF8F0; font-size: 14px; color: #555; border-bottom: 1px solid #EEE; }
+.project-example pre { margin: 0; border-radius: 0; border: none; }
+.project-run { padding: 10px 16px; background: #F0FFF0; font-size: 13px; color: #333; border-top: 1px solid #DDD; }
+
+/* 代码块滚动条 */
+pre::-webkit-scrollbar { height: 6px; }
+pre::-webkit-scrollbar-track { background: var(--code-bg); }
+pre::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+
+/* 代码块语言标签（纯CSS实现） */
+pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute; top: 0; right: 0;
+  padding: 3px 10px; border-radius: 0 10px 0 6px;
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-transform: uppercase;
+}
+
+/* ===== 表格 ===== */
+.styled-table, table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  margin: 18px 0; font-size: 0.9rem;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid #EDE8E3;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+th {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff; font-weight: 600; padding: 12px 16px; text-align: left; white-space: nowrap;
+}
+td { padding: 10px 16px; border-top: 1px solid #F0EBE5; }
+tr:nth-child(even) { background: #FFFCF9; }
+tr:hover { background: var(--bg-alt); }
+
+/* 宽表格水平滚动（防溢出） */
+.table-wrap { overflow-x: auto; margin: 18px 0; border-radius: 10px; }
+.table-wrap table { margin: 0; }
+
+/* ===== 装饰性SVG/图表容器 ===== */
+.concept-svg {
+  text-align: center; margin: 25px 0; padding: 18px;
+  background: linear-gradient(135deg, var(--bg-alt) 0%, #FAFAFA 100%);
+  border-radius: 12px; border: 1px solid #E0E8E0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+}
+.concept-svg svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+/* SVG 内部元素默认视觉增强 */
+.concept-svg svg rect { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+.concept-svg svg circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.06)); }
+
+/* 兼容旧版 CSS div 图表 */
+.chart-container { max-width: 800px; margin: 28px auto; padding: 16px; font-family: -apple-system, "PingFang SC", sans-serif; }
+.chart-container h3, .chart-container h4 { font-size: 1rem; color: var(--primary); margin-bottom: 14px; text-align: center; }
+.flowchart { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; }
+.flowchart .step { padding: 14px 22px; background: var(--bg-alt); border: 2px solid var(--primary-light); border-radius: 10px; font-weight: 600; text-align: center; min-width: 110px; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+.flowchart .step.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-color: var(--primary-dark); }
+.flowchart .arrow { font-size: 22px; color: var(--primary-light); padding: 0 4px; }
+
+/* ===== CSS div 图表样式（SVG 替代方案，节省 token） ===== */
+/* 对比卡片（左右对比、前后对比） */
+.compare-card { display: flex; flex-direction: column; gap: 12px; align-items: stretch; margin: 24px 0; }
+.compare-card .compare-col { display: flex; flex-direction: column; gap: 10px; }
+.compare-card .compare-item { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-alt); }
+.compare-card .compare-item.bad { border-color: #E57373; background: #FFF5F5; }
+.compare-card .compare-item.good { border-color: #81C784; background: #F1F8F1; }
+.compare-card .compare-item strong { display: block; margin-bottom: 4px; font-size: 0.93rem; }
+.compare-card .compare-item span { font-size: 0.87rem; color: var(--text-light); }
+.compare-card .compare-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.compare-card .compare-item:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.08); }
+.compare-card .compare-divider { display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: var(--primary); font-weight: 700; }
+
+/* 步骤卡片 */
+.steps-card { display: flex; flex-direction: column; gap: 0; margin: 24px 0; }
+.steps-card .step-item { display: flex; gap: 14px; padding: 14px 0; border-left: 3px solid var(--primary-light); padding-left: 16px; position: relative; }
+.steps-card .step-item::before { content: attr(data-step); position: absolute; left: -14px; top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.steps-card .step-item strong { display: block; margin-bottom: 4px; }
+.steps-card .step-item span { font-size: 0.9rem; color: var(--text-light); }
+.steps-card .step-item { transition: border-color 0.2s ease; }
+.steps-card .step-item:hover { border-color: var(--primary-dark); }
+
+/* 特性/标签网格 */
+.feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 24px 0; }
+.feature-grid .feature-item { padding: 14px 16px; border-radius: 8px; background: var(--bg-alt); border: 1px solid var(--border); }
+.feature-grid .feature-item strong { display: block; margin-bottom: 6px; color: var(--primary-dark); }
+.feature-grid .feature-item span { font-size: 0.87rem; color: var(--text-light); line-height: 1.6; }
+.feature-grid .feature-item { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.feature-grid .feature-item:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-color: var(--primary-border); }
+.timeline { position: relative; padding-left: 44px; }
+.timeline::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--primary), var(--primary-light)); border-radius: 2px; }
+.timeline .event { position: relative; margin-bottom: 20px; padding: 14px 18px; background: var(--bg-alt); border-radius: 10px; border: 1px solid #D6E8D6; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+.timeline .event:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); border-color: var(--primary-light); }
+.timeline .event::before { content: ''; position: absolute; left: -36px; top: 16px; width: 14px; height: 14px; background: var(--primary); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px var(--primary); }
+.timeline .event .year { font-weight: 700; color: var(--primary); font-size: 1.05rem; }
+.compare { display: flex; flex-direction: column; gap: 12px; }
+.compare .col { flex: 1; padding: 22px; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.compare .col-a { background: #FFF3E0; border-left: 5px solid #FF9800; }
+.compare .col-b { background: #E8F5E9; border-left: 5px solid #4CAF50; }
+.compare .col-c { background: #E3F2FD; border-left: 5px solid #2196F3; }
+.compare .col h3 { margin-top: 0; font-size: 1.05rem; }
+.compare .col ul { padding-left: 18px; }
+.hierarchy { text-align: center; }
+.hierarchy .node { display: inline-block; padding: 12px 28px; border-radius: 10px; margin: 6px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.hierarchy .level-0 .node { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; font-size: 18px; }
+.hierarchy .level-1 .node { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: white; }
+.hierarchy .level-2 .node { background: linear-gradient(135deg, #B8D9BA, #A0C8A0); color: #333; }
+.hierarchy .arrow-down { color: #999; font-size: 22px; margin: 4px 0; }
+.matrix { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: #ddd; border-radius: 12px; overflow: hidden; max-width: 600px; margin: 0 auto; }
+.matrix .cell { padding: 28px; text-align: center; font-weight: 600; }
+.matrix .q1 { background: #E3F2FD; }
+.matrix .q2 { background: #FFF3E0; }
+.matrix .q3 { background: #F3E5F5; }
+.matrix .q4 { background: #E8F5E9; }
+.cycle { text-align: center; }
+.cycle .ring { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 14px; max-width: 520px; }
+.cycle .node { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; text-align: center; padding: 10px; border: 3px solid; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+/* ===== 引用框 ===== */
+blockquote.chapter-quote {
+  background: linear-gradient(135deg, #FFF8F3, #FFFCF9);
+  border-left: 4px solid var(--accent); padding: 18px 22px; margin: 20px 0;
+  border-radius: 0 10px 10px 0; font-style: normal;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+blockquote.chapter-quote::before {
+  content: '"'; font-size: 2.5rem; color: var(--accent); opacity: 0.3;
+  position: absolute; top: -5px; left: 10px; font-family: Georgia, serif;
+}
+blockquote.chapter-quote { position: relative; }
+blockquote p { margin: 6px 0; }
+
+/* ===== 提示框 ===== */
+.box {
+  padding: 1.1rem 1.3rem; border-radius: 10px; margin: 1.2rem 0 1.5rem;
+  border-left: 5px solid; page-break-inside: avoid;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.box p:last-child { margin-bottom: 0; }
+.box-title { font-weight: 700; margin-bottom: 0.3rem; font-size: 0.95rem; }
+/* 提示框标题 emoji 增强显示 */
+.box-title::before { margin-right: 4px; }
+.box.tip { background: var(--tip-bg); border-color: var(--accent); }
+.box.tip .box-title { color: var(--primary); }
+.box.warn { background: var(--warn-bg); border-color: #FFA000; }
+.box.warn .box-title { color: #E65100; }
+.box.danger { background: var(--danger-bg); border-color: #D32F2F; }
+.box.danger .box-title { color: #C62828; }
+.box.info { background: #E3F2FD; border-color: #1976D2; }
+.box.info .box-title { color: #0D47A1; }
+
+/* 实战案例框 */
+.box.case { background: #FFF8E1; border-color: #FF8F00; }
+.box.case .box-title::before { content: '💡 '; }
+.box.case .box-title { color: #E65100; }
+
+/* 常见错误框 */
+.box.pitfall { background: #FBE9E7; border-color: #BF360C; }
+.box.pitfall .box-title::before { content: '⚠️ '; }
+.box.pitfall .box-title { color: #BF360C; }
+
+/* 知识卡片 */
+.box.key { background: #E8EAF6; border-color: #303F9F; }
+.box.key .box-title::before { content: '🔑 '; }
+.box.key .box-title { color: #1A237E; }
+
+/* 对比分析框 */
+.box.compare-box { background: #F3E5F5; border-color: #7B1FA2; }
+.box.compare-box .box-title::before { content: '⚖️ '; }
+.box.compare-box .box-title { color: #4A148C; }
+
+/* 最佳实践框 */
+.box.practice { background: #E0F2F1; border-color: #00695C; }
+.box.practice .box-title::before { content: '✅ '; }
+.box.practice .box-title { color: #004D40; }
+
+/* 公式/关键数据框 */
+.box.formula { background: #ECEFF1; border-color: #546E7A; }
+.box.formula .box-title::before { content: '📊 '; }
+.box.formula .box-title { color: #37474F; }
+
+/* ===== 统计卡片网格 ===== */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 24px 0; }
+.stat-grid .stat-item { padding: 18px 16px; border-radius: 10px; background: var(--bg-alt); border: 1px solid var(--border); text-align: center; transition: transform 0.2s ease, border-color 0.2s ease; }
+.stat-grid .stat-item:hover { transform: translateY(-2px); border-color: var(--primary); }
+.stat-grid .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-grid .stat-label { font-size: 0.85rem; color: var(--text-light); margin-top: 6px; }
+.stat-grid .stat-item.highlight { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); border-color: var(--primary-dark); }
+.stat-grid .stat-item.highlight .stat-value { color: #fff; }
+.stat-grid .stat-item.highlight .stat-label { color: rgba(255,255,255,0.8); }
+
+/* ===== 进度条/能力条 ===== */
+.progress-list { display: flex; flex-direction: column; gap: 12px; margin: 24px 0; }
+.progress-list .progress-item { }
+.progress-list .progress-label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.9rem; font-weight: 600; }
+.progress-list .progress-label span:last-child { color: var(--primary); }
+.progress-list .progress-bar { height: 10px; background: #E8E8E8; border-radius: 5px; overflow: hidden; }
+.progress-list .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--primary-light), var(--primary)); transition: width 0.3s; }
+.progress-list .progress-fill.warn { background: linear-gradient(90deg, #FFB74D, #FF9800); }
+.progress-list .progress-fill.danger { background: linear-gradient(90deg, #E57373, #D32F2F); }
+
+/* ===== 四象限图 ===== */
+.quadrant { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--border); border-radius: 12px; overflow: hidden; max-width: 640px; margin: 24px auto; }
+.quadrant .q-cell { padding: 22px 18px; }
+.quadrant .q-cell.q1 { background: #E3F2FD; }
+.quadrant .q-cell.q2 { background: #FFF3E0; }
+.quadrant .q-cell.q3 { background: #F3E5F5; }
+.quadrant .q-cell.q4 { background: #E8F5E9; }
+.quadrant .q-cell strong { display: block; font-size: 0.95rem; margin-bottom: 6px; color: var(--primary-dark); }
+.quadrant .q-cell ul { padding-left: 16px; margin: 0; }
+.quadrant .q-cell li { font-size: 0.85rem; margin: 3px 0; }
+.quadrant .axis-label { text-align: center; font-size: 0.8rem; color: var(--text-light); padding: 6px 0; font-weight: 600; }
+.quadrant .axis-x { grid-column: 1 / -1; border-top: 2px solid var(--primary-light); }
+.quadrant .axis-y-left { writing-mode: vertical-lr; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+.quadrant .axis-y-right { writing-mode: vertical-rl; text-orientation: mixed; padding: 8px 4px; background: var(--bg-alt); }
+
+/* ===== 标签云 ===== */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; justify-content: center; }
+.tag-cloud .tag { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; background: var(--bg-alt); border: 1px solid var(--border); color: var(--primary-dark); }
+.tag-cloud .tag.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.tag-cloud .tag.accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ===== 分隔线 ===== */
+hr { border: none; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); margin: 40px 0; }
+/* 装饰性分隔符（章节间主题切换时使用） */
+hr.divider-accent {
+  height: 3px; margin: 48px 0;
+  background: linear-gradient(90deg, transparent 5%, var(--primary-light) 20%, var(--accent) 50%, var(--primary-light) 80%, transparent 95%);
+  position: relative;
+}
+hr.divider-accent::after {
+  content: '◆'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: var(--bg); color: var(--accent); padding: 0 8px; font-size: 0.7rem;
+}
+
+/* ===== 面包屑导航 ===== */
+.breadcrumb { padding: 12px 0; font-size: 14px; color: #888; border-bottom: 1px solid #F0EBE5; margin-bottom: 24px; }
+.breadcrumb a { color: var(--primary); text-decoration: none; }
+
+/* ===== 底部章节导航 ===== */
+.chapter-nav { display: flex; justify-content: space-between; align-items: center; padding: 24px 0; margin-top: 48px; border-top: 2px solid #F0EBE5; }
+.chapter-nav a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.chapter-nav a:hover { text-decoration: underline; }
+
+/* ===== 开头引子 ===== */
+.hook { padding: 20px 0; margin-bottom: 10px; }
+
+/* ===== 页脚 ===== */
+.footer { text-align: center; padding: 2rem; margin-top: 3rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-light); }
+
+/* ===== 回到顶部 ===== */
+.back-top {
+  position: fixed; bottom: 30px; right: 30px; width: 44px; height: 44px;
+  background: var(--primary); color: #fff; border: none; border-radius: 50%;
+  font-size: 1.2rem; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  display: none; z-index: 100; line-height: 44px; text-align: center;
+  text-decoration: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .sidebar-toc { transform: translateX(-100%); }
+  .sidebar-toc.open { transform: translateX(0); box-shadow: 2px 0 12px rgba(0,0,0,0.1); }
+  button.sidebar-toggle { display: block; }
+  .book { margin-left: 0 !important; }
+}
+
+@media (max-width: 768px) {
+  .book { box-shadow: none; }
+  .chapter, .toc { padding: 30px 20px; }
+  .cover { padding: 50px 20px 40px; }
+  .cover h1 { font-size: 2.5rem; }
+  .chapter-header { flex-direction: column; text-align: center; }
+  .chapter-header .chapter-title { font-size: 1.4rem; }
+  h2 { font-size: 1.3rem; }
+  pre { padding: 14px 16px; font-size: 0.8rem; }
+  .compare { flex-direction: column; }
+  .chart-container { max-width: 100%; }
+  table, .styled-table { font-size: 0.85rem; }
+  th, td { padding: 8px 10px; }
+}
+
+@media (max-width: 480px) {
+  .cover h1 { font-size: 2rem; }
+  .chapter, .toc { padding: 20px 15px; }
+  pre { padding: 12px; border-radius: 6px; }
+}
+
+/* ===== 打印 ===== */
+@media print {
+  body { background: #fff; color: #000; font-size: 12pt; line-height: 1.6; }
+  .book { box-shadow: none; max-width: 100%; }
+  .cover {
+    background: none; color: #000; border: 2px solid #000;
+    page-break-after: auto;
+    /* 2026-08-17 封面整页修复：内联 min-height:100vh 在打印中映射纸高(297mm)>内容区(267mm)会溢出成空白页，
+       改为固定内容区高度(留 9mm 余量防舍入溢出)，flex 垂直居中保留 */
+    min-height: 258mm !important; height: 258mm !important; max-height: 258mm !important;
+    box-sizing: border-box !important; margin: 0 !important; padding: 0 !important;
+  }
+  .cover h1 { color: #000 !important; text-shadow: none; font-size: 30pt; }
+  .cover .subtitle, .cover .tagline { color: #333; opacity: 1; }
+  h1, h2, h3, h4 { color: #000; page-break-after: avoid; }
+  h1 { page-break-before: always; font-size: 18pt; }
+  h1:first-of-type { page-break-before: auto; }
+  h2 { font-size: 14pt; border-left-width: 3px; border-left-color: #666; border-top-color: #ddd; }
+  h3 { font-size: 12pt; border-left-color: #999; }
+  .chapter { page-break-inside: auto; padding: 20px 0; border-bottom: 1px solid #ccc; }
+  pre {
+    border: 1px solid #ccc; background: #f5f5f5 !important;
+    color: #333 !important; font-size: 9pt; line-height: 1.5;
+    page-break-inside: avoid; white-space: pre-wrap;
+  }
+  pre .kw, pre .str, pre .cmt, pre .fn, pre .num, pre .cls, pre .op, pre .dec, pre .param {
+    color: #333 !important;
+  }
+  a { color: #000; text-decoration: underline; }
+  .box { border-left-width: 2px; background: #f9f9f9 !important; }
+  .box .box-title { color: #333 !important; }
+  table, .styled-table { box-shadow: none; }
+  th { background: #eee !important; color: #000 !important; }
+  tr:nth-child(even) { background: #fafafa; }
+  .concept-svg { background: none; border: 1px solid #ddd; }
+  .no-print, .back-top, .back-to-top, .chapter-nav, .breadcrumb, .sidebar-toc, .sidebar-toggle, .reading-progress { display: none !important; }
+  body.sidebar-active { padding-left: 0 !important; }
+  .book { margin-left: 0 !important; }
+  .toc { background: none; border: none; page-break-after: auto; page-break-before: always; break-before: page; }
+  /* 2026-08-17 空白页修复：分页统一由 break-before 承担，隐藏 .page-break 空div和锚点，
+     避免"内容恰好填满一页 + 尾随 break div 溢出"产生的空白页 */
+  .page-break { display: none !important; }
+  .section-anchor { display: none !important; }
+  .preface, .chapter, .problem, .copyright-page { page-break-before: always; break-before: page; }
+  .copyright-page { min-height: 200mm !important; height: auto !important; padding: 80px 20px; }
+  @page { margin: 14mm 10mm; size: A4; }
+}
+
+/* ===== 代码块增强（后处理脚本自动生成） ===== */
+/* Writer 无需手动写这些结构，enhance-code.py 会自动将 <pre> 包裹为 code-block */
+
+.code-block {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+.code-block .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.code-block .code-lang {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .code-filename {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+  margin-left: 8px;
+}
+.code-block .copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.code-block .copy-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.08);
+}
+.code-block .copy-btn.copied {
+  color: #4CAF50;
+  border-color: #4CAF50;
+  background: rgba(76,175,80,0.1);
+}
+.code-block pre {
+  margin: 0;
+  border-radius: 0;
+  border: none;
+}
+/* 行号支持：code-block-numbered 的 pre 使用 CSS counter 显示行号 */
+.code-block.code-block-numbered pre {
+  counter-reset: code-line;
+}
+.code-block.code-block-numbered .code-line {
+  counter-increment: code-line;
+  display: block;
+  min-height: 1.5em;
+}
+.code-block.code-block-numbered .code-line::before {
+  content: counter(code-line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 1em;
+  text-align: right;
+  color: rgba(255,255,255,0.18);
+  font-size: 0.75rem;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+/* 空行的行号仍然显示 */
+.code-block.code-block-numbered .code-line:empty::before {
+  content: counter(code-line);
+}
+/* 隐藏 data-language 伪元素（code-block 已有自己的语言标签） */
+.code-block pre[data-language]::before {
+  display: none;
+}
+.code-block .code-output {
+  padding: 14px 20px;
+  background: #0d1117;
+  border-top: 1px solid #2A2A3E;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #8b949e;
+}
+.code-block .code-output .output-label {
+  font-size: 0.7rem;
+  color: #4CAF50;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.code-block .code-output .output-label::before {
+  content: "▶ ";
+  font-size: 0.6rem;
+}
+.code-block .code-output .output-text {
+  color: #c9d1d9;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 打印时隐藏复制按钮 */
+@media print {
+  .code-block .code-header { background: #f5f5f5; border-bottom-color: #ccc; }
+  .code-block .code-lang { color: #666; }
+  .code-block .copy-btn { display: none; }
+  .code-block .code-output { background: #f9f9f9; border-top-color: #ccc; color: #333; }
+  .code-block .code-output .output-label { color: #666; }
+  .code-block .code-output .output-text { color: #333; }
+}
+
+/* ===== 分步执行器（后处理脚本自动生成） ===== */
+/* enhance-code.py 对可执行的 Python 代码自动生成分步执行数据，前端渲染 */
+
+.step-executor {
+  margin: 18px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #2A2A3E;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  background: #0D1117;
+  outline: none;
+}
+.step-executor:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25), 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* 顶部信息栏 */
+.step-executor .exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #161b22;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-header .exec-lang {
+  font-size: 0.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.step-executor .exec-header .exec-meta {
+  font-size: 0.75rem; color: rgba(255,255,255,0.3);
+}
+.step-executor .exec-header .exec-copy-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 2px 10px; border-radius: 4px;
+  font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+  margin-left: auto;
+}
+.step-executor .exec-header .exec-copy-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-header .exec-copy-btn.copied {
+  color: #10b981; border-color: #10b981;
+}
+
+/* 顶部导航栏 */
+.step-executor .exec-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #1a1f2b;
+  border-bottom: 1px solid #2A2A3E;
+}
+.step-executor .exec-nav .step-dots {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #333; transition: all 0.3s; cursor: pointer;
+}
+.step-executor .exec-nav .step-dot.active {
+  background: var(--accent); box-shadow: 0 0 8px rgba(245,158,11,0.4);
+}
+.step-executor .exec-nav .step-dot.done {
+  background: var(--success);
+}
+.step-executor .exec-nav .step-info {
+  font-size: 0.75rem; color: rgba(255,255,255,0.4); margin-left: 12px;
+}
+.step-executor .exec-nav .nav-btns {
+  display: flex; gap: 6px;
+}
+.step-executor .exec-nav .nav-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 4px 14px; border-radius: 4px;
+  font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+}
+.step-executor .exec-nav .nav-btn:hover {
+  color: #fff; border-color: rgba(255,255,255,0.4);
+}
+.step-executor .exec-nav .nav-btn.primary {
+  background: var(--primary); color: #fff; border-color: var(--primary);
+}
+.step-executor .exec-nav .nav-btn.primary:hover { background: var(--primary-dark); }
+
+/* 主体区域：左代码 + 右面板 */
+.step-executor .exec-body {
+  display: flex; min-height: 200px;
+}
+
+/* 左侧代码 */
+.step-executor .exec-code {
+  flex: 7; overflow-x: auto; overflow-y: auto;
+  max-height: 600px;
+  font-family: "Fira Code", "Consolas", monospace;
+  font-size: 0.82rem; line-height: 1.8;
+  padding: 12px 0;
+}
+.step-executor .exec-code .eline {
+  display: flex; padding: 0 16px;
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+  white-space: pre;
+}
+.step-executor .exec-code .eline .lnum {
+  min-width: 28px; text-align: right;
+  color: #484f58; margin-right: 14px; user-select: none; flex-shrink: 0;
+}
+.step-executor .exec-code .eline .ltxt { color: #c9d1d9; flex: 1; }
+/* Syntax highlighting */
+.step-executor .exec-code .eline .ltxt .hl-keyword { color: #ff7b72; font-weight: 600; }
+.step-executor .exec-code .eline .ltxt .hl-string { color: #a5d6ff; }
+.step-executor .exec-code .eline .ltxt .hl-comment { color: #484f58; font-style: italic; }
+.step-executor .exec-code .eline .ltxt .hl-number { color: #79c0ff; }
+.step-executor .exec-code .eline .ltxt .hl-type { color: #ffa657; }
+.step-executor .exec-code .eline .ltxt .hl-decorator { color: #d2a8ff; }
+/* Code-block syntax highlighting */
+.code-block pre code .hl-keyword { color: #ff7b72; font-weight: 600; }
+.code-block pre code .hl-string { color: #a5d6ff; }
+.code-block pre code .hl-comment { color: #484f58; font-style: italic; }
+.code-block pre code .hl-number { color: #79c0ff; }
+.code-block pre code .hl-type { color: #ffa657; }
+.code-block pre code .hl-decorator { color: #d2a8ff; }
+.step-executor .exec-code .eline.step-active {
+  background: rgba(245,158,11,0.12); border-left-color: var(--accent);
+}
+.step-executor .exec-code .eline.step-active .lnum { color: var(--accent); }
+.step-executor .exec-code .eline.step-done {
+  background: rgba(16,185,129,0.06); border-left-color: rgba(16,185,129,0.3);
+}
+.step-executor .exec-code .eline.step-done .lnum { color: rgba(16,185,129,0.5); }
+
+/* 右侧面板 */
+.step-executor .exec-panel {
+  flex: 3; border-left: 1px solid #2A2A3E;
+  display: flex; flex-direction: column;
+  background: #1a1f2b;
+}
+.step-executor .step-explain {
+  padding: 16px; border-bottom: 1px solid #2A2A3E; flex-shrink: 0;
+}
+.step-executor .step-explain .stitle {
+  font-size: 0.85rem; font-weight: 600; color: var(--accent);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.step-executor .step-explain .stitle .sbadge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  font-size: 0.65rem; font-weight: 700;
+}
+.step-executor .step-explain .sdesc {
+  font-size: 0.8rem; color: #c9d1d9; line-height: 1.6;
+}
+
+/* 变量面板 */
+.step-executor .var-panel {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+}
+.step-executor .var-panel .vp-title {
+  font-size: 0.65rem; color: rgba(255,255,255,0.55);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px; font-weight: 600;
+}
+.step-executor .var-panel .vitem {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 8px; border-radius: 4px; margin-bottom: 2px;
+  transition: all 0.3s;
+}
+.step-executor .var-panel .vitem.changed {
+  background: rgba(245,158,11,0.08);
+  animation: vflash 0.6s ease;
+}
+.step-executor .var-panel .vtoggle {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.step-executor .var-panel .vtoggle:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.05);
+}
+.step-executor .var-panel .vfold {
+  display: none;
+}
+@keyframes vflash {
+  0% { background: rgba(245,158,11,0.25); }
+  100% { background: rgba(245,158,11,0.08); }
+}
+.step-executor .var-panel .vname {
+  color: #7DD3FC; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; font-weight: 600; flex-shrink: 0; min-width: 60px;
+}
+.step-executor .var-panel .vval {
+  color: #6EE7B7; font-family: "Fira Code", monospace;
+  font-size: 0.72rem; word-break: break-all; line-height: 1.5;
+}
+.step-executor .var-panel .vtype {
+  font-size: 0.6rem; color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.08);
+  padding: 1px 4px; border-radius: 3px;
+}
+
+/* 输出面板 */
+.step-executor .exec-output {
+  padding: 10px 16px; border-top: 1px solid #2A2A3E;
+  background: rgba(0,0,0,0.2); max-height: 100px; overflow-y: auto;
+}
+.step-executor .exec-output .eo-label {
+  font-size: 0.65rem; color: var(--success);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 4px; font-weight: 600;
+}
+.step-executor .exec-output .eo-text {
+  font-family: "Fira Code", monospace; font-size: 0.72rem;
+  color: #c9d1d9; white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .step-executor .exec-body { flex-direction: column; }
+  .step-executor .exec-panel { width: 100%; border-left: none; border-top: 1px solid #2A2A3E; }
+  .step-executor .exec-nav .step-dots { display: none; }
+}
+
+/* ===== Fullscreen mode ===== */
+.step-executor.exec-fullscreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+.step-executor.exec-fullscreen .exec-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #1a1a2e;
+}
+.step-executor.exec-fullscreen .exec-body {
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 56px);
+}
+.step-executor.exec-fullscreen .exec-code {
+  max-height: none;
+}
+.step-executor.exec-fullscreen .exec-panel {
+  max-height: none;
+  overflow-y: auto;
+}
+.step-executor .exec-header .exec-fullscreen-btn {
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-right: 6px;
+}
+.step-executor .exec-header .exec-fullscreen-btn:hover {
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+
+/* 打印 */
+@media print {
+  .step-executor .exec-nav { display: none; }
+  .step-executor .exec-panel { display: none; }
+  .step-executor .exec-body { min-height: auto; }
+  .step-executor .exec-code .eline.step-active,
+  .step-executor .exec-code .eline.step-done { background: none; border-left-color: transparent; }
+  .step-executor .exec-code .eline .lnum { color: #999; }
+}
+
+/* ===== Walkthrough 模式（干跑讲解，不执行代码） ===== */
+.step-executor.walkthrough .exec-panel {
+  flex: 3; /* 代码区:讲解面板 = 7:3 */
+}
+.step-executor.walkthrough .step-explain {
+  flex: 1; /* 讲解面板占满剩余空间 */
+  border-bottom: none;
+  overflow-y: auto;
+}
+.step-executor.walkthrough .step-explain .sdesc {
+  line-height: 1.75; /* walkthrough 描述更长，行高加大 */
+}
+.step-executor.walkthrough .exec-meta::after {
+  content: ' · 讲解模式';
+}
+
+@media (max-width: 768px) {
+  .step-executor.walkthrough .exec-panel {
+    width: 100%;
+  }
+}
+
+@media print {
+  .step-executor.walkthrough .exec-panel {
+    display: block;
+    border-top: 1px solid #ccc;
+  }
+  .step-executor.walkthrough .step-explain .sdesc {
+    color: #333;
+  }
+}
+
+/* ===== 实用工具类（writer 高频 inline style 的 CSS 类替代） ===== */
+/* 使用这些类替代重复的 inline style，保持 HTML 整洁 */
+
+/* 文字尺寸与颜色 */
+.text-sm { font-size: 0.8rem; }
+.text-xs { font-size: 0.72rem; }
+.text-muted { color: var(--text-light); }
+.text-center { text-align: center; }
+.text-primary { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-white { color: #fff; }
+
+/* SVG 通用（替代重复的 max-width:100%;width:100%;height:auto） */
+.svg-responsive { max-width: 100%; width: 100%; height: auto; }
+
+/* 间距 */
+.mt-sm { margin-top: 8px; }
+.mt-md { margin-top: 16px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 16px; }
+
+/* Flex 布局 */
+.flex-col { display: flex; flex-direction: column; }
+.flex-row { display: flex; flex-direction: row; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.flex-1 { flex: 1; }
+
+/* 卡片/标签 */
+.tag-sm { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 0.82rem; font-weight: 600; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+.card-sm { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border: 1px solid var(--border); }
+.card-accent { padding: 10px 14px; background: var(--bg-alt); border-radius: 8px; border-left: 4px solid var(--accent); }
+
+/* 宽度 */
+.w-full { width: 100%; }
+.w-half { width: 50%; }
+
+/* 长代码折叠 */
+details.code-collapse { margin: 18px 0; }
+details.code-collapse > summary {
+  padding: 8px 16px; background: var(--bg-alt); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 0.9rem; color: var(--primary);
+  font-weight: 600; list-style: none;
+}
+details.code-collapse > summary::before { content: "▶ "; font-size: 0.75rem; }
+details.code-collapse[open] > summary::before { content: "▼ "; }
+details.code-collapse > pre { margin-top: 0; border-radius: 0 0 10px 10px; }
+
+/* ===== 著作权声明页（末页） ===== */
+.copyright-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 60px 40px; background: #fff; }
+.copyright-content { max-width: 520px; text-align: center; color: #555; font-size: 0.9rem; line-height: 2; }
+.copyright-title { font-size: 1.3rem; font-weight: 700; color: #2D2D2D; margin-bottom: 4px; }
+.copyright-author { font-size: 1rem; color: #666; margin-bottom: 4px; }
+.copyright-version { font-size: 0.82rem; color: #999; margin-bottom: 8px; }
+.copyright-notice { font-size: 0.85rem; color: #777; margin: 2px 0; }
+.copyright-divider { height: 1px; background: linear-gradient(90deg, transparent, #ccc, transparent); margin: 18px 0; }
+.copyright-statement, .copyright-disclaimer { text-align: left; font-size: 0.82rem; color: #666; padding: 0 10px; }
+.copyright-statement p, .copyright-disclaimer p { margin: 3px 0; }
+.copyright-footer { font-size: 0.85rem; color: #666; margin-top: 10px; }
+.copyright-footer strong { color: var(--primary); }
+.copyright-footer-sub { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+
+/* ===== 侧边目录 ===== */
+/* Sidebar active state - used by merge.js adjustLayout */
+body.sidebar-active { padding-left: 260px; }
+
+.sidebar-toc {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow-y: auto;
+  z-index: 50;
+  padding: 20px 0;
+  font-size: 0.82rem;
+  transition: transform 0.3s ease;
+}
+.sidebar-toc .sidebar-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0 16px 12px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 8px;
+}
+.sidebar-toc a {
+  display: block;
+  padding: 8px 16px;
+  color: #666;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+.sidebar-toc a:hover {
+  color: var(--primary);
+  background: var(--bg-alt);
+}
+.sidebar-toc a.active {
+  color: var(--primary);
+  border-left-color: var(--primary);
+  background: var(--primary-bg);
+  font-weight: 600;
+}
+.sidebar-toc a .ch-num {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+/* Sidebar collapsible groups (for books with >20 chapters) */
+.sidebar-group { border-bottom: 1px solid #f0f0f0; }
+.sidebar-group-label {
+  padding: 8px 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar-group-label::before {
+  content: "▶";
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+}
+.sidebar-group.expanded .sidebar-group-label::before {
+  transform: rotate(90deg);
+}
+.sidebar-group-items {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.sidebar-group.expanded .sidebar-group-items {
+  max-height: 1000px;
+}
+.sidebar-group-items a {
+  padding-left: 24px;
+  font-size: 0.78rem;
+}
+
+/* 侧边目录切换按钮（移动端） */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  left: 12px;
+  bottom: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  line-height: 40px;
+  text-align: center;
+  padding: 0;
+}
+
+/* 阅读进度条 */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 100;
+  transition: width 0.1s linear;
+  width: 0;
+}
+
+/* 回到顶部按钮 */
+.back-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  text-decoration: none;
+  font-size: 1.1rem;
+  line-height: 40px;
+  text-align: center;
+  z-index: 60;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.back-to-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.back-to-top:hover {
+  background: var(--primary-dark);
+}
+
+/* ===== 知识体系图卡片 hover 效果（纯CSS） ===== */
+.knowledge-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.knowledge-card:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+.knowledge-card .card-detail {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+.knowledge-card:hover .card-detail {
+  max-height: 100px;
+  opacity: 1;
+  margin-top: 6px;
+}
+
+/* ===== 实拍效果图（capture_visuals，2026-09-10）===== */
+.render-figure { margin: 1.6em auto; text-align: center; }
+.render-figure img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.render-figure figcaption { margin-top: .5em; font-size: .88em; color: #6b7683; }
+
+/* ===== SVG 流程图类配色（writer SVG 以 class 引用，缺失会回退默认黑色填充，2026-09-10）===== */
+.flowchart-steps .process { fill: #e8f0fe; stroke: #4285f4; stroke-width: 1.5; }
+.flowchart-steps .start-end { fill: #e6f4ea; stroke: #34a853; stroke-width: 1.5; }
+.flowchart-steps .decision { fill: #fef7e0; stroke: #f9ab00; stroke-width: 1.5; }
+.flowchart-steps text { fill: #202124; }
+.flowchart-steps path, .flowchart-steps line, .flowchart-steps polyline { stroke: #5f6368; fill: none; }
+.flowchart-steps polygon { fill: #5f6368; stroke: none; }
+
+</style>
+</head>
+<body style="background:#F0EBE5;">
+<div class="book">
+<div class="chapter"><div class="problem-header">
+
+<div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+
+<div style="flex-shrink:0; width:48px; height:48px; line-height:48px; text-align:center; background:linear-gradient(135deg,#7B1FA2,#4A148C); color:#fff; border-radius:50%; font-size:1.1rem; font-weight:700; box-shadow:0 3px 10px rgba(0,0,0,0.18);">9</div>
+
+<h1 class="problem-title" style="font-size:1.8rem; font-weight:800; color:#7B1FA2; line-height:1.35; margin:0; border:none; padding:0;">08. Function Calling实战——LLM工具调用的工程实现</h1>
+
+</div>
+
+<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+
+<span class="difficulty intermediate">⭐⭐ 中级</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">Function Calling</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">JSON Schema</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">格式差异</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">deepseek-v4.1-flash FC</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">deepseek-v4.1-flash FC</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">Schema Drift</span>
+
+<span style="display:inline-block; padding:2px 10px; border-radius:4px; font-size:0.82rem; font-weight:600; background:#F3E5F5; color:#4A148C;">BFCL</span>
+
+</div>
+
+</div>
+
+<!-- ========== Section 1: 题目描述 ========== -->
+
+<h2 id="s1">一、题目描述</h2>
+
+<p>前文已讨论"什么时候<strong>不</strong>该用 Agent"。假设你已经通过了三问法则的检验——路径不确定、有反馈信号、有护栏——你确信你的场景确实需要 Agent。那接下来面临的就是一个最基础的工程问题：Agent 怎么"动手"？</p>
+
+<p>大语言模型（LLM）本质上是一个文本生成引擎。你给它一段文字，它续写一段文字。就这么简单。它本身不能查数据库、不能调用 API、不能发送邮件、不能执行计算——它只能输出文本。如果说前八章我们构建的 Agent 架构是给这位"军师"配备了完整的指挥体系，那 Function Calling（函数调用，简称 FC）就是给这位军师递上了第一部电话机，让她终于能够向前线下达命令。</p>
+
+<p>Function Calling 是 2023 年 6 月由 OpenAI 首先在 deepseek-v4.1-flash API 中标准化的能力，随后迅速被各大模型厂商跟进。它允许开发者向 LLM 声明一组"工具函数"的名称、参数格式和使用说明，LLM 在对话过程中可以根据用户意图，自主决定调用哪个函数、组装什么参数，并以结构化的 JSON 格式输出调用请求。宿主程序（你的 Python 代码）解析这个 JSON，执行真正的函数，然后把结果返回给 LLM 继续对话。这个机制看似简单，但它几乎是所有现代 AI Agent 框架的基石——ReAct 循环、LangGraph 的工具调用、CrewAI 的任务执行、MCP 协议的底层通信，全都建立在 Function Calling 的基本范式之上。</p>
+
+<p>本题是你进入 G2"工具调用与 MCP"模块的第一道关卡。掌握 FC，你才能真正理解 Agent 是如何与外部世界交互的。无论你后面学 LangGraph 还是 CrewAI，底层都是这套机制。</p>
+
+<h3>题目背景</h3>
+
+<p>你是某电商平台的后端工程师。产品经理老王给了你一个需求：做一个智能客服 Agent，能够处理三类用户请求——</p>
+
+<ul>
+
+<li><strong>商品搜索</strong>：用户说"有没有蓝色条纹衬衫"，Agent 需要调用商品搜索接口</li>
+
+<li><strong>订单查询</strong>：用户说"我的订单到哪了"，Agent 需要根据订单号查物流信息</li>
+
+<li><strong>退款申请</strong>：用户说"这个衬衫质量不行，要退款"，Agent 需要发起退款流程</li>
+
+</ul>
+
+<p>这三个场景有一个共同特征：LLM 自己无法完成（它不能直接访问你的数据库），但 LLM 能够理解用户意图并决定"该调用什么函数、传什么参数"。这就是 Function Calling 的典型应用场景。你作为工程师的职责是：定义好工具函数、正确配置 FC 参数、处理好执行与结果回传的循环。</p>
+
+<h3>题目要求</h3>
+
+<p>请实现一个基于 Function Calling 的多工具智能客服 Agent，满足以下条件：</p>
+
+<ol>
+
+<li>定义至少 3 个工具函数（商品搜索、订单查询、退款计算），每个函数需要完整的 JSON Schema 参数定义</li>
+
+<li>使用 <strong>deepseek-v4.1-flash（智谱 AI）</strong>或 <strong>deepseek-v4.1-flash</strong>的 Function Calling API 作为主要实现（不要使用 OpenAI API，我们在本章会详细讲解国内可用方案）</li>
+
+<li>支持多轮对话（用户可以在一次工具调用后继续追问）</li>
+
+<li>具备基本的错误处理能力（参数缺失、函数执行失败时给出友好提示，而不是崩溃）</li>
+
+<li>对退款等敏感操作实现简单的二次确认机制</li>
+
+</ol>
+
+<h3>输入输出示例</h3>
+
+<p><strong>输入：</strong></p>
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">用户: 有没有蓝色条纹的衬衫？</span>
+<span class="code-line">Agent: [调用 search_products(query="衬衫", color="蓝色", pattern="条纹")]</span>
+<span class="code-line">
+
+找到 3 款蓝色条纹衬衫：</span>
+<span class="code-line">
+
+1. 经典商务蓝条纹衬衫 - ¥199</span>
+<span class="code-line">
+
+2. 休闲棉麻蓝条纹衬衫 - ¥159</span>
+<span class="code-line">
+
+3. 法式修身蓝条纹衬衫 - ¥259</span>
+<span class="code-line"></span>
+<span class="code-line">用户: 第1件多少钱？能发顺丰吗？</span>
+<span class="code-line">Agent: [调用 get_product_details(product_id="p001")]</span>
+<span class="code-line">
+
+经典商务蓝条纹衬衫，售价 ¥199，支持顺丰发货，运费 ¥12。</span>
+<span class="code-line"></span>
+<span class="code-line">用户: 那帮我退款吧，上次买的那件质量问题</span>
+<span class="code-line">Agent: [调用 calculate_refund(order_id="ORD-20260628-001", reason="质量问题")]</span>
+<span class="code-line">
+
+⚠️ 确认要为订单 ORD-20260628-001 发起退款吗？退款金额: ¥199</span>
+<span class="code-line">
+
+请回复"确认"继续。</span></code></pre>
+</div>
+
+<p><strong>输出格式：</strong>每轮对话中，如果 Agent 决定调用工具，需要显示调用的函数名和参数；函数返回结果后，Agent 继续用自然语言回复用户。</p>
+
+<div class="box info">
+
+<div class="box-title">本题知识点</div>
+
+<p>FC 核心原理（决策与执行分离）| JSON Schema 参数定义 | 各模型 FC 格式差异 | Schema Drift 问题 | Tool Hallucination | 工具数量管理 | BFCL 基准测试 | 错误处理最佳实践</p>
+
+</div>
+
+<hr class="divider-accent">
+
+<!-- ========== Section 2: 思路分析 ========== -->
+
+<h2>二、思路分析</h2>
+
+<p>这是 G2 模块的第一道题，也是整本书中信息密度最高的核心章节之一。Function Calling 看似只是一个 API 参数的用法差异，但它背后的设计哲学、工程实践和常见陷阱值得花整整一章来讲透。我们按照"是什么 → 怎么运作 → 怎么用好 → 有什么坑"的逻辑逐步展开，确保你在做完这道题之后，不仅会写 FC 代码，更理解每一行代码背后的"为什么"。</p>
+
+<p>在开始深入之前，先给一个全局视图：Function Calling 涉及的技术栈可以分为三层。最底层是<strong>模型能力层</strong>——不同模型（deepseek-v4.1-flash、deepseek-v4.1-flash、deepseek-v4.1-flash 等）对 FC 的支持程度和格式差异。中间是<strong>工程封装层</strong>——JSON Schema 定义、参数校验、错误处理、工具注册表等代码基础设施。最上层是<strong>框架抽象层</strong>——LangGraph、CrewAI、Dify 等框架对 FC 的封装和增强。本章主要聚焦于前两层，让你理解 FC 的底层原理和工程实践。框架层我们在 G5 模块（第 31-40 题）会专门讨论。理解了本章的内容，你在学习任何 Agent 框架时都能迅速看穿它们的抽象外壳，直击底层本质。</p>
+
+<h3 id="s2-1">2.1 FC 的本质——从"嘴"到"手"的进化</h3>
+
+<p>在没有 Function Calling 之前，开发者是怎么让 LLM"调用工具"的？答案是通过 Prompt Engineering。你会在 system prompt 里写："你可以使用以下工具：1. 搜索商品 2. 查询订单……当你需要使用某个工具时，请输出 <code>TOOL: search_products</code>，然后在下一行输出 JSON 参数。"然后你的代码用正则表达式去解析 LLM 的输出，提取函数名和参数。</p>
+
+<p>这个方案能用吗？能用。好用吗？极其不好用。问题在于：LLM 的输出格式不稳定。你可能让它输出 <code>TOOL: search_products</code>，它偏偏输出 <code>工具调用: search_products</code> 或者 <code>我将使用 search_products 函数</code>。你写的正则只能覆盖有限的变化，总有遗漏。更糟糕的是，LLM 可能在不该调用工具的时候输出了"工具调用"格式，或者参数格式混乱——JSON 的 key 加了引号但 value 忘了加引号，数组写成了逗号分隔的字符串，嵌套对象少了一层大括号……</p>
+
+<p>Function Calling 的突破在于：它把"工具调用"从<strong>非结构化的自然语言输出</strong>变成了<strong>结构化的 API 级别能力</strong>。你不再需要用正则去解析 LLM 的输出来"猜"它想调用什么函数。模型在训练阶段就已经学会了：当它"决定"要调用某个函数时，在 API 响应中生成一个专门的 <code>tool_calls</code> 字段，里面包含函数名和严格符合 JSON Schema 的参数。这个字段是模型原生支持的，不是靠 prompt "哄"出来的。</p>
+
+<p>这个变化可以用一个类比来理解：以前你让一个实习生帮你发快递，你得口头告诉他地址、收件人、物品信息，然后他写下来去发——问题是每个人的写法不一样，快递员经常看不懂。现在你给了他一张标准化的快递单，他只需要填空就行。Function Calling 就是那张标准化的快递单。</p>
+
+<p>但要注意的是，Function Calling 并非万能魔法。它解决的是"输出格式"问题，而非"输出质量"问题。LLM 仍然可能选错函数（比如该查订单时却调了搜索）、传错参数（比如把订单号当成商品 ID）、或者在不该调用工具时强行调用。这些问题的根源是模型能力本身，而非格式规范。我们在后面讨论 Tool Hallucination 和 Schema Drift 时会深入展开。</p>
+
+<p>从发展历程来看，Function Calling 的标准化经历了几个阶段。2023 年 6 月 OpenAI 首先在 deepseek-v4.1-flash 和 deepseek-v4.1-flash-turbo 中推出了 Function Calling 功能，最初的格式是 <code>functions</code> 参数和 <code>function_call</code> 响应字段。2023 年 11 月，OpenAI 将这个能力升级为更通用的 <code>tools</code> 和 <code>tool_calls</code> 格式（也就是我们现在使用的标准格式），同时支持了并行工具调用。这个新格式很快成为行业标准——Anthropic 的 deepseek-v4.1-flash、Google 的 deepseek-v4.1-flash、智谱的 deepseek-v4.1-flash、deepseek-v4.1-flash 等模型都采纳了这个格式或做了兼容设计。可以说，<code>tools/tool_calls</code> 已经成为 Function Calling 的事实标准，就像 REST 之于 Web API 一样。</p>
+
+<p>虽然 API 格式趋于统一，但不同模型在 Function Calling 的底层实现上有本质差异。有些模型（如 deepseek-v4.1-flash 系列）是在预训练阶段就融入了工具调用的训练数据，使模型真正"理解"了工具的概念；而另一些模型可能只是在推理时通过特殊的 prompt 模板来实现类似效果，模型本身并没有深度理解工具调用的语义。这种差异在简单场景中不明显，但在复杂的多轮工具调用、工具组合推理等场景中会导致显著的性能差距。这也是 BFCL 评测存在的意义——它能够揭示不同模型在 FC 能力上的真实差距。</p>
+
+<!-- 图表1：Prompt Engineering vs FC 对比图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 320" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+
+<marker id="arrow9d" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#7B1FA2"></path>
+
+</marker>
+
+<linearGradient id="grad9b2" x1="0%" y1="0%" x2="0%" y2="100%">
+
+<stop offset="0%" style="stop-color:#BA68C8;stop-opacity:1"></stop>
+
+<stop offset="100%" style="stop-color:#7B1FA2;stop-opacity:1"></stop>
+
+</linearGradient>
+
+</defs>
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">从 Prompt Engineering 到 Function Calling 的进化</text>
+
+<rect x="30" y="50" width="340" height="250" rx="12" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="200" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#E65100" font-family="sans-serif">Prompt Engineering 方案（2023前）</text>
+
+<rect x="50" y="90" width="300" height="28" rx="5" fill="#FFE0B2" stroke="#FFB74D"></rect>
+
+<text x="200" y="108" text-anchor="middle" font-size="11" fill="#E65100" font-family="sans-serif">System Prompt 声明工具格式</text>
+
+<line x1="200" y1="118" x2="200" y2="133" stroke="#FF9800" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="50" y="136" width="300" height="28" rx="5" fill="#FFE0B2" stroke="#FFB74D"></rect>
+
+<text x="200" y="154" text-anchor="middle" font-size="11" fill="#E65100" font-family="sans-serif">LLM 输出自然语言（格式不稳定）</text>
+
+<line x1="200" y1="164" x2="200" y2="179" stroke="#FF9800" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="50" y="182" width="300" height="28" rx="5" fill="#FFCCBC" stroke="#FF7043"></rect>
+
+<text x="200" y="200" text-anchor="middle" font-size="11" fill="#BF360C" font-family="sans-serif">正则解析提取函数名和参数</text>
+
+<line x1="200" y1="210" x2="200" y2="225" stroke="#FF9800" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="50" y="228" width="300" height="28" rx="5" fill="#FFCCBC" stroke="#FF7043"></rect>
+
+<text x="200" y="246" text-anchor="middle" font-size="11" fill="#BF360C" font-family="sans-serif">⚠️ 格式不匹配 → 解析失败</text>
+
+<text x="200" y="282" text-anchor="middle" font-size="10" fill="#888" font-family="sans-serif">可靠率约 70-85%，依赖正则质量</text>
+
+<path d="M 370 175 L 430 175" stroke="#7B1FA2" stroke-width="3" marker-end="url(#arrow9d)" fill="none"></path>
+
+<text x="400" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#7B1FA2" font-family="sans-serif">进化</text>
+
+<rect x="430" y="50" width="340" height="250" rx="12" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="600" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#4A148C" font-family="sans-serif">Function Calling 方案（2023后）</text>
+
+<rect x="450" y="90" width="300" height="28" rx="5" fill="#E1BEE7" stroke="#BA68C8"></rect>
+
+<text x="600" y="108" text-anchor="middle" font-size="11" fill="#4A148C" font-family="sans-serif">API 参数声明工具（JSON Schema）</text>
+
+<line x1="600" y1="118" x2="600" y2="133" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="450" y="136" width="300" height="28" rx="5" fill="url(#grad9b2)" stroke="#4A148C"></rect>
+
+<text x="600" y="154" text-anchor="middle" font-size="11" fill="#fff" font-family="sans-serif">LLM 原生返回 tool_calls 字段</text>
+
+<line x1="600" y1="164" x2="600" y2="179" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="450" y="182" width="300" height="28" rx="5" fill="#C8E6C9" stroke="#4CAF50"></rect>
+
+<text x="600" y="200" text-anchor="middle" font-size="11" fill="#2E7D32" font-family="sans-serif">JSON.parse 直接解析（结构化）</text>
+
+<line x1="600" y1="210" x2="600" y2="225" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9d)"></line>
+
+<rect x="450" y="228" width="300" height="28" rx="5" fill="#C8E6C9" stroke="#4CAF50"></rect>
+
+<text x="600" y="246" text-anchor="middle" font-size="11" fill="#2E7D32" font-family="sans-serif">✓ 参数格式保证符合 Schema</text>
+
+<text x="600" y="282" text-anchor="middle" font-size="10" fill="#888" font-family="sans-serif">可靠率约 95%+，原生 API 支持</text>
+
+</svg>
+
+</div>
+
+<p>如上图所示，Prompt Engineering 时代的链路有四个环节，每个环节都可能出错。而 Function Calling 时代把最脆弱的两个环节——"格式不稳定输出"和"正则解析"——替换成了 API 原生支持的结构化字段。这不是量变，是质变。整个 AI Agent 工程领域能在 2023 年之后爆发式发展，Function Calling 的标准化功不可没。</p>
+
+<h3 id="s2-2">2.2 核心设计理念——决策与执行分离</h3>
+
+<p>这是 Function Calling 最重要的架构原则，没有之一。Martin Fowler 在他的技术博客中专门阐述了这一点：</p>
+
+<blockquote class="chapter-quote">
+
+<p>"当使用 Function Calling 时，LLM 本身并不执行函数。它识别适当的函数，收集所有必需的参数，并以结构化 JSON 格式提供信息。这个 JSON 输出然后可以被反序列化为 Python 的函数调用。"</p>
+
+<p style="text-align:right; color:#888;">—— Martin Fowler</p>
+
+</blockquote>
+
+<p>用一句话概括：<strong>LLM 是策略师，不是执行者</strong>。它负责"想"——分析用户意图、选择正确的函数、组装参数；它不负责"做"——真正的 API 调用、数据库查询、文件操作全部由你的确定性代码完成。</p>
+
+<p>为什么要做这样的分离？因为 LLM 的输出本质上是概率性的。即使准确率高达 99%，那 1% 的错误如果发生在执行环节（比如误删了数据库记录、发送了错误的邮件、向支付接口传了错误的金额），后果可能是灾难性的。把执行交给确定性代码，你就可以在执行前做校验、做权限检查、做审计日志——这些安全保障在 LLM 内部是无法实现的。</p>
+
+<p>理解了这个原则，你就能理解为什么所有成熟的 Agent 框架都采用"LLM 决策 + 宿主执行"的架构。LangGraph 的 <code>create_agent</code>（1.x 新 API，替代了已废弃的 <code>create_react_agent</code>）内部实现就是：LLM 返回 tool call → 框架自动执行绑定的 Python 函数 → 结果送回 LLM。CrewAI 的 Agent 执行 Task 时也是同样的流程。这些框架做的事情本质上就是帮你把"决策与执行分离"的管道代码封装好了。</p>
+
+<p>这个设计理念可以延伸到一个更通用的架构模式——Agent 脚手架（Agent Scaffold）。一个典型的 Agent 控制循环包含三个阶段：</p>
+
+<!-- 图表2：Agent三层架构图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 400" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+
+<linearGradient id="grad9c1" x1="0%" y1="0%" x2="100%" y2="0%">
+
+<stop offset="0%" style="stop-color:#FF9800;stop-opacity:0.9"></stop>
+
+<stop offset="100%" style="stop-color:#E65100;stop-opacity:0.9"></stop>
+
+</linearGradient>
+
+<linearGradient id="grad9c2" x1="0%" y1="0%" x2="100%" y2="0%">
+
+<stop offset="0%" style="stop-color:#7B1FA2;stop-opacity:0.9"></stop>
+
+<stop offset="100%" style="stop-color:#4A148C;stop-opacity:0.9"></stop>
+
+</linearGradient>
+
+<linearGradient id="grad9c3" x1="0%" y1="0%" x2="100%" y2="0%">
+
+<stop offset="0%" style="stop-color:#2196F3;stop-opacity:0.9"></stop>
+
+<stop offset="100%" style="stop-color:#1565C0;stop-opacity:0.9"></stop>
+
+</linearGradient>
+
+<marker id="arrow9c" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#4A148C"></path>
+
+</marker>
+
+</defs>
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Agent 三层脚手架架构</text>
+
+<rect x="100" y="50" width="600" height="80" rx="12" fill="url(#grad9c1)" stroke="#E65100" stroke-width="2"></rect>
+
+<text x="400" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">① 意图检查层（安全护栏）</text>
+
+<text x="400" y="98" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">Prompt 注入检测 · 敏感词过滤 · 权限校验 · 速率限制</text>
+
+<text x="400" y="116" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">"这个人说的话安全吗？有没有试图越狱？"</text>
+
+<line x1="400" y1="130" x2="400" y2="155" stroke="#4A148C" stroke-width="2" marker-end="url(#arrow9c)"></line>
+
+<rect x="100" y="160" width="600" height="80" rx="12" fill="url(#grad9c2)" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="400" y="188" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">② 动作决策层（LLM 负责）</text>
+
+<text x="400" y="208" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">意图分析 · 函数选择 · 参数组装 · tool_calls 输出</text>
+
+<text x="400" y="226" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">"用户想要什么？我该调哪个函数？传什么参数？"</text>
+
+<line x1="400" y1="240" x2="400" y2="265" stroke="#4A148C" stroke-width="2" marker-end="url(#arrow9c)"></line>
+
+<rect x="100" y="270" width="600" height="80" rx="12" fill="url(#grad9c3)" stroke="#1565C0" stroke-width="2"></rect>
+
+<text x="400" y="298" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">③ 动作执行层（确定性代码）</text>
+
+<text x="400" y="318" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">参数校验 · API 调用 · 结果格式化 · 错误处理 · 审计日志</text>
+
+<text x="400" y="336" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">"拿到决策方案，真正动手执行，保障安全和可审计"</text>
+
+<path d="M 700 310 Q 760 310 760 200 Q 760 90 700 90" stroke="#7B1FA2" stroke-width="2" stroke-dasharray="5,3" fill="none" marker-end="url(#arrow9c)"></path>
+
+<text x="770" y="205" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif" transform="rotate(90,770,205)">执行结果回传</text>
+
+</svg>
+
+</div>
+
+<p>上图的三层架构是理解所有 Agent 框架的万能钥匙。第一层负责安全——在用户输入到达 LLM 之前先做检查；第二层是 LLM 的核心职责——理解意图并做出决策；第三层是工程代码的职责——执行操作并返回结果。右侧的虚线回传箭头表示执行结果会送回上层，形成 Agent 的循环。你在后面学习 LangGraph、CrewAI 时会发现，它们的核心代码就是在实现这个三层管道。</p>
+
+<p>这个三层架构的代码结构通常是这样的：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"","lines":["# 伪代码：Agent 三层脚手架主循环","def agent_run(user_message, history):","
+
+# ① 意图检查（安全护栏）","
+
+if is_malicious(user_message):","
+
+return \"抱歉，无法处理此请求。\"","","
+
+# ② 动作决策（LLM 通过 Function Calling 完成）","
+
+response = llm.chat(","
+
+messages=history + [{\"role\": \"user\", \"content\": user_message}],","
+
+tools=tool_definitions  # JSON Schema 列表","
+
+)","","
+
+# ③ 如果 LLM 决定调用函数 → 进入执行层","
+
+if response.tool_calls:","
+
+for call in response.tool_calls:","
+
+# 执行层：参数校验 + 真正调用 + 审计日志","
+
+result = execute_function(call.name, call.arguments)","
+
+# 把结果送回 LLM，让它继续对话","
+
+history.append({\"role\": \"tool\", \"content\": result})","
+
+# 递归调用，让 LLM 看到工具结果后继续回复","
+
+return agent_run(\"\", history)","","
+
+# ④ LLM 直接回复文字（无需调用工具）","
+
+return response.content"],"steps":[{"title":"定义函数 agent_run(user_message, history)","desc":"① 意图检查（安全护栏）。","lineRange":[1,4]},{"title":"逻辑块 2","desc":"② 动作决策（LLM 通过 Function Calling 完成）；JSON Schema 列表。","lineRange":[6,10]},{"title":"逻辑块 3","desc":"③ 如果 LLM 决定调用函数 → 进入执行层；执行层：参数校验 + 真正调用 + 审计日志；把结果送回 LLM，让它继续对话；递归调用，让 LLM 看到工具结果后继续回复。","lineRange":[12,20]},{"title":"逻辑块 4","desc":"④ LLM 直接回复文字（无需调用工具）。","lineRange":[22,23]}]}
+
+</script>
+</div>
+
+<p>注意第 ③ 步：当 LLM 返回了工具调用请求时，你执行完函数后需要把结果送回给 LLM，让它"看到"执行结果并继续对话。这个过程可能循环多次——用户的一个问题可能需要连续调用多个工具才能回答。比如用户说"帮我查下最近三笔订单的状态"，LLM 可能需要连续调用三次 <code>get_order_status</code>。这就是 Agent 的核心循环，也是我们在第 3 题（ReAct 模式）中讨论过的 Thought-Action-Observation 循环在工程层面的具体实现。</p>
+
+<h3 id="s2-3">2.3 FC 完整工作流程——六步走完全程</h3>
+
+<p>让我们把 Function Calling 的完整工作流程拆解成六个步骤。这是你理解后续所有代码和框架的基础——无论你用的是 LangGraph、CrewAI 还是 Dify，底层都在走这个流程。</p>
+
+<!-- 图表3：FC六步工作流程图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 380" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+
+<marker id="arrow9a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#7B1FA2"></path>
+
+</marker>
+
+<linearGradient id="grad9a" x1="0%" y1="0%" x2="0%" y2="100%">
+
+<stop offset="0%" style="stop-color:#BA68C8;stop-opacity:1"></stop>
+
+<stop offset="100%" style="stop-color:#7B1FA2;stop-opacity:1"></stop>
+
+</linearGradient>
+
+</defs>
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Function Calling 六步工作流程</text>
+
+<rect x="20" y="55" width="130" height="70" rx="10" fill="url(#grad9a)" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="85" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">① 定义工具</text>
+
+<text x="85" y="98" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">Python 函数</text>
+
+<text x="85" y="112" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">+ JSON Schema</text>
+
+<line x1="150" y1="90" x2="185" y2="90" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9a)"></line>
+
+<rect x="190" y="55" width="130" height="70" rx="10" fill="url(#grad9a)" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="255" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">② 传递给LLM</text>
+
+<text x="255" y="98" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">tools 参数</text>
+
+<text x="255" y="112" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">附在请求中</text>
+
+<line x1="320" y1="90" x2="355" y2="90" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9a)"></line>
+
+<rect x="360" y="55" width="130" height="70" rx="10" fill="#E040FB" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="425" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">③ LLM推理</text>
+
+<text x="425" y="98" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">分析用户意图</text>
+
+<text x="425" y="112" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">选择函数+组装参数</text>
+
+<path d="M 425 125 Q 425 160 425 195" stroke="#7B1FA2" stroke-width="2" fill="none" marker-end="url(#arrow9a)"></path>
+
+<rect x="360" y="195" width="130" height="70" rx="10" fill="#2196F3" stroke="#1565C0" stroke-width="2"></rect>
+
+<text x="425" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">④ 返回JSON</text>
+
+<text x="425" y="238" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">tool_calls 字段</text>
+
+<text x="425" y="252" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">函数名+参数</text>
+
+<line x1="355" y1="230" x2="320" y2="230" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9a)"></line>
+
+<rect x="190" y="195" width="130" height="70" rx="10" fill="#4CAF50" stroke="#2E7D32" stroke-width="2"></rect>
+
+<text x="255" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">⑤ 执行函数</text>
+
+<text x="255" y="238" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">宿主程序解析</text>
+
+<text x="255" y="252" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">真正调用API</text>
+
+<line x1="185" y1="230" x2="150" y2="230" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9a)"></line>
+
+<rect x="20" y="195" width="130" height="70" rx="10" fill="#FF9800" stroke="#E65100" stroke-width="2"></rect>
+
+<text x="85" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">⑥ 返回结果</text>
+
+<text x="85" y="238" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">结果送回LLM</text>
+
+<text x="85" y="252" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">继续对话/结束</text>
+
+<path d="M 85 265 Q 85 310 250 310 Q 425 310 425 280" stroke="#E040FB" stroke-width="2" stroke-dasharray="5,3" fill="none" marker-end="url(#arrow9a)"></path>
+
+<text x="255" y="330" text-anchor="middle" font-size="10" fill="#7B1FA2" font-family="sans-serif" font-style="italic">工具结果回传 → LLM 继续推理（可多轮循环）</text>
+
+<text x="85" y="365" text-anchor="middle" font-size="9" fill="#888" font-family="sans-serif">开发者</text>
+
+<text x="255" y="365" text-anchor="middle" font-size="9" fill="#888" font-family="sans-serif">开发者</text>
+
+<text x="425" y="365" text-anchor="middle" font-size="9" fill="#888" font-family="sans-serif">LLM</text>
+
+</svg>
+
+</div>
+
+<p>上图清晰地展示了职责边界：步骤①②⑤⑥由开发者（也就是你）负责，步骤③④是 LLM 原生完成。步骤⑥的虚线箭头是关键——它代表了一个"回环"，函数执行结果需要送回 LLM，LLM 看到结果后可能继续调用下一个工具，也可能生成最终的自然语言回复。这个回环就是 Agent 的核心循环。</p>
+
+<p>让我们用一个具体例子走一遍这六步。假设用户说"有没有蓝色条纹衬衫"：</p>
+
+<p><strong>步骤①</strong>：你定义了一个 <code>search_products</code> 函数，并用 JSON Schema 声明它接受三个参数——<code>query</code>（搜索关键词，必填）、<code>color</code>（颜色，可选）、<code>pattern</code>（图案，可选）。</p>
+
+<p><strong>步骤②</strong>：你把 <code>search_products</code> 的 Schema 定义连同用户消息一起发给 LLM 的 API。此时 API 请求中会多一个 <code>tools</code> 参数，里面是所有可用工具的 JSON Schema 列表。</p>
+
+<p><strong>步骤③</strong>：LLM 分析用户消息"有没有蓝色条纹衬衫"，识别出这是一个商品搜索请求，理解"蓝色"对应 color 参数、"条纹"对应 pattern 参数、"衬衫"对应 query 参数。这个"理解"过程是模型在训练阶段就学会的能力，不需要你在 prompt 中特别指示。</p>
+
+<p><strong>步骤④</strong>：LLM 在响应中返回一个 <code>tool_calls</code> 字段，内容类似：<code>{"name": "search_products", "arguments": {"query": "衬衫", "color": "蓝色", "pattern": "条纹"}}</code>。注意这个 JSON 是模型在 API 响应中原生返回的结构化字段，不是你需要从自然语言中解析的。</p>
+
+<p><strong>步骤⑤</strong>：你的代码解析这个 JSON，找到对应的 Python 函数 <code>search_products</code>，用解析出的参数调用它。函数内部可能调用了你公司的商品搜索 API，查到了三条结果。</p>
+
+<p><strong>步骤⑥</strong>：你把函数执行结果（三条商品信息）以 <code>role: "tool"</code> 的消息格式送回 LLM。LLM 看到结果后，用自然语言组织回复："找到 3 款蓝色条纹衬衫：1. 经典商务蓝条纹衬衫……"。</p>
+
+<p>这六步看起来很机械，但每一步都有工程细节需要注意。比如步骤①中 JSON Schema 描述写得不够清晰，LLM 就可能在步骤③中选错参数；步骤⑤中如果函数没有做参数校验，就可能因为 LLM 传入了非法参数而崩溃。这些都是我们在后面小节中要深入讨论的。</p>
+
+<h3 id="s2-4">2.4 JSON Schema——工具描述的"语言"</h3>
+
+<p>JSON Schema 是 Function Calling 的核心基础设施。你可以把它理解为"工具的说明书"——它告诉 LLM 这个工具叫什么名字、做什么用、接受哪些参数、每个参数是什么类型、哪些参数是必填的。LLM 就是靠阅读这份"说明书"来决定该不该调用这个工具以及怎么调用的。因此，Schema 写得好不好，直接决定了 FC 的准确率。</p>
+
+<p>一份完整的 JSON Schema 工具定义包含以下要素：</p>
+
+<div class="step-executor">
+
+<script type="application/json">{"mode": "walkthrough", "lang": "json", "lines": ["{", "  \"type\": \"function\",", "  \"function\": {", "
+
+\"name\": \"search_products\",", "
+
+\"description\": \"在商品库中搜索商品。支持按关键词、颜色、图案等条件筛选。\",", "
+
+\"parameters\": {", "
+
+\"type\": \"object\",", "
+
+\"properties\": {", "
+
+\"query\": {", "
+
+\"type\": \"string\",", "
+
+\"description\": \"搜索关键词，如'衬衫'、'鞋子'\"", "
+
+},", "
+
+\"color\": {", "
+
+\"type\": \"string\",", "
+
+\"description\": \"颜色筛选，如'红色'、'蓝色'\",", "
+
+\"enum\": [\"红色\", \"蓝色\", \"黑色\", \"白色\", \"绿色\", \"黄色\"]", "
+
+},", "
+
+\"pattern\": {", "
+
+\"type\": \"string\",", "
+
+\"description\": \"图案筛选，如'条纹'、'格子'、'纯色'\"", "
+
+},", "
+
+\"min_price\": {", "
+
+\"type\": \"number\",", "
+
+\"description\": \"最低价格（元）\",", "
+
+\"minimum\": 0", "
+
+},", "
+
+\"max_price\": {", "
+
+\"type\": \"number\",", "
+
+\"description\": \"最高价格（元）\",", "
+
+\"minimum\": 0", "
+
+}", "
+
+},", "
+
+\"required\": [\"query\"],", "
+
+\"additionalProperties\": false", "
+
+}", "  }", "}"], "steps": [{"title": "{ / \"type\": / \"function\":", "desc": "执行命令：{；执行命令：\"type\": \"function\",；执行命令：\"function\": {。", "lineRange": [0, 2]}, {"title": "\"name\": / \"description\": / \"parameters\":", "desc": "执行命令：\"name\": \"search_products\",；执行命令：\"description\": \"在商品库中搜索商品。支持按关键词、颜色、图案等条件筛选。\",；执行命令：\"parameters\": {。", "lineRange": [3, 5]}, {"title": "\"type\": / \"properties\": / \"query\":", "desc": "执行命令：\"type\": \"object\",；执行命令：\"properties\": {；执行命令：\"query\": {。", "lineRange": [6, 8]}, {"title": "\"type\": / \"description\": / },", "desc": "执行命令：\"type\": \"string\",；执行命令：\"description\": \"搜索关键词，如'衬衫'、'鞋子'\"；执行命令：},。", "lineRange": [9, 11]}, {"title": "\"color\": / \"type\": / \"description\":", "desc": "执行命令：\"color\": {；执行命令：\"type\": \"string\",；执行命令：\"description\": \"颜色筛选，如'红色'、'蓝色'\",。", "lineRange": [12, 14]}, {"title": "\"enum\": / }, / \"pattern\":", "desc": "执行命令：\"enum\": [\"红色\", \"蓝色\", \"黑色\", \"白色\", \"绿色\", \"黄色\"]；执行命令：},；执行命令：\"pattern\": {。", "lineRange": [15, 17]}, {"title": "\"type\": / \"description\": / },", "desc": "执行命令：\"type\": \"string\",；执行命令：\"description\": \"图案筛选，如'条纹'、'格子'、'纯色'\"；执行命令：},。", "lineRange": [18, 20]}, {"title": "\"min_price\": / \"type\": / \"description\":", "desc": "执行命令：\"min_price\": {；执行命令：\"type\": \"number\",；执行命令：\"description\": \"最低价格（元）\",。", "lineRange": [21, 23]}, {"title": "\"minimum\": / }, / \"max_price\":", "desc": "执行命令：\"minimum\": 0；执行命令：},；执行命令：\"max_price\": {。", "lineRange": [24, 26]}, {"title": "\"type\": / \"description\": / \"minimum\":", "desc": "执行命令：\"type\": \"number\",；执行命令：\"description\": \"最高价格（元）\",；执行命令：\"minimum\": 0。", "lineRange": [27, 29]}, {"title": "} / }, / \"required\":", "desc": "执行命令：}；执行命令：},；执行命令：\"required\": [\"query\"],。", "lineRange": [30, 32]}, {"title": "\"additionalProperties\": / }", "desc": "执行命令：\"additionalProperties\": false；执行命令：}。", "lineRange": [33, 35]}, {"title": "}", "desc": "执行命令：}。", "lineRange": [36, 36]}]}</script>
+</div>
+
+<p>这份 Schema 里有几个关键字段需要特别注意。第一个是 <strong>name</strong>：函数名必须与你的 Python 函数名完全一致。建议用 snake_case 命名，语义清晰。避免使用 <code>func1</code>、<code>do_something</code> 这种无意义的名称——LLM 在选择工具时严重依赖名称的字面含义来匹配用户意图。</p>
+
+<p>第二个是 <strong>description</strong>：这是影响 LLM 工具选择准确率的<strong>最重要字段</strong>。好的描述应该包含三要素：做什么（功能）、什么时候用（触发条件）、返回什么（输出格式概要）。对比两种写法：<code>"搜索商品"</code> 和 <code>"在商品库中搜索商品。支持按关键词、颜色、图案等条件筛选。返回匹配的商品列表，包含名称、价格、库存信息。"</code>——后者的信息量让 LLM 能够更准确地判断"这个用户请求是否应该调用这个函数"。研究表明，在 BFCL（Berkeley Function Calling Leaderboard）评测中，仅通过优化 description 就能提升工具选择准确率 10-20%。</p>
+
+<p>第三个是 <strong>parameters.properties</strong>：每个参数需要声明 <code>type</code>（类型）、<code>description</code>（描述）和可选的约束（如 <code>enum</code> 枚举值、<code>minimum/maximum</code> 范围、<code>pattern</code> 正则）。参数描述同样重要——<code>"搜索关键词，如'衬衫'、'鞋子'"</code> 远比 <code>"query"</code> 有用，因为它告诉 LLM 这个参数期望什么样的值。</p>
+
+<p>第四个是 <strong>required</strong>：必填参数列表。不在 required 中的参数是可选的，LLM 只在用户明确提及时才会填充它们。比如用户只说"有没有衬衫"，LLM 只会传 <code>query="衬衫"</code>，不会猜测 color 和 pattern。但如果你把 color 也设为 required，LLM 就会尝试从用户输入中推断一个颜色，或者索性随机编一个——这就导致了参数幻觉。</p>
+
+<!-- 图表4：JSON Schema 五大要素图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 340" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+
+<linearGradient id="grad9e" x1="0%" y1="0%" x2="100%" y2="0%">
+
+<stop offset="0%" style="stop-color:#BA68C8;stop-opacity:0.3"></stop>
+
+<stop offset="100%" style="stop-color:#E040FB;stop-opacity:0.3"></stop>
+
+</linearGradient>
+
+</defs>
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">JSON Schema 五大要素与 LLM 的阅读逻辑</text>
+
+<circle cx="400" cy="180" r="50" fill="#7B1FA2" stroke="#4A148C" stroke-width="3"></circle>
+
+<text x="400" y="175" text-anchor="middle" font-size="14" font-weight="700" fill="#fff" font-family="sans-serif">LLM</text>
+
+<text x="400" y="195" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.85)" font-family="sans-serif">决策引擎</text>
+
+<rect x="40" y="60" width="160" height="60" rx="10" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="120" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#4A148C" font-family="sans-serif">name</text>
+
+<text x="120" y="100" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">函数标识符</text>
+
+<text x="120" y="114" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">snake_case 命名</text>
+
+<line x1="200" y1="120" x2="360" y2="160" stroke="#BA68C8" stroke-width="1.5"></line>
+
+<rect x="40" y="150" width="160" height="60" rx="10" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="120" y="172" text-anchor="middle" font-size="12" font-weight="700" fill="#2E7D32" font-family="sans-serif">description ★</text>
+
+<text x="120" y="190" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">最重要的字段</text>
+
+<text x="120" y="204" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">决定工具选择准确率</text>
+
+<line x1="200" y1="180" x2="360" y2="178" stroke="#4CAF50" stroke-width="1.5"></line>
+
+<rect x="40" y="240" width="160" height="60" rx="10" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="120" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="#1565C0" font-family="sans-serif">parameters</text>
+
+<text x="120" y="280" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">参数类型+描述+约束</text>
+
+<text x="120" y="294" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">决定参数组装质量</text>
+
+<line x1="200" y1="250" x2="360" y2="195" stroke="#2196F3" stroke-width="1.5"></line>
+
+<rect x="600" y="60" width="160" height="60" rx="10" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="680" y="82" text-anchor="middle" font-size="12" font-weight="700" fill="#E65100" font-family="sans-serif">required</text>
+
+<text x="680" y="100" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">必填参数声明</text>
+
+<text x="680" y="114" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">影响参数完整性</text>
+
+<line x1="600" y1="120" x2="440" y2="160" stroke="#FF9800" stroke-width="1.5"></line>
+
+<rect x="600" y="150" width="160" height="60" rx="10" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="680" y="172" text-anchor="middle" font-size="12" font-weight="700" fill="#C62828" font-family="sans-serif">enum / 约束</text>
+
+<text x="680" y="190" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">限定合法值范围</text>
+
+<text x="680" y="204" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">减少幻觉参数</text>
+
+<line x1="600" y1="180" x2="440" y2="178" stroke="#E53935" stroke-width="1.5"></line>
+
+<rect x="600" y="240" width="160" height="60" rx="10" fill="url(#grad9e)" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="680" y="262" text-anchor="middle" font-size="12" font-weight="700" fill="#4A148C" font-family="sans-serif">addProperties</text>
+
+<text x="680" y="280" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">false = 禁止额外参数</text>
+
+<text x="680" y="294" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">防止参数幻觉</text>
+
+<line x1="600" y1="250" x2="440" y2="195" stroke="#BA68C8" stroke-width="1.5"></line>
+
+</svg>
+
+</div>
+
+<p>这里有一个容易被忽略的技巧：<code>additionalProperties: false</code>。这个字段告诉 LLM"除了 properties 中列出的参数外，不允许传其他参数"。不加这个限制时，LLM 有时会"自作主张"地添加 Schema 中没有定义的参数（比如把用户的原话作为一个新参数传进去）。设为 false 可以有效减少这类参数幻觉。</p>
+
+<p>另一个实用技巧是善用 <code>enum</code> 约束。如果你的函数只接受固定的几个值（比如颜色只有"红、蓝、黑、白"），一定要用 enum 列出来。这比让 LLM 自由发挥要可靠得多——你不想看到 LLM 返回 <code>"color": "天蓝色带点紫"</code> 这种你的数据库里根本没有的值。Enum 约束把开放性的生成问题变成了封闭性的选择问题，准确率天然更高。</p>
+
+<p>除了基本类型和 enum，JSON Schema 还支持更复杂的参数结构。<strong>数组类型</strong>（<code>type: "array"</code>）用于接受多个同类值，比如 <code>"product_ids": {"type": "array", "items": {"type": "string"}}</code> 可以让 LLM 一次性传入多个商品 ID。<strong>嵌套对象</strong>用于表达层级关系，比如地址参数可以嵌套 province/city/district 三层。但要注意：嵌套层级不宜超过两层，否则 LLM 组装参数的准确率会明显下降。如果参数结构过于复杂，更好的做法是把它拆成多个扁平的简单参数，或者拆成多个工具函数。</p>
+
+<p>还有一个值得讨论的话题是参数的<strong>粒度设计</strong>。以订单查询为例，你是让 LLM 传一个 <code>order_id</code> 就够了，还是同时传 <code>order_id</code> + <code>user_id</code> 做权限校验？答案是后者——即使 LLM 从用户消息中提取 user_id 的准确率不如 order_id，你也应该声明这个参数并在函数内部做交叉验证。参数冗余设计的本质是用更多的上下文信息来降低误操作风险。在安全敏感场景（支付、退款、数据删除）中，这种做法尤其重要。</p>
+
+<p>最后提一下 <code>description</code> 中写示例的技巧。在参数描述中给出一个具体示例，能显著提升 LLM 的参数组装质量。比如 <code>"description": "订单号，格式如 ORD-YYYYMMDD-XXX，例如 ORD-20260628-001"</code> 比 <code>"description": "订单号"</code> 有效得多——LLM 看到示例后就能按图索骥地生成格式正确的值。这种 few-shot 式的提示虽然简单，但在实际工程中效果显著，BFCL 评测中优化 description 添加示例后准确率平均提升 8-12%。</p>
+
+<h3 id="s2-5">2.5 各模型 FC 格式差异——deepseek-v4.1-flash vs deepseek-v4.1-flash vs OpenAI</h3>
+
+<p>好消息是，Function Calling 的基本概念在不同模型之间是通用的。坏消息是，API 的请求和响应格式<strong>并不完全一致</strong>。如果你从 OpenAI 的教程中学了 FC 的用法，切换到 deepseek-v4.1-flash 或 deepseek-v4.1-flash 时需要注意一些格式差异。好消息是，这些差异很小——deepseek-v4.1-flash 和 deepseek-v4.1-flash 都选择了与 OpenAI 兼容的路线，迁移成本很低。</p>
+
+<p>下面我们逐一对比三大模型在 FC 方面的关键差异：</p>
+
+<!-- 图表5：三模型FC格式对比表 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 440" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">三大模型 Function Calling 格式对比</text>
+
+<rect x="20" y="45" width="240" height="35" rx="6" fill="#7B1FA2"></rect>
+
+<text x="140" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">对比维度</text>
+
+<rect x="270" y="45" width="170" height="35" rx="6" fill="#1565C0"></rect>
+
+<text x="355" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">OpenAI</text>
+
+<rect x="445" y="45" width="170" height="35" rx="6" fill="#2E7D32"></rect>
+
+<text x="530" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">deepseek-v4.1-flash (智谱AI)</text>
+
+<rect x="620" y="45" width="160" height="35" rx="6" fill="#E65100"></rect>
+
+<text x="700" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">deepseek-v4.1-flash</text>
+
+<rect x="20" y="85" width="240" height="50" fill="#F3E5F5" stroke="#E0E0E0"></rect>
+
+<text x="30" y="108" font-size="11" font-weight="600" fill="#4A148C" font-family="sans-serif">工具声明参数名</text>
+
+<text x="30" y="123" font-size="10" fill="#757575" font-family="sans-serif">API 请求中</text>
+
+<rect x="270" y="85" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="280" y="110" font-size="11" fill="#1565C0" font-family="monospace">tools</text>
+
+<text x="280" y="125" font-size="10" fill="#757575" font-family="sans-serif">type: "function"</text>
+
+<rect x="445" y="85" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="455" y="110" font-size="11" fill="#2E7D32" font-family="monospace">tools</text>
+
+<text x="455" y="125" font-size="10" fill="#757575" font-family="sans-serif">与 OpenAI 兼容</text>
+
+<rect x="620" y="85" width="160" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="630" y="110" font-size="11" fill="#E65100" font-family="monospace">tools</text>
+
+<text x="630" y="125" font-size="10" fill="#757575" font-family="sans-serif">完全兼容</text>
+
+<rect x="20" y="138" width="240" height="50" fill="#F3E5F5" stroke="#E0E0E0"></rect>
+
+<text x="30" y="161" font-size="11" font-weight="600" fill="#4A148C" font-family="sans-serif">工具调用响应字段</text>
+
+<text x="30" y="176" font-size="10" fill="#757575" font-family="sans-serif">API 响应中</text>
+
+<rect x="270" y="138" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="280" y="163" font-size="11" fill="#1565C0" font-family="monospace">tool_calls</text>
+
+<text x="280" y="178" font-size="10" fill="#757575" font-family="sans-serif">choices.message.tool_calls</text>
+
+<rect x="445" y="138" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="455" y="163" font-size="11" fill="#2E7D32" font-family="monospace">tool_calls</text>
+
+<text x="455" y="178" font-size="10" fill="#757575" font-family="sans-serif">格式完全一致</text>
+
+<rect x="620" y="138" width="160" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="630" y="163" font-size="11" fill="#E65100" font-family="monospace">tool_calls</text>
+
+<text x="630" y="178" font-size="10" fill="#757575" font-family="sans-serif">格式完全一致</text>
+
+<rect x="20" y="191" width="240" height="50" fill="#F3E5F5" stroke="#E0E0E0"></rect>
+
+<text x="30" y="214" font-size="11" font-weight="600" fill="#4A148C" font-family="sans-serif">并行工具调用</text>
+
+<text x="30" y="229" font-size="10" fill="#757575" font-family="sans-serif">一次返回多个 tool_call</text>
+
+<rect x="270" y="191" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="280" y="216" font-size="11" fill="#4CAF50" font-family="sans-serif">✓ 支持</text>
+
+<text x="280" y="231" font-size="10" fill="#757575" font-family="sans-serif">parallel_tool_calls</text>
+
+<rect x="445" y="191" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="455" y="216" font-size="11" fill="#FF9800" font-family="sans-serif">△ 部分支持</text>
+
+<text x="455" y="231" font-size="10" fill="#757575" font-family="sans-serif">deepseek-v4.1-flash 及以上版本</text>
+
+<rect x="620" y="191" width="160" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="630" y="216" font-size="11" fill="#4CAF50" font-family="sans-serif">✓ 支持</text>
+
+<text x="630" y="231" font-size="10" fill="#757575" font-family="sans-serif">兼容格式</text>
+
+<rect x="20" y="244" width="240" height="50" fill="#F3E5F5" stroke="#E0E0E0"></rect>
+
+<text x="30" y="267" font-size="11" font-weight="600" fill="#4A148C" font-family="sans-serif">工具结果回传</text>
+
+<text x="30" y="282" font-size="10" fill="#757575" font-family="sans-serif">函数执行后消息格式</text>
+
+<rect x="270" y="244" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="280" y="269" font-size="11" fill="#1565C0" font-family="monospace">role: "tool"</text>
+
+<text x="280" y="284" font-size="10" fill="#757575" font-family="sans-serif">+ tool_call_id</text>
+
+<rect x="445" y="244" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="455" y="269" font-size="11" fill="#2E7D32" font-family="monospace">role: "tool"</text>
+
+<text x="455" y="284" font-size="10" fill="#757575" font-family="sans-serif">+ tool_call_id</text>
+
+<rect x="620" y="244" width="160" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="630" y="269" font-size="11" fill="#E65100" font-family="monospace">role: "tool"</text>
+
+<text x="630" y="284" font-size="10" fill="#757575" font-family="sans-serif">+ tool_call_id</text>
+
+<rect x="20" y="297" width="240" height="50" fill="#F3E5F5" stroke="#E0E0E0"></rect>
+
+<text x="30" y="320" font-size="11" font-weight="600" fill="#4A148C" font-family="sans-serif">OpenAI SDK 兼容</text>
+
+<text x="30" y="335" font-size="10" fill="#757575" font-family="sans-serif">可直接用 openai 库？</text>
+
+<rect x="270" y="297" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="280" y="322" font-size="11" fill="#1565C0" font-family="sans-serif">原生</text>
+
+<text x="280" y="337" font-size="10" fill="#757575" font-family="sans-serif">基准格式</text>
+
+<rect x="445" y="297" width="170" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="455" y="322" font-size="11" fill="#4CAF50" font-family="sans-serif">✓ 可直接用</text>
+
+<text x="455" y="337" font-size="10" fill="#757575" font-family="sans-serif">base_url 替换即可</text>
+
+<rect x="620" y="297" width="160" height="50" fill="#fff" stroke="#E0E0E0"></rect>
+
+<text x="630" y="322" font-size="11" fill="#4CAF50" font-family="sans-serif">✓ 可直接用</text>
+
+<text x="630" y="337" font-size="10" fill="#757575" font-family="sans-serif">base_url 替换即可</text>
+
+<rect x="20" y="360" width="760" height="40" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="1"></rect>
+
+<text x="400" y="385" text-anchor="middle" font-size="11" fill="#2E7D32" font-family="sans-serif">💡 deepseek-v4.1-flash 和 deepseek-v4.1-flash 均兼容 OpenAI FC 格式，代码几乎可无缝迁移，只需替换 API Key 和 base_url</text>
+
+</svg>
+
+</div>
+
+<p>从上表可以清楚看到，deepseek-v4.1-flash 和 deepseek-v4.1-flash 在 Function Calling 的 API 设计上都选择了与 OpenAI 兼容的路线。这对开发者来说是个极好的消息——你写的 FC 代码几乎可以在三个平台之间无缝切换，只需要修改 <code>api_key</code> 和 <code>base_url</code>。这意味着你在学习时可以直接参考 OpenAI 的官方文档和教程，应用到 deepseek-v4.1-flash 或 deepseek-v4.1-flash 上时几乎没有迁移成本。</p>
+
+<p>下面是用 OpenAI Python SDK 调用 deepseek-v4.1-flash FC 的代码示例：</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["from openai import OpenAI","import json","","# 使用 OpenAI SDK 调用 deepseek-v4.1-flash","client = OpenAI(","
+
+api_key=\"your-deepseek-api-key\",","
+
+base_url=\"https://api.deepseek.com/v1\"  # deepseek-v4.1-flash 的 API 端点",")","","# 工具定义：与 2.4 节的 JSON Schema 格式一致","tools = [","
+
+{","
+
+\"type\": \"function\",","
+
+\"function\": {","
+
+\"name\": \"get_order_status\",","
+
+\"description\": \"查询订单的物流状态。需要提供订单号。\",","
+
+\"parameters\": {","
+
+\"type\": \"object\",","
+
+\"properties\": {","
+
+\"order_id\": {","
+
+\"type\": \"string\",","
+
+\"description\": \"订单号，格式如 ORD-YYYYMMDD-XXX\"","
+
+}","
+
+},","
+
+\"required\": [\"order_id\"]","
+
+}","
+
+}","
+
+}","]","","# 调用 API，tool_choice=\"auto\" 让 LLM 自主决定是否调用工具","response = client.chat.completions.create(","
+
+model=\"deepseek-v4.1-flash\",","
+
+messages=[{\"role\": \"user\", \"content\": \"我的订单 ORD-20260628-001 到哪了？\"}],","
+
+tools=tools,","
+
+tool_choice=\"auto\"",")","","choice = response.choices[0]","# 检查 LLM 是否返回了工具调用请求","if choice.message.tool_calls:","
+
+# 遍历每个工具调用，提取函数名和参数","
+
+for tc in choice.message.tool_calls:","
+
+print(f\"调用: {tc.function.name}\")","
+
+print(f\"参数: {tc.function.arguments}\")","# 输出:","# 调用: get_order_status","# 参数: {\"order_id\": \"ORD-20260628-001\"}"],"steps":[{"title":"导入模块：OpenAI, json","desc":"使用 OpenAI SDK 调用 deepseek-v4.1-flash；deepseek-v4.1-flash 的 API 端点；工具定义：与 2.4 节的 JSON Schema 格式一致；调用 API，tool_choice=\"auto\" 让 LLM 自主决定是否调用工具。","lineRange":[0,38]},{"title":"条件判断","desc":"遍历每个工具调用，提取函数名和参数。","lineRange":[40,44]}]}
+
+</script>
+</div>
+
+<p>如果换成 deepseek-v4.1-flash，你只需要把 <code>base_url</code> 改为 <code>"https://open.bigmodel.cn/api/paas/v4"</code>，把 <code>model</code> 改为 <code>"deepseek-v4.1-flash"</code> 或 <code>"deepseek-v4.1-flash"</code>，其余代码完全不变。这种兼容性设计让你可以用同一套代码在不同模型之间做 A/B 测试，选择效果最好或成本最低的方案。</p>
+
+<h3 id="s2-6">2.6 Schema Drift——参数漂移的幽灵</h3>
+
+<p>Schema Drift（Schema 漂移）是 Function Calling 中最隐蔽也最让人头疼的问题之一。它指的是：LLM 返回的参数虽然格式上是合法的 JSON，但<strong>参数值的语义偏离了你期望的范围</strong>。这种现象不是模型 bug，而是 LLM 作为概率模型固有的不确定性。</p>
+
+<p>举几个实际场景中常见的 Schema Drift 例子：</p>
+
+<p><strong>类型漂移</strong>：你定义 <code>order_id</code> 为 <code>string</code> 类型，但 LLM 返回了 <code>"order_id": 12345</code>（数字而不是字符串）。虽然 JSON 中数字和字符串是不同类型，但有些模型的 FC 实现并不严格遵守 Schema 中的类型声明。如果你的代码直接用 <code>json.loads()</code> 解析，就会得到一个 int 而不是 string，后续以字符串方式处理时就会出错。</p>
+
+<p><strong>格式漂移</strong>：你的函数期望 <code>order_id</code> 格式是 <code>"ORD-YYYYMMDD-XXX"</code>，但 LLM 从用户消息中提取时可能把日期格式弄错（<code>"ORD-20262806-001"</code>），或者少了一个横线（<code>"ORD-20260628-001"</code> 少了中间的横线）。用户甚至可能只说了"28号那个订单"，LLM 就自己编了一个订单号。</p>
+
+<p><strong>枚举值漂移</strong>：你在 enum 中定义了 <code>["红色", "蓝色", "黑色"]</code>，但 LLM 返回了 <code>"蓝色条纹"</code>——它把用户说的原话直接塞了进去，而不是映射到枚举值。这种情况在模型能力较弱或 description 不够清晰时特别常见。</p>
+
+<p><strong>幻觉参数</strong>：你没在 Schema 中定义 <code>sort_by</code> 参数，但 LLM 自行添加了 <code>"sort_by": "price"</code>。如果你的代码没有设置 <code>additionalProperties: false</code>，这个多余参数就会被传给你的函数，可能导致意外行为。</p>
+
+<p>如何应对 Schema Drift？核心原则是：<strong>永远不要信任 LLM 返回的参数，在执行前做完整校验</strong>。具体做法包括：用 Pydantic 或类似的验证库在函数入口处做参数校验；对关键参数做范围检查和格式检查（比如用正则验证订单号格式）；对枚举值做 fuzzy matching（比如"蓝色条纹"可以匹配到"蓝色"）；对所有参数做 fallback 处理（如果参数缺失或非法，给 LLM 返回一个错误提示，让它重新生成）。</p>
+
+<!-- 图表6：Schema Drift 类型分类图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 300" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Schema Drift 四种常见类型</text>
+
+<rect x="30" y="50" width="170" height="100" rx="10" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="115" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#C62828" font-family="sans-serif">类型漂移</text>
+
+<text x="115" y="95" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">期望 string</text>
+
+<text x="115" y="110" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">返回 int</text>
+
+<text x="115" y="130" text-anchor="middle" font-size="10" fill="#C62828" font-family="sans-serif">应对: Pydantic 校验</text>
+
+<rect x="220" y="50" width="170" height="100" rx="10" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="305" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#E65100" font-family="sans-serif">格式漂移</text>
+
+<text x="305" y="95" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">日期/ID 格式</text>
+
+<text x="305" y="110" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">不匹配预期</text>
+
+<text x="305" y="130" text-anchor="middle" font-size="10" fill="#E65100" font-family="sans-serif">应对: 正则校验</text>
+
+<rect x="410" y="50" width="170" height="100" rx="10" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="495" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#4A148C" font-family="sans-serif">枚举值漂移</text>
+
+<text x="495" y="95" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">返回值不在</text>
+
+<text x="495" y="110" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">enum 列表中</text>
+
+<text x="495" y="130" text-anchor="middle" font-size="10" fill="#4A148C" font-family="sans-serif">应对: 模糊匹配</text>
+
+<rect x="600" y="50" width="170" height="100" rx="10" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="685" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#1565C0" font-family="sans-serif">幻觉参数</text>
+
+<text x="685" y="95" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">Schema 中不存在</text>
+
+<text x="685" y="110" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">的额外参数</text>
+
+<text x="685" y="130" text-anchor="middle" font-size="10" fill="#1565C0" font-family="sans-serif">应对: addProperties:false</text>
+
+<rect x="100" y="175" width="600" height="90" rx="10" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="400" y="200" text-anchor="middle" font-size="13" font-weight="700" fill="#2E7D32" font-family="sans-serif">统一应对策略：防御性编程</text>
+
+<text x="400" y="222" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">1. 函数入口用 Pydantic 校验所有参数类型和格式</text>
+
+<text x="400" y="240" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">2. 校验失败时返回结构化错误信息给 LLM，让它重试</text>
+
+<text x="400" y="258" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">3. 对关键操作（支付/删除）做二次确认</text>
+
+</svg>
+
+</div>
+
+<p>这里有一个重要的工程实践：当参数校验失败时，不要直接抛异常或返回错误信息给用户。你应该把错误信息以 <code>role: "tool"</code> 的消息格式送回 LLM，告诉它"参数 X 的值不合法，期望格式是 Y，请重新生成"。LLM 看到这个错误反馈后，通常能够自动修正参数并重新调用。这就是所谓的"错误反馈循环"（Error Feedback Loop），它是让 Agent 具备自适应能力的关键机制。</p>
+
+<p>错误反馈循环的实现非常直观。当你的 Pydantic 校验抛出 <code>ValidationError</code> 时，你把这个异常信息格式化为一条 tool 消息：<code>{"role": "tool", "content": "参数校验失败：order_id 格式不正确，期望 ORD-YYYYMMDD-XXX，收到的是 '12345'。请使用正确格式重新调用。"}</code>。LLM 看到这条消息后，会在下一轮推理中尝试修正参数。你需要设置一个最大重试次数（通常 3 次），超过后直接返回兜底错误信息给用户，防止死循环。这种"校验→反馈→重试"的模式和人类发现错误后自我纠正是同一个道理，是 Agent 智能性的重要体现。我们在第 13 题会专门讨论工具调用错误处理的完整方案，包括指数退避、Fallback 策略和断路器模式。</p>
+
+<h3 id="s2-7">2.7 Tool Hallucination——工具幻觉的成因与对策</h3>
+
+<p>Tool Hallucination（工具幻觉）指的是 LLM 在不该调用工具的时候调用了工具，或者调用了根本不存在的工具。这比 Schema Drift 更严重——Schema Drift 至少是调对了函数但参数有问题，而 Tool Hallucination 是连函数都选错了。</p>
+
+<p>工具幻觉主要有三种表现形式：</p>
+
+<p><strong>第一种：虚构函数名</strong>。LLM 返回了一个 <code>tool_calls</code> 字段，但里面的函数名根本不在你声明的 tools 列表中。比如你只定义了 <code>search_products</code> 和 <code>get_order_status</code>，LLM 却返回了一个 <code>send_email</code> 调用。这种情况通常发生在模型能力较弱、或用户请求与可用工具不匹配时——LLM"很想帮忙"，但它手头没有合适的工具，就自己"发明"了一个。</p>
+
+<p><strong>第二种：在不该调用时调用</strong>。用户只是闲聊说"今天天气真好"，LLM 却非要调用 <code>search_products</code>。这种情况通常是因为 system prompt 过于"鼓励"工具调用（比如写了"你应该尽可能使用工具来帮助用户"），导致模型对工具调用的阈值过低。</p>
+
+<p><strong>第三种：过度调用</strong>。用户问一个简单问题（"衬衫多少钱"），LLM 本可以一次性调用 <code>get_product_details</code> 就回答，但它连续调用了搜索、详情查询、库存查询三个函数，浪费了 token 和时间。这种情况在复杂工具集特别常见，LLM 不能精确判断"最少需要几个工具调用"。</p>
+
+<p>应对 Tool Hallucination 的策略包括以下几个层面：</p>
+
+<p>第一，<strong>严格限制工具列表</strong>。不要一次把所有工具都传给 LLM。研究表明，当工具数量超过 15-20 个时，LLM 的工具选择准确率会显著下降（这一现象被称为"工具超载"）。在第 12 题中我们会专门讨论工具选择策略，包括工具分组、动态加载、Reranking 等高级技巧。</p>
+
+<p>第二，<strong>在代码层做白名单校验</strong>。这是最基本也是最重要的防线。当 LLM 返回 <code>tool_calls</code> 时，第一步就检查 <code>func_name</code> 是否在你的 <code>FUNCTION_REGISTRY</code> 中。如果不在，不要尝试执行，而是返回一条提示消息：<code>"该功能暂不可用。请使用以下可用功能：..."</code>。这个白名单校验的成本几乎为零，但能有效阻止虚拟函数调用。在 Python 中可以用一个简单的 <code>if func_name not in FUNCTION_REGISTRY</code> 来实现。</p>
+
+<p>第三，<strong>优化 system prompt</strong>。在 prompt 中明确告诉 LLM 何时该调用工具、何时不该。一个有效的 prompt 模式是："你只能使用以下工具：[列表]。如果用户的请求不在这些工具的能力范围内，请直接用文字告知用户你无法处理该请求，不要编造不存在的功能。" 这种显式的约束比泛泛地说"尽可能帮助用户"要有效得多。同时，<code>tool_choice</code> 参数应设为 <code>"auto"</code> 而非 <code>"required"</code>——后者会强制 LLM 每次都调用工具，即使完全不需要。</p>
+
+<p>第四，<strong>日志和监控</strong>。在生产环境中，你应该记录每一次工具调用的日志，包括 LLM 想调用什么函数、传了什么参数、执行是否成功。通过分析这些日志，你可以发现 Tool Hallucination 的模式和频率，进而有针对性地优化 Schema 描述或调整工具列表。如果某个工具频繁被误选，可能说明它的 description 与其他工具混淆了，需要重新措辞。</p>
+
+<h3 id="s2-8">2.8 工具数量管理——太多了选不准</h3>
+
+<p>这是一个经常被忽略但在生产系统中极其关键的问题：当你给 Agent 配备的工具越来越多时，整体准确率反而会下降。这并非模型 bug，而是一个认知信息过载问题——LLM 的注意力机制在面对过多选项时，和人类一样会"选择困难"。</p>
+
+<!-- 图表7：工具数量与准确率关系图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 300" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">工具数量与调用准确率的关系（示意）</text>
+
+<line x1="100" y1="250" x2="700" y2="250" stroke="#757575" stroke-width="2"></line>
+
+<line x1="100" y1="250" x2="100" y2="60" stroke="#757575" stroke-width="2"></line>
+
+<text x="90" y="70" text-anchor="end" font-size="10" fill="#757575" font-family="sans-serif">100%</text>
+
+<text x="90" y="160" text-anchor="end" font-size="10" fill="#757575" font-family="sans-serif">85%</text>
+
+<text x="90" y="250" text-anchor="end" font-size="10" fill="#757575" font-family="sans-serif">50%</text>
+
+<text x="100" y="270" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">1-5</text>
+
+<text x="250" y="270" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">6-10</text>
+
+<text x="400" y="270" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">11-15</text>
+
+<text x="550" y="270" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">16-25</text>
+
+<text x="680" y="270" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">25+</text>
+
+<text x="400" y="290" text-anchor="middle" font-size="11" fill="#4A148C" font-family="sans-serif">工具数量</text>
+
+<path d="M 100 70 Q 200 72 250 80 Q 320 90 400 110 Q 480 140 550 180 Q 620 220 680 240" stroke="#7B1FA2" stroke-width="3" fill="none"></path>
+
+<circle cx="100" cy="70" r="5" fill="#4CAF50"></circle>
+
+<circle cx="250" cy="80" r="5" fill="#4CAF50"></circle>
+
+<circle cx="400" cy="110" r="5" fill="#FF9800"></circle>
+
+<circle cx="550" cy="180" r="5" fill="#E53935"></circle>
+
+<circle cx="680" cy="240" r="5" fill="#E53935"></circle>
+
+<text x="100" y="60" text-anchor="middle" font-size="10" fill="#4CAF50" font-family="sans-serif">✓ 最佳区间</text>
+
+<text x="250" y="70" text-anchor="middle" font-size="10" fill="#4CAF50" font-family="sans-serif">✓ 良好</text>
+
+<text x="400" y="100" text-anchor="middle" font-size="10" fill="#FF9800" font-family="sans-serif">△ 开始下降</text>
+
+<text x="550" y="170" text-anchor="middle" font-size="10" fill="#E53935" font-family="sans-serif">✗ 明显恶化</text>
+
+<text x="680" y="230" text-anchor="middle" font-size="10" fill="#E53935" font-family="sans-serif">✗ 严重</text>
+
+<line x1="100" y1="160" x2="700" y2="160" stroke="#FF9800" stroke-width="1" stroke-dasharray="5,3"></line>
+
+<text x="710" y="163" font-size="10" fill="#FF9800" font-family="sans-serif">85%阈值</text>
+
+</svg>
+
+</div>
+
+<p>上图为示意性的工具数量-准确率关系。不同模型的下降曲线有所差异，但整体趋势一致：5 个工具以内准确率最高（通常 95%+），10 个左右开始轻微下降，15 个是一个关键临界点——超过这个数量后准确率下降加速。这也是为什么在第 5 题中我们提到"单 Agent 的工具天花板大约在 15 个"的原因。</p>
+
+<p>当你确实需要超过 15 个工具时，常见的解决策略包括：<strong>工具分组</strong>——按功能领域将工具分组（如"商品工具组"、"订单工具组"、"支付工具组"），LLM 先选择组再选择具体工具；<strong>动态加载</strong>——根据对话上下文只传递相关工具子集；<strong>工具 Reranking</strong>——先用轻量模型对工具做初步筛选排序，再将 Top-K 工具传给主模型。这些策略我们在第 12 题会详细展开。</p>
+
+<p>这里展开讲一下工具分组的具体实现思路。假设你的客服系统有 30 个工具，涵盖商品、订单、支付、物流、售后、用户管理六个领域。你可以把它们分成六组，每组 5 个工具。然后在 system prompt 中声明六个领域的简要描述，让 LLM 先判断用户请求属于哪个领域。根据判断结果，你只在 tools 参数中传递该领域的 5 个工具（加上一个通用的 <code>transfer_to_human</code> 转人工工具）。这种两阶段的方法将有效工具数量控制在 6 个以内，准确率可以维持在 95% 以上。代价是多了一次轻量的 LLM 调用用于领域判断，但这次调用可以用更小更快的模型（如 deepseek-v4.1-flash），成本很低。</p>
+
+<p>动态加载是比分组更精细的策略。你可以维护一个用户上下文向量，包括用户最近浏览的商品类别、当前会话的主题等，然后根据这个上下文向量从工具库中检索出最相关的 Top-5 工具。这种方法的准确率比分组更高，因为它考虑了用户的实时上下文而不只是粗粒度的领域划分。但实现复杂度也更高，你需要一个工具描述的向量索引和实时检索管道。在大型企业应用中，这种投入是值得的。</p>
+
+<h3 id="s2-9">2.9 BFCL——Function Calling 的基准测试</h3>
+
+<p>BFCL（Berkeley Function Calling Leaderboard）是 UC Berkeley 推出的 Function Calling 基准测试平台，也是目前评估模型 FC 能力最权威的公开评测。了解 BFCL 的评测维度，可以帮助你在选模型时做出更明智的判断。</p>
+
+<!-- 图表8：BFCL 评测维度图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 350" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">BFCL 评测的四大维度</text>
+
+<rect x="30" y="50" width="370" height="130" rx="12" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></rect>
+
+<text x="215" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#1565C0" font-family="sans-serif">非函数调用场景 (Non-FC)</text>
+
+<text x="215" y="98" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">用户问"你好"，LLM 不应该调用任何工具</text>
+
+<text x="215" y="118" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">考察：能否克制住不调用的冲动</text>
+
+<text x="215" y="142" text-anchor="middle" font-size="11" fill="#E53935" font-family="sans-serif">失败模式：过度调用（Tool Hallucination）</text>
+
+<text x="215" y="165" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">权重：约 20% 总分</text>
+
+<rect x="410" y="50" width="370" height="130" rx="12" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="595" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#2E7D32" font-family="sans-serif">简单函数调用 (Simple FC)</text>
+
+<text x="595" y="98" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">单函数、少量参数、清晰意图</text>
+
+<text x="595" y="118" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">考察：基本 FC 能力是否正常工作</text>
+
+<text x="595" y="142" text-anchor="middle" font-size="11" fill="#E53935" font-family="sans-serif">失败模式：参数缺失或类型错误</text>
+
+<text x="595" y="165" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">权重：约 30% 总分</text>
+
+<rect x="30" y="190" width="370" height="130" rx="12" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="215" y="215" text-anchor="middle" font-size="13" font-weight="700" fill="#E65100" font-family="sans-serif">并行函数调用 (Parallel FC)</text>
+
+<text x="215" y="238" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">一次请求需要同时调用多个不相关函数</text>
+
+<text x="215" y="258" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">考察：多工具协调能力</text>
+
+<text x="215" y="282" text-anchor="middle" font-size="11" fill="#E53935" font-family="sans-serif">失败模式：遗漏调用或串行化执行</text>
+
+<text x="215" y="305" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">权重：约 25% 总分</text>
+
+<rect x="410" y="190" width="370" height="130" rx="12" fill="#F3E5F5" stroke="#7B1FA2" stroke-width="2"></rect>
+
+<text x="595" y="215" text-anchor="middle" font-size="13" font-weight="700" fill="#4A148C" font-family="sans-serif">多轮函数调用 (Multi-turn FC)</text>
+
+<text x="595" y="238" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">前一个函数的结果决定下一个函数的调用</text>
+
+<text x="595" y="258" text-anchor="middle" font-size="11" fill="#555" font-family="sans-serif">考察：基于工具结果的推理和链式调用</text>
+
+<text x="595" y="282" text-anchor="middle" font-size="11" fill="#E53935" font-family="sans-serif">失败模式：上下文丢失或推理断裂</text>
+
+<text x="595" y="305" text-anchor="middle" font-size="10" fill="#757575" font-family="sans-serif">权重：约 25% 总分</text>
+
+</svg>
+
+</div>
+
+<p>BFCL 的评测维度设计得非常贴近真实场景。其中"非函数调用"这一维度特别值得关注——它考察的是模型在不需要工具时能否正确地不调用工具。很多模型在这一项上表现糟糕，因为它们在训练时见过太多"调用工具"的样本，形成了一种"只要有工具就想用"的倾向。在选模型时，不要只看总分数，要特别关注 Non-FC 维度的得分——这个维度得分低的模型会导致严重的 Tool Hallucination 问题。</p>
+
+<p>目前 BFCL 排行榜上表现最好的模型通常能取得 90% 以上的综合准确率，包括 deepseek-v4.1-flash、deepseek-v4.1-flash 3.5 Sonnet 等。国产模型中，deepseek-v4.1-flash 系列和 deepseek-v4.1-flash 也在 FC 能力上取得了不错的成绩，完全可以胜任生产环境的工具调用需求。建议你在选模型时去 BFCL 官网查看最新排名，关注你计划使用的模型在各个维度上的表现。</p>
+
+<p>BFCL 的评测用例来自真实场景，覆盖了多种复杂边界情况。比如"参数中包含特殊字符"（Unicode 表情、多语言混合）、"用户消息中同时包含多个工具调用意图"（比如"帮我查下订单顺便搜下类似的商品"）、"工具的 description 刻意写得模糊"（测试 LLM 是否能在描述不充分的情况下做出正确判断）。这些边界情况在日常开发中经常遇到，但很多模型在它们上面的表现远不如理想。这就是为什么不能只看模型官方宣传的"支持 Function Calling"就放心使用——你需要在自己的业务场景中做实际测试。</p>
+
+<p>对于想要深入研究 FC 的工程师，建议你做一件事：自己写几组测试用例，覆盖你的业务场景中最常见的工具调用模式（单工具、多工具并行、多轮链式），然后在 deepseek-v4.1-flash、deepseek-v4.1-flash 等模型上跑一遍，记录准确率和延迟。这种场景化的基准测试比通用排行榜更有参考价值。在开源社区中，Promptfoo 和 LangSmith 等工具都提供了 FC 评测的脚手架，可以帮助你快速搭建评测管道。</p>
+
+<h3 id="s2-10">2.10 错误处理最佳实践</h3>
+
+<p>在生产环境中，Function Calling 的失败率通常在 5-15% 之间。这个数字看似不高，但如果你每天处理 10000 条用户请求，就意味着每天有 500-1500 次工具调用失败。如果没有完善的错误处理机制，这些失败会直接导致用户体验崩溃。</p>
+
+<p>常见的错误类型及处理策略如下：</p>
+
+<!-- 图表9：错误处理流程图 -->
+
+<div class="chart-container">
+
+<svg viewBox="0 0 800 380" style="max-width:100%;width:100%;height:auto;" xmlns="http://www.w3.org/2000/svg">
+
+<defs>
+
+<marker id="arrow9f" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+
+<path d="M0,0 L0,6 L9,3 z" fill="#7B1FA2"></path>
+
+</marker>
+
+</defs>
+
+<text x="400" y="25" text-anchor="middle" font-size="16" font-weight="700" fill="#4A148C" font-family="sans-serif">Function Calling 错误处理决策树</text>
+
+<rect x="300" y="45" width="200" height="35" rx="8" fill="#7B1FA2" stroke="#4A148C" stroke-width="2"></rect>
+
+<text x="400" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif">LLM 返回 tool_calls</text>
+
+<line x1="400" y1="80" x2="400" y2="95" stroke="#7B1FA2" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<polygon points="400,95 550,140 400,185 250,140" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></polygon>
+
+<text x="400" y="135" text-anchor="middle" font-size="11" font-weight="600" fill="#E65100" font-family="sans-serif">函数名在</text>
+
+<text x="400" y="152" text-anchor="middle" font-size="11" font-weight="600" fill="#E65100" font-family="sans-serif">注册列表中?</text>
+
+<line x1="250" y1="140" x2="180" y2="140" stroke="#E53935" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="215" y="132" text-anchor="middle" font-size="10" fill="#E53935" font-family="sans-serif">否</text>
+
+<rect x="50" y="120" width="120" height="40" rx="6" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="110" y="138" text-anchor="middle" font-size="10" fill="#C62828" font-family="sans-serif">Tool Hallucination</text>
+
+<text x="110" y="152" text-anchor="middle" font-size="10" fill="#C62828" font-family="sans-serif">返回提示给 LLM</text>
+
+<line x1="400" y1="185" x2="400" y2="200" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="415" y="195" font-size="10" fill="#4CAF50" font-family="sans-serif">是</text>
+
+<polygon points="400,200 550,245 400,290 250,245" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></polygon>
+
+<text x="400" y="240" text-anchor="middle" font-size="11" font-weight="600" fill="#E65100" font-family="sans-serif">参数通过</text>
+
+<text x="400" y="257" text-anchor="middle" font-size="11" font-weight="600" fill="#E65100" font-family="sans-serif">Pydantic 校验?</text>
+
+<line x1="250" y1="245" x2="180" y2="245" stroke="#E53935" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="215" y="237" text-anchor="middle" font-size="10" fill="#E53935" font-family="sans-serif">否</text>
+
+<rect x="50" y="225" width="120" height="40" rx="6" fill="#FFF3E0" stroke="#FF9800" stroke-width="2"></rect>
+
+<text x="110" y="243" text-anchor="middle" font-size="10" fill="#E65100" font-family="sans-serif">Schema Drift</text>
+
+<text x="110" y="257" text-anchor="middle" font-size="10" fill="#E65100" font-family="sans-serif">错误反馈 LLM 重试</text>
+
+<line x1="400" y1="290" x2="400" y2="305" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="415" y="300" font-size="10" fill="#4CAF50" font-family="sans-serif">是</text>
+
+<polygon points="400,305 550,340 400,375 250,340" fill="#E3F2FD" stroke="#2196F3" stroke-width="2"></polygon>
+
+<text x="400" y="338" text-anchor="middle" font-size="11" font-weight="600" fill="#1565C0" font-family="sans-serif">函数执行成功?</text>
+
+<line x1="250" y1="340" x2="180" y2="340" stroke="#E53935" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="215" y="332" text-anchor="middle" font-size="10" fill="#E53935" font-family="sans-serif">否</text>
+
+<rect x="50" y="320" width="120" height="40" rx="6" fill="#FFEBEE" stroke="#E53935" stroke-width="2"></rect>
+
+<text x="110" y="338" text-anchor="middle" font-size="10" fill="#C62828" font-family="sans-serif">执行异常</text>
+
+<text x="110" y="352" text-anchor="middle" font-size="10" fill="#C62828" font-family="sans-serif">退避重试/Fallback</text>
+
+<line x1="550" y1="340" x2="620" y2="340" stroke="#4CAF50" stroke-width="2" marker-end="url(#arrow9f)"></line>
+
+<text x="585" y="332" text-anchor="middle" font-size="10" fill="#4CAF50" font-family="sans-serif">是</text>
+
+<rect x="630" y="320" width="140" height="40" rx="6" fill="#E8F5E9" stroke="#4CAF50" stroke-width="2"></rect>
+
+<text x="700" y="338" text-anchor="middle" font-size="10" fill="#2E7D32" font-family="sans-serif">✓ 成功</text>
+
+<text x="700" y="352" text-anchor="middle" font-size="10" fill="#2E7D32" font-family="sans-serif">结果送回 LLM</text>
+
+</svg>
+
+</div>
+
+<p>上图的决策树展示了一个完整的错误处理流程。核心原则是：<strong>永远不要让错误裸奔到用户面前</strong>。每一层错误都有对应的处理策略：函数不存在就提示 LLM 重新选择；参数不合法就反馈给 LLM 让它重新组装；执行失败就做退避重试或 fallback。这些策略组合起来，构成了一个"防御纵深"。</p>
+
+<p>另一个重要的实践是<strong>敏感操作的二次确认</strong>。退款、删除、支付等操作一旦执行就难以撤销，在调用这类函数之前，你应该让 LLM 先输出一个确认请求（"确认为订单 XXX 发起退款吗？"），等用户明确回复"确认"后才真正执行。这个机制虽然简单，但能有效防止 LLM 误判导致的不可逆操作。这也是我们这道题目的要求之一。</p>
+
+<p>最后，所有工具调用——无论成功还是失败——都应该记录审计日志。日志中至少包含：时间戳、用户 ID、函数名、参数、执行结果、耗时。这些日志不仅用于排障，更是合规审计的要求。在企业级部署中，审计日志是标配而非可选。</p>
+
+<h3 id="s2-11">2.11 tool_choice 参数——控制 LLM 的工具使用策略</h3>
+
+<p>在结束思路分析之前，我们还需要讨论一个容易被忽略的 API 参数：<code>tool_choice</code>。这个参数控制 LLM 在面对工具时的行为策略，它有三个可选值，理解它们的差异对于精细控制 Agent 行为至关重要。</p>
+
+<p><code>tool_choice: "auto"</code>（默认值）：LLM 自主决定是否调用工具以及调用哪个。这是最灵活也最常用的设置，适用于绝大多数 Agent 场景。LLM 会根据用户意图和可用工具列表做出判断——如果用户的问题需要工具来回答（如"查下我的订单"），就调用相应工具；如果可以直接回答（如"你们的客服电话是多少"），就不调用。</p>
+
+<p><code>tool_choice: "none"</code>：禁止 LLM 调用任何工具，即使声明了 tools 参数。这看起来矛盾——既然声明了工具为什么又不让用？但这个模式有实际用途：当你想用同一套 prompt 做纯对话回复时（比如用户切换到了闲聊模式），你可以动态切换 tool_choice 而不必重新构造 messages。这比移除 tools 参数再重新发送请求要高效得多。</p>
+
+<p><code>tool_choice: {"type": "function", "function": {"name": "specific_func"}}</code>：强制 LLM 调用指定的函数。这种模式用于你已经知道用户意图是什么、需要调用哪个工具的场景。比如在多 Agent 系统中，Supervisor Agent 已经判定用户的请求应该由"订单查询 Agent"处理，就可以在传递给子 Agent 的请求中设置 <code>tool_choice</code> 强制调用 <code>get_order_status</code>，跳过 LLM 的工具选择步骤，减少延迟和 token 消耗。但要注意：强制调用意味着 LLM 仍然需要组装参数，如果用户消息中缺少必要信息（比如没说订单号），LLM 可能会编造一个参数值——这直接导致了 Schema Drift。因此，使用强制调用前要确保用户消息中包含足够的参数信息。</p>
+
+<p>在多轮对话中动态切换 <code>tool_choice</code> 是一种高级优化技巧。比如在对话初期用 <code>auto</code> 让 LLM 自由探索用户意图，一旦确定了具体任务后切换为强制调用，减少不必要的推理时间。这种"先自由后强制"的策略在复杂任务中能有效提升响应速度和准确率。</p>
+
+<hr class="divider-accent">
+
+<!-- ========== Section 3: 参考答案 ========== -->
+
+<h2 id="s3">三、参考答案</h2>
+
+<p>下面是一个完整的、可运行的基于 deepseek-v4.1-flash Function Calling 的智能客服 Agent 实现。代码使用 OpenAI Python SDK（兼容 deepseek-v4.1-flash API），包含了三个工具函数、多轮对话支持、错误处理和二次确认机制。这份代码的架构严格遵循了我们在思路分析中讨论的三层脚手架模型，可以作为你后续开发更复杂 Agent 系统的基础模板。</p>
+
+<p>在阅读代码时，建议你特别关注以下几个设计决策的"为什么"：为什么用字典做函数注册表而不是 if-else？为什么每个工具都要有独立的 Pydantic 校验模型？为什么退款函数不直接执行退款而是返回确认信息？为什么对话历史用列表而不是数据库？这些设计决策背后都有明确的工程权衡，理解它们比记住代码本身更重要。</p>
+
+<div class="step-executor">
+
+<script type="application/json">
+
+{"mode":"walkthrough","lang":"python","lines":["\"\"\"","智能客服 Agent - 基于 deepseek-v4.1-flash Function Calling","依赖: pip install openai pydantic","\"\"\"","from openai import OpenAI","import json","from pydantic import BaseModel, field_validator","from typing import Optional","","# ==================== 初始化 ====================","client = OpenAI(","
+
+api_key=\"your-glm-api-key\",","
+
+base_url=\"https://open.bigmodel.cn/api/paas/v4\"",")","MODEL = \"deepseek-v4.1-flash\"","","# ==================== 工具函数定义 ====================","# 模拟数据库","PRODUCTS_DB = {","
+
+\"p001\": {\"name\": \"经典商务蓝条纹衬衫\", \"price\": 199, \"colors\": [\"蓝色\"],","
+
+\"pattern\": \"条纹\", \"stock\": 45, \"shipping\": \"支持顺丰，运费12元\"},","
+
+\"p002\": {\"name\": \"休闲棉麻蓝条纹衬衫\", \"price\": 159, \"colors\": [\"蓝色\"],","
+
+\"pattern\": \"条纹\", \"stock\": 30, \"shipping\": \"支持顺丰，运费10元\"},","
+
+\"p003\": {\"name\": \"法式修身蓝条纹衬衫\", \"price\": 259, \"colors\": [\"蓝色\"],","
+
+\"pattern\": \"条纹\", \"stock\": 12, \"shipping\": \"支持顺丰，运费15元\"},","}","ORDERS_DB = {","
+
+\"ORD-20260628-001\": {\"product_id\": \"p001\", \"status\": \"已发货\",","
+
+\"amount\": 199, \"refundable\": True},","}","","# --- Pydantic 参数校验模型 ---","class SearchParams(BaseModel):","
+
+query: str","
+
+color: Optional[str] = None","
+
+pattern: Optional[str] = None","","class OrderParams(BaseModel):","
+
+order_id: str","
+
+@field_validator(\"order_id\")","
+
+@classmethod","
+
+def validate_order_id(cls, v):","
+
+if not v.startswith(\"ORD-\"):","
+
+raise ValueError(\"订单号格式错误，应以 ORD- 开头\")","
+
+return v","","class RefundParams(BaseModel):","
+
+order_id: str","
+
+reason: str","","# --- 工具函数实现 ---","def search_products(query: str, color: str = None, pattern: str = None) -> str:","
+
+\"\"\"在商品库中搜索商品\"\"\"","
+
+results = []","
+
+for pid, info in PRODUCTS_DB.items():","
+
+if query.lower() in info[\"name\"].lower():","
+
+if color and color not in info[\"colors\"]:","
+
+continue","
+
+if pattern and pattern != info[\"pattern\"]:","
+
+continue","
+
+results.append(f\"{pid}: {info['name']} - ¥{info['price']}\")","
+
+if not results:","
+
+return \"未找到匹配的商品\"","
+
+return f\"找到 {len(results)} 款商品:\\n\" + \"\\n\".join(results)","","def get_order_status(order_id: str) -> str:","
+
+\"\"\"查询订单物流状态\"\"\"","
+
+if order_id not in ORDERS_DB:","
+
+return f\"订单 {order_id} 不存在\"","
+
+order = ORDERS_DB[order_id]","
+
+product = PRODUCTS_DB.get(order[\"product_id\"], {})","
+
+return (f\"订单 {order_id}: {product.get('name', '未知商品')}, \"","
+
+f\"状态: {order['status']}, 金额: ¥{order['amount']}\")","","def calculate_refund(order_id: str, reason: str) -> str:","
+
+\"\"\"计算退款金额（不直接执行退款）\"\"\"","
+
+if order_id not in ORDERS_DB:","
+
+return f\"订单 {order_id} 不存在\"","
+
+order = ORDERS_DB[order_id]","
+
+if not order[\"refundable\"]:","
+
+return f\"订单 {order_id} 不可退款\"","
+
+return (f\"[待确认] 订单 {order_id}, 退款原因: {reason}, \"","
+
+f\"退款金额: ¥{order['amount']}。请用户回复'确认'执行退款。\")","","# --- 函数注册表（名称 -> 函数 + 校验模型）---","FUNCTION_REGISTRY = {","
+
+\"search_products\": (search_products, SearchParams),","
+
+\"get_order_status\": (get_order_status, OrderParams),","
+
+\"calculate_refund\": (calculate_refund, RefundParams),","}","","# ==================== JSON Schema 定义 ====================","TOOLS = [","
+
+{","
+
+\"type\": \"function\",","
+
+\"function\": {","
+
+\"name\": \"search_products\",","
+
+\"description\": \"在商品库中搜索商品。支持按关键词、颜色、图案筛选。返回匹配的商品列表。\",","
+
+\"parameters\": {","
+
+\"type\": \"object\",","
+
+\"properties\": {","
+
+\"query\": {\"type\": \"string\", \"description\": \"搜索关键词，如'衬衫'、'鞋子'\"},","
+
+\"color\": {\"type\": \"string\", \"description\": \"颜色筛选\",","
+
+\"enum\": [\"红色\", \"蓝色\", \"黑色\", \"白色\"]},","
+
+\"pattern\": {\"type\": \"string\", \"description\": \"图案筛选，如'条纹'、'格子'\"}","
+
+},","
+
+\"required\": [\"query\"],","
+
+\"additionalProperties\": False","
+
+}","
+
+}","
+
+},","
+
+{","
+
+\"type\": \"function\",","
+
+\"function\": {","
+
+\"name\": \"get_order_status\",","
+
+\"description\": \"查询订单的物流状态和详情。需要提供订单号。\",","
+
+\"parameters\": {","
+
+\"type\": \"object\",","
+
+\"properties\": {","
+
+\"order_id\": {\"type\": \"string\",","
+
+\"description\": \"订单号，格式如 ORD-YYYYMMDD-XXX\"}","
+
+},","
+
+\"required\": [\"order_id\"],","
+
+\"additionalProperties\": False","
+
+}","
+
+}","
+
+},","
+
+{","
+
+\"type\": \"function\",","
+
+\"function\": {","
+
+\"name\": \"calculate_refund\",","
+
+\"description\": \"计算订单的退款金额。不会直接执行退款，需要用户二次确认。\"","
+
+\"用于用户要求退款、退货时。\",","
+
+\"parameters\": {","
+
+\"type\": \"object\",","
+
+\"properties\": {","
+
+\"order_id\": {\"type\": \"string\",","
+
+\"description\": \"要退款的订单号\"},","
+
+\"reason\": {\"type\": \"string\",","
+
+\"description\": \"退款原因，如'质量问题'、'不喜欢'\"}","
+
+},","
+
+\"required\": [\"order_id\", \"reason\"],","
+
+\"additionalProperties\": False","
+
+}","
+
+}","
+
+}","]","","SYSTEM_PROMPT = \"\"\"你是电商客服助手。你可以帮用户搜索商品、查询订单、处理退款。","规则：","1. 只在需要时才调用工具，能直接回答的就直接回答","2. 退款操作必须先调用 calculate_refund 计算金额，然后告知用户需要确认","3. 如果工具返回错误信息，请友好地转述给用户","4. 不要编造不存在的商品或订单信息\"\"\"","","# ==================== Agent 主循环 ====================","def execute_tool(func_name: str, arguments: dict) -> str:","
+
+\"\"\"执行工具调用，包含参数校验和错误处理\"\"\"","
+
+if func_name not in FUNCTION_REGISTRY:","
+
+return f\"错误: 函数 '{func_name}' 不存在\"","
+
+","
+
+func, model = FUNCTION_REGISTRY[func_name]","
+
+try:","
+
+# Pydantic 参数校验","
+
+validated = model(**arguments)","
+
+result = func(**validated.model_dump())","
+
+return result","
+
+except Exception as e:","
+
+# 返回错误信息，LLM 看到后可以修正","
+
+return f\"参数校验失败: {str(e)}。请检查参数后重试。\"","","def agent_chat(user_message: str, history: list) -> str:","
+
+\"\"\"Agent 对话主函数\"\"\"","
+
+messages = [{\"role\": \"system\", \"content\": SYSTEM_PROMPT}] + history","
+
+messages.append({\"role\": \"user\", \"content\": user_message})","
+
+","
+
+# 第一轮：LLM 决策","
+
+response = client.chat.completions.create(","
+
+model=MODEL,","
+
+messages=messages,","
+
+tools=TOOLS,","
+
+tool_choice=\"auto\"","
+
+)","
+
+","
+
+msg = response.choices[0].message","
+
+","
+
+# 如果 LLM 决定调用工具","
+
+if msg.tool_calls:","
+
+messages.append(msg)  # 保存 assistant 的工具调用记录","
+
+","
+
+for tool_call in msg.tool_calls:","
+
+func_name = tool_call.function.name","
+
+arguments = json.loads(tool_call.function.arguments)","
+
+print(f\"  [工具调用] {func_name}({arguments})\")","
+
+","
+
+# 执行工具","
+
+result = execute_tool(func_name, arguments)","
+
+print(f\"  [工具结果] {result}\")","
+
+","
+
+# 工具结果送回对话","
+
+messages.append({","
+
+\"role\": \"tool\",","
+
+\"tool_call_id\": tool_call.id,","
+
+\"content\": result","
+
+})","
+
+","
+
+# 第二轮：LLM 看到工具结果后生成回复","
+
+response2 = client.chat.completions.create(","
+
+model=MODEL,","
+
+messages=messages,","
+
+tools=TOOLS,","
+
+tool_choice=\"auto\"","
+
+)","
+
+reply = response2.choices[0].message.content","
+
+# 更新历史：保存工具调用摘要，以便后续轮次 LLM 可引用","
+
+tool_summary = f\"（已调用工具：{', '.join(tc.function.name for tc in msg.tool_calls)}）\"","
+
+history.append({\"role\": \"user\", \"content\": user_message})","
+
+history.append({\"role\": \"assistant\", \"content\": reply + tool_summary})","
+
+return reply","
+
+else:","
+
+# LLM 直接回复","
+
+reply = msg.content","
+
+history.append({\"role\": \"user\", \"content\": user_message})","
+
+history.append({\"role\": \"assistant\", \"content\": reply})","
+
+return reply","","# ==================== 运行示例 ====================","if __name__ == \"__main__\":","
+
+history = []","
+
+","
+
+print(\"=== 智能客服 Agent（输入 quit 退出）===\\n\")","
+
+try:","
+
+while True:","
+
+user_input = input(\"用户: \").strip()","
+
+if user_input.lower() == \"quit\":","
+
+break","
+
+reply = agent_chat(user_input, history)","
+
+print(f\"Agent: {reply}\\n\")","
+
+except EOFError:","
+
+# 非交互式运行（验证环境、管道输入）时正常退出，不算错误","
+
+print(\"[demo] 无交互输入,跳过循环演示\")"],"steps":[{"title":"逻辑块 1","desc":"初始化；工具函数定义；模拟数据库。","lineRange":[0,26]},{"title":"定义类 SearchParams","desc":"定义类 SearchParams，继承 BaseModel，封装数据和相关操作方法。","lineRange":[32,35]},{"title":"定义类 OrderParams","desc":"定义类 OrderParams，继承 BaseModel，封装数据和相关操作方法，内部调用：field_validator、startswith、ValueError。","lineRange":[37,44]},{"title":"定义类 RefundParams","desc":"定义类 RefundParams，继承 BaseModel，封装数据和相关操作方法。","lineRange":[46,48]},{"title":"定义函数 search_products(query, color, pattern)","desc":"定义函数 search_products(query, color, pattern)，封装可复用的计算逻辑，内部调用：items、join、lower、append、len，具体操作：遍历字典；追加数据到列表；返回计算结果；计算长度，参数 query、color、pattern 分别表示对应的输入数据。","lineRange":[51,63]},{"title":"定义函数 get_order_status(order_id)","desc":"定义函数 get_order_status(order_id)，封装可复用的计算逻辑，内部调用：get，具体操作：返回计算结果；格式化字符串，参数 order_id 分别表示对应的输入数据。","lineRange":[65,72]},{"title":"定义函数 calculate_refund(order_id, reason)","desc":"定义函数 calculate_refund(order_id, reason)，封装可复用的计算逻辑，具体操作：返回计算结果；格式化字符串，参数 order_id、reason 分别表示对应的输入数据。","lineRange":[74,82]},{"title":"参数配置：FUNCTION_REGISTRY","desc":"JSON Schema 定义。","lineRange":[85,148]},{"title":"定义函数 execute_tool(func_name, arguments)","desc":"Pydantic 参数校验；返回错误信息，LLM 看到后可以修正。","lineRange":[156,169]},{"title":"定义函数 agent_chat(user_message, history)","desc":"第一轮：LLM 决策；如果 LLM 决定调用工具；保存 assistant 的工具调用记录；执行工具。","lineRange":[171,224]},{"title":"条件判断","desc":"判断条件 __name__==..., 根据结果选择执行路径，可能修改变量：history、user_input、reply，分支内操作：格式化输出结果；去除空白字符。","lineRange":[227,236]}]}
+
+</script>
+</div>
+
+<p>上面这份代码包含了我们在思路分析中讨论过的所有关键设计：三层脚手架（安全检查在 system prompt 中体现、LLM 决策通过 FC 完成、执行层有 Pydantic 校验）、JSON Schema 定义（含 enum 约束和 <code>additionalProperties: false</code>）、错误处理（Pydantic 校验失败时返回结构化错误给 LLM）、以及多轮对话支持（通过 history 列表维护上下文）。</p>
+
+<p>代码的核心运行流程如下：用户输入首先和对话历史一起组装成 messages 列表，连同 SYSTEM_PROMPT 和 TOOLS 定义一起发送给 deepseek-v4.1-flash API。如果 LLM 返回了 tool_calls，代码遍历每个工具调用：先用 <code>json.loads()</code> 解析参数字符串，再从 FUNCTION_REGISTRY 中取出对应的函数和 Pydantic 校验模型，校验通过后执行真实函数，执行结果以 <code>role: "tool"</code> 格式追加到 messages 中。所有工具执行完毕后，发起第二次 API 调用，让 LLM 看到工具结果并生成最终的自然语言回复。这就是我们在 2.3 节讨论的六步工作流程的代码实现。</p>
+
+<p>有几个值得注意的实现细节：</p>
+
+<ul>
+
+<li><strong>FUNCTION_REGISTRY</strong>：用字典做函数注册表，避免 if-else 链。当工具数量增加时，只需在注册表中添加一行即可。这种设计遵循了开闭原则——对扩展开放，对修改关闭。</li>
+
+<li><strong>Pydantic 校验</strong>：每个工具有独立的参数校验模型。<code>validate_order_id</code> 用正则验证订单号格式，防止 Schema Drift。如果校验失败，异常信息会被格式化为友好的提示返回给 LLM，触发自纠错循环。</li>
+
+<li><strong>两轮 API 调用</strong>：第一轮 LLM 返回 tool_calls，执行后需要第二轮调用让 LLM 看到结果并生成自然语言回复。这是 FC 多轮对话的标准模式，理解这一点对于实现任何 Agent 都至关重要。</li>
+
+<li><strong>退款不直接执行</strong>：<code>calculate_refund</code> 只计算金额并返回确认提示，真正的退款执行需要另一个函数（如 <code>execute_refund</code>）。这种"先计算再确认"的模式是处理敏感操作的最佳实践，有效防止了误操作。</li>
+
+<li><strong>对话历史管理</strong>：<code>history</code> 列表在多轮对话中持续追加，让 LLM 能够引用之前的对话内容（如"上次提到的那个订单"）。但要注意，当对话轮次过多时需要做摘要压缩或滑动窗口截断，否则会超出上下文窗口限制。</li>
+
+</ul>
+
+<hr class="divider-accent">
+
+<!-- ========== Section 4: 举一反三 ========== -->
+
+<h2 id="s4">四、举一反三</h2>
+
+<p>掌握了 Function Calling 的基本实现之后，以下变体题可以帮助你拓展能力边界。</p>
+
+<h3>变体 1：多工具并行调用</h3>
+
+<p><strong>学习目标</strong>：训练多工具协调和并行执行能力。在真实场景中，用户的一个请求往往需要同时调用多个工具——比如"查下我最近三笔订单的状态"需要连续调用三次查询。原题的代码是串行遍历 tool_calls 的，但如果三个查询互不依赖，串行执行就浪费了时间。</p>
+
+<p><strong>与原题差异</strong>：原题中每轮对话最多调用一个工具，且代码是串行执行的。本变体要求支持并行调用：当 LLM 一次返回多个 tool_calls 时（即开启 <code>parallel_tool_calls</code>），你的代码应该<strong>并行执行</strong>这些函数（使用 <code>asyncio.gather()</code> 或 <code>concurrent.futures.ThreadPoolExecutor</code>），而不是串行逐个执行。这要求你把工具函数改成 async，并处理并行执行中的异常隔离（一个函数失败不应影响其他函数的结果）。</p>
+
+<p><strong>考察核心能力</strong>：异步编程（asyncio）、并行工具执行的编排、多结果聚合、异常隔离。这个变体看似简单，但在生产环境中处理并行工具调用的错误边界是一个有挑战性的工程问题。</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">用户: 帮我查下 ORD-001、ORD-002、ORD-003 这三个订单的状态</span>
+<span class="code-line">Agent: [并行调用 get_order_status x3]</span>
+<span class="code-line">
+
+订单汇总：</span>
+<span class="code-line">
+
+ORD-001: 已发货，预计明天到达</span>
+<span class="code-line">
+
+ORD-002: 仓库处理中</span>
+<span class="code-line">
+
+ORD-003: 已签收</span></code></pre>
+</div>
+
+<h3>变体 2：动态工具加载</h3>
+
+<p><strong>学习目标</strong>：训练工具管理策略能力。当工具数量超过 15 个时，全量传递会导致准确率下降，需要实现动态加载机制。这是大型企业级 Agent 系统的核心架构问题之一——当你的客服 Agent 需要对接商品、订单、支付、物流、售后、会员等十几个子系统时，工具总数轻松超过 50 个。怎么让 LLM 在这么多工具中准确选择？这就是本变体要解决的挑战。</p>
+
+<p><strong>与原题差异</strong>：原题只有 3 个工具，全部传递即可。本变体假设你有 30 个工具（覆盖商品、订单、支付、物流、售后等多个领域），需要实现一个<strong>工具路由器</strong>：先用一轮轻量 LLM 调用判断用户意图属于哪个领域，然后只传递该领域的工具子集给主 LLM。这道题考察的不只是 FC 的使用，更是 Agent 架构设计能力——你需要设计领域分类体系、工具归属规则、以及跨领域场景的处理策略。</p>
+
+<p><strong>考察核心能力</strong>：意图分类、工具分组策略、两阶段 LLM 调用编排、token 成本优化、跨领域工具调用。这个变体的难点在于如何设计一个既准确又高效的路由器——太粗会导致一个领域内工具过多，太细又增加了路由错误的概率。</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">用户: 帮我退货</span>
+<span class="code-line">[阶段1: 工具路由器] → 判定领域: 售后 → 加载售后工具组（4个工具）</span>
+<span class="code-line">[阶段2: 主LLM] → 调用 calculate_refund(order_id="ORD-001", reason="退货")</span>
+<span class="code-line">Agent: 已为您发起退货申请...</span></code></pre>
+</div>
+
+<h3>变体 3：工具调用链的自纠错</h3>
+
+<p><strong>学习目标</strong>：训练错误恢复和自适应能力。当工具调用失败时，Agent 不应该直接报错给用户，而应该尝试自我修正。这道题模拟的是真实生产环境中最常见的场景——用户提供的信息不完整或格式不对，Agent 需要通过对话逐步引导用户提供正确信息。</p>
+
+<p><strong>与原题差异</strong>：原题中错误处理只是简单地返回错误信息给 LLM。本变体要求实现一个完整的<strong>重试与自纠错循环</strong>：当 Pydantic 校验失败或函数执行出错时，把结构化的错误信息反馈给 LLM（包括期望的参数格式和实际收到的值），让 LLM 重新选择函数或修正参数。最多重试 3 次，超过后转人工处理。你需要特别注意防止死循环——如果连续两次 LLM 都犯了同样的错误，说明这个错误超出了模型的自我修正能力，应该优雅地降级。</p>
+
+<p><strong>考察核心能力</strong>：错误分类与分级处理、LLM 自纠错循环设计、终止条件判断、优雅降级策略。这道变体题的难点不在于代码实现，而在于错误处理的策略设计——什么错误可以重试，什么错误应该直接失败，重试间隔如何设置，这些都需要你在实践中摸索。</p>
+
+<div class="code-block code-block-numbered">
+
+<div class="code-header">
+
+<span class="code-lang">text</span>
+
+<button class="copy-btn">📋 复制</button>
+
+</div>
+
+<pre data-language="text"><code><span class="code-line">用户: 查下我的订单 28号那个</span>
+<span class="code-line">Agent: [第1次调用] get_order_status(order_id="28号那个")</span>
+<span class="code-line">
+
+→ 校验失败: 订单号格式应为 ORD-YYYYMMDD-XXX</span>
+<span class="code-line">Agent: [第2次调用] get_order_status(order_id="ORD-20260628-???")</span>
+<span class="code-line">
+
+→ 校验失败: 订单号不完整</span>
+<span class="code-line">Agent: [回复用户] 抱歉，我无法确定完整的订单号。</span>
+<span class="code-line">
+
+请提供完整的订单号（格式：ORD-YYYYMMDD-XXX）</span></code></pre>
+</div>
+
+<div class="box key">
+
+<div class="box-title">要点回顾</div>
+
+<p><strong>FC 本质</strong>：把工具调用从非结构化文本输出变成结构化 API 能力，是 Agent 与外部世界交互的基础。</p>
+
+<p><strong>核心原则</strong>：LLM 是策略师不是执行者——决策与执行分离，是所有 Agent 框架的底层架构。</p>
+
+<p><strong>六步流程</strong>：定义工具 → 传递给 LLM → LLM 推理 → 返回 JSON → 执行函数 → 返回结果，形成循环。</p>
+
+<p><strong>JSON Schema</strong>：description 是影响准确率的最重要字段；善用 enum 和 additionalProperties:false 减少幻觉。</p>
+
+<p><strong>格式兼容</strong>：deepseek-v4.1-flash 和 deepseek-v4.1-flash 均兼容 OpenAI FC 格式，代码只需替换 api_key 和 base_url。</p>
+
+<p><strong>Schema Drift</strong>：LLM 返回参数的类型、格式、枚举值可能漂移，必须用 Pydantic 在函数入口做防御性校验。</p>
+
+<p><strong>Tool Hallucination</strong>：虚构函数名、不该调用时调用、过度调用——通过工具数量控制、白名单校验、prompt 优化来缓解。</p>
+
+<p><strong>工具数量</strong>：超过 15 个工具时准确率显著下降，需采用分组、动态加载、Reranking 等策略。</p>
+
+<p><strong>BFCL 评测</strong>：关注 Non-FC 维度得分，选模型时不要只看总分。</p>
+
+<p><strong>错误处理</strong>：5-15% 的工具调用会失败，必须有完整的校验→重试→fallback→审计日志链条。</p>
+
+</div>
+
+<!-- 章节导航 --></div>
+<div class="footer">
+  <p>Agent架构师试炼 · 开源资料 · GitHub</p>
+</div>
+</div>
+</body>
+</html>
